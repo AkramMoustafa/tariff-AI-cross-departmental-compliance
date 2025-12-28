@@ -8,5 +8,12 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src")
     }
+  },
+  preview: {
+    allowedHosts: [
+      "nomioc.com",
+      "www.nomioc.com",
+      "complianceai-platform-1.onrender.com"
+    ]
   }
 });
