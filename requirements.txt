@@ -36,7 +36,7 @@ etelemetry==0.3.1
 fastapi==0.123.0
 filelock==3.20.0
 firebase_admin==7.1.0
-fitz==0.0.1.dev2
+PyMuPDF==1.23.26
 flatbuffers==25.9.23
 fsspec==2025.10.0
 google-api-core==2.28.1
