@@ -417,6 +417,23 @@ export const runCompliance = async (
   return data;
 };
 
+export interface DemoRequestPayload {
+  firstName: string
+  lastName: string
+  email: string
+  jobTitle?: string
+  companyName: string
+  country: string
+  phone?: string
+  solutionInterest: string
+  consent: boolean
+}
+
+export const submitDemoRequest = async (payload: DemoRequestPayload) => {
+  const { data } = await apiClient.post("/api/demo-request", payload)
+  return data
+}
+
 export const runRagCompliance = async (
   file: File,
   regulations: string,

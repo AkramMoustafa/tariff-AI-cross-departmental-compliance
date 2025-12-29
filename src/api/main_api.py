@@ -58,6 +58,7 @@ import hashlib
 import logging
 import traceback
 import subprocess
+from src.api.models import DemoRequest
 
 import fitz 
 import io
@@ -370,6 +371,56 @@ def import_regulations(payload: dict, db: Session = Depends(get_db)):
         "success": True,
         "added": created_ids,
         "count": len(created_ids)
+    }
+
+from sqlalchemy.orm import Session
+from fastapi import Depends, HTTPException
+from src.api.db import get_db
+from pydantic import BaseModel, EmailStr
+from typing import Optional
+
+class DemoRequestCreate(BaseModel):
+    firstName: str
+    lastName: str
+    email: EmailStr
+    jobTitle: Optional[str] = None
+    companyName: str
+    country: str
+    phone: Optional[str] = None
+    solutionInterest: str
+    consent: bool
+
+
+@app.post("/api/demo-request")
+def create_demo_request(
+    payload: DemoRequestCreate,
+    db: Session = Depends(get_db)
+):
+    if not payload.consent:
+        raise HTTPException(
+            status_code=400,
+            detail="Consent is required"
+        )
+
+    demo = DemoRequest(
+        firstName=payload.firstName,
+        lastName=payload.lastName,
+        email=payload.email,
+        jobTitle=payload.jobTitle,
+        companyName=payload.companyName,
+        country=payload.country,
+        phone=payload.phone,
+        solutionInterest=payload.solutionInterest,
+        consent=payload.consent,
+    )
+
+    db.add(demo)
+    db.commit()
+    db.refresh(demo)
+
+    return {
+        "status": "success",
+        "id": demo.id
     }
 
 @app.get("/api/state/search")
