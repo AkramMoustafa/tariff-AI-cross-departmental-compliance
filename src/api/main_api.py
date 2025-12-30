@@ -1,5 +1,5 @@
 # Updated main_api.py with security improvements
-
+from src.api.email_service import send_demo_email
 from fastapi import (
     FastAPI,
     UploadFile,
@@ -400,56 +400,47 @@ def import_regulations(
         "count": len(created_ids)
     }
 
-from sqlalchemy.orm import Session
-from fastapi import Depends, HTTPException
-from src.api.db import get_db
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from typing import Optional
 
-class DemoRequestCreate(BaseModel):
-    firstName: str
-    lastName: str
-    email: EmailStr
-    jobTitle: Optional[str] = None
-    companyName: str
-    country: str
-    phone: Optional[str] = None
-    solutionInterest: str
-    consent: bool
+from pydantic import BaseModel, EmailStr
 
+class DemoRequestCreate(BaseModel):
+    company_name: str
+    full_name: str
+    email: EmailStr
+    phone: str
 
 @app.post("/api/demo-request")
 def create_demo_request(
     payload: DemoRequestCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    if not payload.consent:
-        raise HTTPException(
-            status_code=400,
-            detail="Consent is required"
-        )
+    print("🔥 Demo request received:", payload.dict())
 
     demo = DemoRequest(
-        firstName=payload.firstName,
-        lastName=payload.lastName,
+        company_name=payload.company_name,
+        full_name=payload.full_name,
         email=payload.email,
-        jobTitle=payload.jobTitle,
-        companyName=payload.companyName,
-        country=payload.country,
         phone=payload.phone,
-        solutionInterest=payload.solutionInterest,
-        consent=payload.consent,
     )
 
+    # 1️⃣ Save to DB first (source of truth)
     db.add(demo)
     db.commit()
     db.refresh(demo)
+    print("📨 About to call send_demo_email()")
 
+    try:
+        send_demo_email(demo)
+        print("✅ send_demo_email() returned normally")
+    except Exception as e:
+        print("❌ Failed to send demo email:", e)
     return {
         "status": "success",
-        "id": demo.id
+        "id": demo.id,
     }
-
+    
 @app.get("/api/state/search")
 async def api_state_search(state: str, query: str):
     try:

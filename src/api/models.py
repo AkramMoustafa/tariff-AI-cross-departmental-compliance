@@ -82,21 +82,19 @@ class AuditLog(Base):
     user_uid = Column(String, ForeignKey("users.uid"))
     timestamp = Column(DateTime, default=datetime.utcnow)
     detail = Column(String)
-
+    
 class DemoRequest(Base):
     __tablename__ = "demo_requests"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    firstName = Column(String)
-    lastName = Column(String)
-    email = Column(String)
-    jobTitle = Column(String)
-    companyName = Column(String)
-    country = Column(String)
-    phone = Column(String)
-    solutionInterest = Column(String)
-    consent = Column(Boolean)
-    submittedAt = Column(DateTime, default=datetime.utcnow)
 
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Required form fields
+    company_name = Column(String, nullable=False)
+    full_name = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    phone = Column(String, nullable=False)  # E.164
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 class FileHubFile(Base):
     __tablename__ = "filehub_files"
     id = Column(Integer, primary_key=True, autoincrement=True)

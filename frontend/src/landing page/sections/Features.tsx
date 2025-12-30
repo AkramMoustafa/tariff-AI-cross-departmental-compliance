@@ -126,45 +126,67 @@ export default function Features() {
                         </Box>
 
                         {/* Decorative Element */}
+                        {/* Decorative Element */}
                         <Box
                             sx={{
-                                position: "absolute",
-                                right: 0,
-                                bottom: 0,
-                                width: "33.333%",
-                                height: "75%",
+                                position: { xs: "relative", md: "absolute" },
+                                right: { xs: "auto", md: 0 },
+                                bottom: { xs: "auto", md: 0 },
+
+                                // On mobile it becomes a normal block under the text
+                                mt: { xs: 3, md: 0 },
+
+                                width: { xs: "100%", md: "33.333%" },
+                                height: { xs: "auto", md: "75%" },
+
                                 bgcolor: "#f8fafc",
                                 border: "1px solid #f1f5f9",
                                 borderTop: "1px solid #f1f5f9",
-                                borderLeft: "1px solid #f1f5f9",
-                                borderRadius: "16px 0 0 0",
-                                p: 4,
-                                transform: "translate(16px, 16px)",
+                                borderLeft: { xs: "1px solid #f1f5f9", md: "1px solid #f1f5f9" },
+
+                                borderRadius: { xs: "12px", md: "16px 0 0 0" },
+
+                                p: { xs: 2, md: 4 },
+
+                                // No translate on mobile (this is what causes overlap)
+                                transform: { xs: "none", md: "translate(16px, 16px)" },
                                 transition: "transform 0.3s ease",
-                                "&:hover": { transform: "translate(8px, 8px)" },
+
+                                "&:hover": {
+                                    transform: { xs: "none", md: "translate(8px, 8px)" },
+                                },
                             }}
                         >
-                            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                            <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 1.5, md: 3 } }}>
                                 {miniBars.map((item, index) => (
                                     <Box
                                         key={index}
                                         sx={{
                                             display: "flex",
                                             alignItems: "center",
-                                            gap: 3,
-                                            p: 2,
-                                            borderRadius: "4px",
+                                            gap: 2,
+                                            p: { xs: 1.25, md: 2 },
+                                            borderRadius: "6px",
                                             border: "1px solid #f1f5f9",
                                             bgcolor: "#fff",
                                             boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
                                         }}
                                     >
                                         <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: item.color }} />
-                                        <Box sx={{ height: 8, width: `${item.width}px`, borderRadius: "4px", bgcolor: "#f1f5f9" }} />
+                                        <Box
+                                            sx={{
+                                                height: 8,
+                                                width: { xs: "100%", md: `${item.width}px` },
+                                                maxWidth: { xs: 260, md: "none" },
+                                                borderRadius: "4px",
+                                                bgcolor: "#f1f5f9",
+                                            }}
+                                        />
                                     </Box>
                                 ))}
                             </Box>
                         </Box>
+
                     </MotionBox>
 
                     {/* Tall Card - Supplier Onboarding (spans 2 rows) */}

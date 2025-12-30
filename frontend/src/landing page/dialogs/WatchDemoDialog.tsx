@@ -4,7 +4,7 @@ import { Box, Button, Dialog, IconButton, TextField, Typography } from "@mui/mat
 import CloseIcon from "@mui/icons-material/Close";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import { useEffect, useState } from "react";
-
+import { submitDemoRequest } from "../../api/client";
 // libphonenumber-js is the source of truth for phone validity + length rules. 
 import {
     isValidPhoneNumber,
@@ -166,29 +166,40 @@ export default function WatchDemoDialog({ open, onClose }: Props) {
                 </Box>
 
                 {!watchUnlocked ? (
-                    <Box
-                        component="form"
-                        onSubmit={(e) => {
-                            e.preventDefault();
+                    <Box component="form"
+                   onSubmit={async (e) => {
+                        e.preventDefault();
 
-                            // ✅ Final validation on submit (must be a real valid number).
-                            // matchIsValidTel is a helper from mui-tel-input. 
-                            const ok = matchIsValidTel(watchForm.phone, { onlyCountries: [...ALLOWED_COUNTRIES] });
-                            if (!ok) {
-                                setPhoneError("Enter a valid phone number for the selected country.");
-                                return;
-                            }
+                        console.log("[FRONTEND] Calling submitDemoRequest")
 
-                            // ✅ Extra strict: real libphonenumber validity on E.164 string. 
-                            if (!isValidPhoneNumber(watchForm.phone)) {
-                                setPhoneError("Phone number is not valid.");
-                                return;
-                            }
+                        const ok = matchIsValidTel(watchForm.phone, { onlyCountries: [...ALLOWED_COUNTRIES] });
+                        if (!ok) {
+                            setPhoneError("Enter a valid phone number for the selected country.");
+                            return;
+                        }
 
-                            setPhoneError("");
+                        if (!isValidPhoneNumber(watchForm.phone)) {
+                            setPhoneError("Phone number is not valid.");
+                            return;
+                        }
+
+                        setPhoneError("");
+
+                        try {
+                            await submitDemoRequest({
+                            company_name: watchForm.companyName,
+                            full_name: watchForm.fullName,
+                            email: watchForm.email,
+                            phone: watchForm.phone,
+                            });
+
                             setWatchUnlocked(true);
+                        } catch (err) {
+                            console.error("Demo request failed:", err);
+                            alert("Something went wrong. Please try again.");
+                        }
                         }}
-                        sx={{ display: "grid", gap: 2 }}
+                                                sx={{ display: "grid", gap: 2 }}
                     >
                         <TextField
                             label="COMPANY NAME"

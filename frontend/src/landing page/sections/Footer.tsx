@@ -1,10 +1,12 @@
 // src/pages/LandingPage/sections/Footer.tsx
 import { Box, Container, IconButton, Typography } from "@mui/material";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
+import TwitterIcon from "@mui/icons-material/Twitter";
 import LoginIcon from "@mui/icons-material/Login";
 import { Link as RouterLink } from "react-router-dom";
 
-const LINKEDIN_URL = "https://www.linkedin.com/in/nomiai-compliance-b48b9b3a2";
+const LINKEDIN_URL = "https://www.linkedin.com/company/nomiai-compliance";
+const TWITTER_URL = "https://x.com/Nomi_Compliance?s=20";
 
 // TODO: replace with your real GitHub org/repo link when ready
 // const GITHUB_URL = "#";
@@ -51,6 +53,10 @@ export default function Footer() {
                         <Typography sx={{ fontSize: "0.95rem", lineHeight: 1.7, color: "#64748b", maxWidth: "32rem" }}>
                             AI-powered compliance intelligence for enterprises and complex organizations.
                         </Typography>
+
+                        <Typography sx={{ fontSize: "0.875rem", color: "#94a3b8" }}>
+                            © 2025 NomiAI LLC. All rights reserved.
+                        </Typography>
                     </Box>
 
                     {/* Social */}
@@ -69,6 +75,24 @@ export default function Footer() {
                             }}
                         >
                             <LoginIcon sx={{ fontSize: 22 }} />
+                        </IconButton>
+
+                        <IconButton
+                            aria-label="X (Twitter)"
+                            component="a"
+                            href={TWITTER_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            sx={{
+                                width: 40,
+                                height: 40,
+                                borderRadius: "12px",
+                                border: "1px solid #e2e8f0",
+                                color: "#64748b",
+                                "&:hover": { color: "#2C3E50", bgcolor: "#f8fafc", borderColor: "#cbd5e1" },
+                            }}
+                        >
+                            <TwitterIcon sx={{ fontSize: 22 }} />
                         </IconButton>
 
                         <IconButton
