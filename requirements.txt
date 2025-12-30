@@ -24,6 +24,7 @@ cloudpathlib==0.23.0
 colorama==0.4.6
 coloredlogs==15.0.1
 confection==0.1.5
+slowapi
 configobj==5.0.9
 configparser==7.2.0
 cryptography==46.0.3
