@@ -1,5 +1,5 @@
 import axios from "axios";
-
+import { getAuth } from "firebase/auth";
 const rawEnvBase = import.meta.env.VITE_API_BASE_URL;
 
 // 🔍 startup debug
@@ -23,7 +23,22 @@ const apiClient = axios.create({
   },
   withCredentials: true,
 });
+// ✅ Attach Firebase ID token to every request
+apiClient.interceptors.request.use(
+  async (config) => {
+    const auth = getAuth();
+    const user = auth.currentUser;
 
+    if (user) {
+      const token = await user.getIdToken(true);
+      config.headers = config.headers ?? new axios.AxiosHeaders();
+      config.headers.set("Authorization", `Bearer ${token}`);
+    }
+
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 apiClient.interceptors.response.use(
   (res) => res,
   (err) => {
@@ -242,42 +257,6 @@ export const deleteFileHubItem = async (fileId: string) => {
   const response = await apiClient.delete(`/api/files/${fileId}`);
   return response.data;
 };
-
-export async function loginWithFirebaseToken(user: any) {
-
-  const idToken = await user.getIdToken();
-  const { data } = await apiClient.post(
-    "/session/login",
-    {
-      idToken,
-      uid: user.uid,
-      email: user.email,
-    },
-    {
-      withCredentials: true,  
-      headers: { "Content-Type": "application/json" }, 
-    }
-  );
-  console.log("LOGIN DEBUG — FRONTEND SENDING:");
-  console.log("→ idToken (first 50 chars):", idToken.substring(0, 50) + "...");
-  console.log("→ uid:", user.uid);
-  console.log("→ email:", user.email);
-  console.log("→ BASE_URL:", BASE_URL);
-  return data;
-}
-export async function getCurrentSession() {
-  const res = await fetch(`${BASE_URL}/session/me`, {
-    method: "GET",
-    credentials: "include",
-  });
-
-  if (!res.ok) throw new Error("Not authenticated");
-  return res.json();
-}
-export async function logoutSession() {
-  const { data } = await apiClient.post('/session/logout')
-  return data
-}
 
 export async function analyzeCompany(companyName: string) {
   try {

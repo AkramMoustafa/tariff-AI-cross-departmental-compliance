@@ -353,23 +353,6 @@ async def login(
             db=db
         )
         
-        # Generate session ID (for cookie-based sessions)
-        session_id = secrets.token_urlsafe(32)
-        
-        # Set secure cookie
-        is_production = os.getenv("ENVIRONMENT") == "production"
-        response.set_cookie(
-            key="session_id",
-            value=session_id,
-            httponly=True,
-            secure=is_production,
-            samesite="Strict" if is_production else "Lax",
-            max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-            domain=".nomioc.com" if is_production else None
-        )
-        
-        logger.info(f"User login successful: {email}")
-        
         return {
             "status": "success",
             "email": email,

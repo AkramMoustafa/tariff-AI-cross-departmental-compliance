@@ -10,13 +10,7 @@ import {
   Stack,
 } from "@mui/material";
 import { Google } from "@mui/icons-material";
-import {
-  createUserWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithPopup,
-} from "firebase/auth";
 import { Link, useNavigate } from "react-router-dom";
-import { auth } from "./firebaseConfig";
 
 export default function SignUp() {
   const [email, setEmail] = useState("");
@@ -25,47 +19,38 @@ export default function SignUp() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleEmailSignUp = async () => {
-    try {
-      if (password !== confirmPassword) {
-        setError("Passwords do not match");
-        return;
-      }
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+  const handleEmailSignUp = () => {
+    setError("");
 
-      await fetch("http://127.0.0.1:8000/add_user_to_gcs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: user.email }),
-      });
-
-      alert("✅ Account created successfully!");
-      navigate("/signin");
-    } catch (err: any) {
-      setError(err.message);
+    if (!email || !password || !confirmPassword) {
+      setError("All fields are required.");
+      return;
     }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    // ✅ Static success flow
+    alert("✅ Account created (static mode).");
+    navigate("/signin");
   };
 
-  const handleGoogleSignUp = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      await fetch("http://127.0.0.1:8000/add_user_to_gcs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: result.user.email }),
-      });
-      alert("✅ Signed up with Google!");
-      navigate("/signin");
-    } catch (err: any) {
-      setError(err.message);
-    }
+  const handleGoogleSignUp = () => {
+    // ✅ Static placeholder
+    alert("✅ Google sign-up (static mode).");
+    navigate("/signin");
   };
 
   return (
     <Grid container sx={{ minHeight: "100vh" }}>
-      {/* 🖼️ Left Side – Image */}
+      {/* LEFT SIDE */}
       <Grid
         item
         xs={12}
@@ -82,21 +67,17 @@ export default function SignUp() {
           sx={{
             position: "absolute",
             inset: 0,
-            background: "linear-gradient(to bottom right, rgba(0,0,0,0.6), rgba(0,0,0,0.3))",
+            background:
+              "linear-gradient(to bottom right, rgba(0,0,0,0.6), rgba(0,0,0,0.3))",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          {/* ✅ Fixed Typography nesting */}
           <Box textAlign="center" px={4}>
             <Typography
               variant="h3"
-              sx={{
-                color: "white",
-                fontFamily: "'Montserrat', sans-serif",
-                fontWeight: 800,
-              }}
+              sx={{ color: "white", fontWeight: 800 }}
             >
               Join NomiAI
             </Typography>
@@ -107,7 +88,7 @@ export default function SignUp() {
         </Box>
       </Grid>
 
-      {/* ✉️ Right Side – Sign-up Form */}
+      {/* RIGHT SIDE */}
       <Grid
         item
         xs={12}
@@ -117,11 +98,9 @@ export default function SignUp() {
         square
         sx={{
           display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
           alignItems: "center",
+          justifyContent: "center",
           p: { xs: 4, md: 8 },
-          backgroundColor: "#ffffff",
         }}
       >
         <Box sx={{ width: "100%", maxWidth: 400 }}>
@@ -129,17 +108,18 @@ export default function SignUp() {
             variant="h4"
             fontWeight={700}
             textAlign="center"
-            sx={{ mb: 2, color: "#333", fontFamily: "'Montserrat', sans-serif" }}
+            sx={{ mb: 2 }}
           >
             Create Account
           </Typography>
+
           <Typography
             variant="body2"
             textAlign="center"
             color="text.secondary"
             sx={{ mb: 4 }}
           >
-            Get started with your secure dashboard
+            This is a temporary static signup screen
           </Typography>
 
           <Stack spacing={2}>
@@ -149,6 +129,7 @@ export default function SignUp() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
+
             <TextField
               label="Password"
               type="password"
@@ -156,6 +137,7 @@ export default function SignUp() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+
             <TextField
               label="Confirm Password"
               type="password"
@@ -175,13 +157,10 @@ export default function SignUp() {
               fullWidth
               sx={{
                 py: 1.4,
-                mt: 1,
-                background: "linear-gradient(90deg, #7F2458, #F15BB5)",
+                background:
+                  "linear-gradient(90deg, #7F2458, #F15BB5)",
                 fontWeight: 600,
                 borderRadius: "8px",
-                "&:hover": {
-                  background: "linear-gradient(90deg, #F15BB5, #7F2458)",
-                },
               }}
               onClick={handleEmailSignUp}
             >
@@ -194,28 +173,21 @@ export default function SignUp() {
               variant="outlined"
               startIcon={<Google />}
               fullWidth
-              sx={{
-                py: 1.2,
-                borderRadius: "8px",
-                textTransform: "none",
-              }}
               onClick={handleGoogleSignUp}
             >
               Sign up with Google
             </Button>
 
-            {/* ✨ Back to Sign In Link */}
             <Typography
               variant="body2"
               textAlign="center"
-              sx={{ mt: 3, color: "text.secondary" }}
+              sx={{ mt: 3 }}
             >
               Already have an account?{" "}
               <Link
                 to="/signin"
                 style={{
                   textDecoration: "none",
-                  color: "#7F2458",
                   fontWeight: 600,
                 }}
               >

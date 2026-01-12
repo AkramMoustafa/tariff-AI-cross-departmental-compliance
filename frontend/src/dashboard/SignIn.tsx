@@ -19,6 +19,7 @@ import {
 } from "firebase/auth";
 import { Link, useNavigate } from "react-router-dom";
 import { auth } from "./firebaseConfig";
+import apiClient from "../api/client";
 
 const BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
@@ -78,10 +79,9 @@ export default function SignIn() {
       localStorage.setItem("user_uid", user.uid);
       localStorage.setItem("user_email", user.email);
 
-      const response = await fetch(`${BASE_URL}/session/login`, {
+      const response = await fetch(`${BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify(payload),
       });
 
@@ -96,17 +96,17 @@ export default function SignIn() {
 
       // Check profile completeness
       try {
-        const profileRes = await fetch(
-          `${BASE_URL}/api/users/profile/${user.uid}`,
-          { credentials: "include" }
-        );
+const profileRes = await apiClient.get(
+  `/api/users/profile/${user.uid}`
+);
 
-        if (profileRes.ok) {
-          const profile = await profileRes.json();
-          if (!profile.department || profile.department.trim() === "") {
-            return navigate("/dashboard/Onboarding");
-          }
-        }
+const profile = profileRes.data;
+
+if (!profile.department || profile.department.trim() === "") {
+  return navigate("/dashboard/Onboarding");
+}
+
+
       } catch (e) {
         console.warn("Profile check failed", e);
       }
