@@ -126,7 +126,9 @@ from google.auth.exceptions import RefreshError
 import firebase_admin
 from firebase_admin import auth as firebase_auth, credentials
 from fastapi import HTTPException
+from src.api.obligations_ingest import router as obligations_router
 
+from src.api.sanctions import search_sanctions
 from google.auth.exceptions import RefreshError
 from src.core.extract_keywords import read_policy_text, extract_keywords
 from fastapi import FastAPI, Depends
@@ -198,7 +200,14 @@ app = FastAPI(lifespan=lifespan)
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-from src.api.obligations_ingest import router as obligations_router
+
+@app.get("/api/sanctions/search")
+def sanctions_search(
+    q: str | None = None,
+    entity_type: str | None = None,
+    country: str | None = None,
+):
+    return search_sanctions(q, entity_type, country)
 
 @app.get("/api/internal/sanctions/health")
 def sanctions_health_check():
