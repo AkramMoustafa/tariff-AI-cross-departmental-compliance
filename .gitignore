@@ -15,7 +15,7 @@ token.json
 client_secret.json
 files_metadata.json
 compliance-473813-77510ba23840.json
-
+sanction_list_shortened.json
 .env
 token.json
 client_secret.json

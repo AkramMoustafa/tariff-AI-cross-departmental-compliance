@@ -13,6 +13,13 @@ from fastapi import (
     APIRouter,
     Query,
 )
+from src.api.sanctions import (
+    load_sanctions,
+    get_sanctions,
+    sanctions_health,
+    start_background_refresh,
+)
+
 from cfr_data.normalize import extract_cfr_references, is_definition_section
 from src.api.models import WorkspaceRegulation
 from src.core.regulations.gov_reg.local_search import (
@@ -164,6 +171,15 @@ from fastapi.responses import StreamingResponse
 async def lifespan(app: FastAPI):
     print("[Startup] Building Federal Register cache...")
     refresh_package_cache()
+
+    print("[Startup] Loading sanctions from S3...")
+    try:
+        load_sanctions()
+        start_background_refresh(interval_hours=24)
+    except Exception as e:
+        # IMPORTANT: Do not crash startup
+        print(f"[WARN] Sanctions failed to load at startup: {e}")
+
     print("[Startup] Launching 24h refresher...")
     threading.Thread(target=cache_refresher, daemon=True).start()
 
@@ -177,12 +193,16 @@ async def lifespan(app: FastAPI):
 
     print("[Shutdown] Application shutting down...")
 
+
 app = FastAPI(lifespan=lifespan)
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 from src.api.obligations_ingest import router as obligations_router
 
+@app.get("/api/internal/sanctions/health")
+def sanctions_health_check():
+    return sanctions_health()
 # Check if Render secret file exists, else fallback to local
 if os.path.exists("/etc/secrets/.env"):
     load_dotenv("/etc/secrets/.env", override=True)
