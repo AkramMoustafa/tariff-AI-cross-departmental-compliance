@@ -54,6 +54,28 @@ export async function fetchWorkspace(user_id: string) {
   return res.data;
 }
 
+
+export interface SanctionsEntity {
+  name: string | null
+  aliases: string[]
+  entityType: string | null
+  sanctionsList?: any
+  sanctionsType?: any
+  sanctionsProgram?: any
+  countries: string[]
+}
+
+export async function searchSanctions(params: {
+  q?: string
+  entity_type?: string
+  country?: string
+}): Promise<SanctionsEntity[]> {
+  const res = await apiClient.get("/api/sanctions/search", {
+    params,
+  })
+
+  return res.data
+}
 export async function toggleRegulation(user_id: string, reg_id: string) {
   try {
     const res = await apiClient.post(`/api/workspace/${user_id}/toggle/${reg_id}`);

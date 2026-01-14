@@ -1,65 +1,50 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { searchSanctions } from "../../api/client"
 
 type SanctionEntity = {
   name: string | null
   aliases: string[]
   entityType: string | null
-  sanctionsList: string | null
-  sanctionsType: string | null
-  sanctionsProgram: string | null
+  sanctionsList?: string | null
+  sanctionsType?: string | null
+  sanctionsProgram?: string | null
   countries: string[]
 }
 
-const STATIC_SANCTIONS: SanctionEntity[] = [
-  {
-    name: "BANK MELLI IRAN",
-    aliases: ["BANK MELLI", "MELLI BANK"],
-    entityType: "Entity",
-    sanctionsList: "SDN",
-    sanctionsType: "OFAC",
-    sanctionsProgram: "IRAN",
-    countries: ["Iran"],
-  },
-  {
-    name: "IVAN IVANOV",
-    aliases: ["IVAN A. IVANOV"],
-    entityType: "Individual",
-    sanctionsList: "SDN",
-    sanctionsType: "OFAC",
-    sanctionsProgram: "RUSSIA",
-    countries: ["Russia"],
-  },
-  {
-    name: "BLACK SEA SHIPPING CO",
-    aliases: [],
-    entityType: "Entity",
-    sanctionsList: "SDN",
-    sanctionsType: "OFAC",
-    sanctionsProgram: "UKRAINE",
-    countries: ["Ukraine"],
-  },
-]
-
-export default function SanctionsSearchStatic() {
+export default function SanctionsSearch() {
   const [q, setQ] = useState("")
   const [entityType, setEntityType] = useState("")
   const [country, setCountry] = useState("")
 
-  const filtered = STATIC_SANCTIONS.filter((e) => {
-    if (q) {
-      const term = q.toLowerCase()
-      const nameMatch = e.name?.toLowerCase().includes(term)
-      const aliasMatch = e.aliases.some((a) =>
-        a.toLowerCase().includes(term)
-      )
-      if (!nameMatch && !aliasMatch) return false
+  const [results, setResults] = useState<SanctionEntity[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const runSearch = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        const data = await searchSanctions({
+          q: q || undefined,
+          entity_type: entityType || undefined,
+          country: country || undefined,
+        })
+
+        setResults(data)
+      } catch (err) {
+        console.error("Sanctions search failed:", err)
+        setError("Failed to load sanctions data")
+      } finally {
+        setLoading(false)
+      }
     }
 
-    if (entityType && e.entityType !== entityType) return false
-    if (country && !e.countries.includes(country)) return false
-
-    return true
-  })
+    // debounce to avoid hammering backend
+    const t = setTimeout(runSearch, 300)
+    return () => clearTimeout(t)
+  }, [q, entityType, country])
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -70,7 +55,7 @@ export default function SanctionsSearchStatic() {
             Sanctions Search
           </h1>
           <p className="text-gray-600">
-        This is only a static preview 
+            Live sanctions data powered by backend search
           </p>
         </div>
 
@@ -109,13 +94,25 @@ export default function SanctionsSearchStatic() {
 
         {/* Results */}
         <div className="space-y-4">
-          {filtered.length === 0 && (
+          {loading && (
+            <div className="text-center text-gray-500">
+              Loading sanctions…
+            </div>
+          )}
+
+          {error && (
+            <div className="text-center text-red-500">
+              {error}
+            </div>
+          )}
+
+          {!loading && !error && results.length === 0 && (
             <div className="text-center text-gray-500">
               No results found
             </div>
           )}
 
-          {filtered.map((e, idx) => (
+          {results.map((e, idx) => (
             <div
               key={idx}
               className="rounded-2xl bg-white p-6 shadow-sm transition hover:shadow-md"

@@ -372,11 +372,8 @@ async def login(
             detail="Invalid Firebase token"
         )
     except Exception as e:
-        logger.error(f"Login error: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Login failed"
-        )
+        logger.exception("🔥 LOGIN FAILED (FULL TRACE)")
+        raise
 
 @router.post("/logout")
 async def logout(

@@ -292,8 +292,6 @@ async def validation_exception_handler(request: Request, exc: ValueError):
         }
     )
 
-
-
 @app.options("/{rest_of_path:path}")
 async def cors_preflight_handler(rest_of_path: str):
     return PlainTextResponse("", status_code=200)
