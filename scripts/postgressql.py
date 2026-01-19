@@ -230,6 +230,28 @@ def run():
     );
     """)
 
+    cursor.execute("DROP TABLE IF EXISTS auth_tokens CASCADE;")
+
+    cursor.execute("""
+    CREATE TABLE auth_tokens (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        token TEXT UNIQUE NOT NULL,
+        user_uid UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        expires_at TIMESTAMPTZ NOT NULL,
+        revoked BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    """)
+
+    cursor.execute("""
+    CREATE INDEX idx_auth_tokens_token
+        ON auth_tokens(token);
+    """)
+
+    cursor.execute("""
+    CREATE INDEX idx_auth_tokens_user_uid
+        ON auth_tokens(user_uid);
+    """)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS tariff_rates (
         id BIGSERIAL PRIMARY KEY,

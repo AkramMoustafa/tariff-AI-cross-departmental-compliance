@@ -174,6 +174,15 @@ from fastapi.responses import StreamingResponse
 from src.api.auth_backend import router as auth_router
 
 
+from src.api.cli.team_routes.control_owner_route import router as control_owner_router
+from src.api.cli.team_routes.auditor_route import router as auditor_router
+from src.api.cli.team_routes.department_owner_route import router as department_owner_router
+from src.api.cli.team_routes.executive_route import router as executive_router
+from src.api.cli.team_routes.tenant_admin_route import router as compliance_owner_router
+
+
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("[Startup] Building Federal Register cache...")
@@ -206,6 +215,11 @@ app.include_router(auth_router)
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.include_router(control_owner_router)
+app.include_router(auditor_router)
+app.include_router(department_owner_router)
+app.include_router(executive_router)
+app.include_router(compliance_owner_router)
 
 @app.get("/api/sanctions/search")
 def sanctions_search(

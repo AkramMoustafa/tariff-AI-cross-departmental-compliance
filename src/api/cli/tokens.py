@@ -2,12 +2,16 @@
 
 import secrets
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, Dict, Any
+
+from fastapi import Request, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from sqlalchemy import text
 
 from src.api.db import get_db
 from src.api.models import User
-from sqlalchemy.orm import Session
-from sqlalchemy import text
+from src.api.cli.authorization import Role
+
 
 TOKEN_EXPIRY_HOURS = 24  # API session lifetime
 
@@ -37,6 +41,7 @@ def create_access_token(
 
     return token
 
+
 def get_user_by_token(token: str, db: Session) -> Optional[User]:
     """
     Validate bearer token and return associated User.
@@ -57,6 +62,7 @@ def get_user_by_token(token: str, db: Session) -> Optional[User]:
         return None
 
     return db.query(User).filter(User.uid == row.uid).first()
+
 
 def revoke_token(token: str, db: Session) -> None:
     """
@@ -86,3 +92,38 @@ def revoke_all_tokens_for_user(user_uid: str, db: Session) -> None:
         {"user_uid": user_uid},
     )
     db.commit()
+
+def get_session(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """
+    Resolve the current request into a session dict using a Bearer token.
+    """
+
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid Authorization header",
+        )
+
+    token = auth_header.replace("Bearer ", "", 1).strip()
+    user = get_user_by_token(token, db)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token",
+        )
+
+    return {
+        "user_id": user.id,
+        "user_uid": user.uid,
+        "email": user.email,
+        "tenant_id": user.tenant_id,
+        "tenant_name": user.tenant.name if user.tenant else None,
+        "roles": [role.name for role in user.roles],
+        "active_role": Role[user.roles[0].name] if user.roles else None,
+    }

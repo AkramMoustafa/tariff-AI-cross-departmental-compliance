@@ -18,3 +18,15 @@ def send_auth_token_email(to_email: str, token: str):
             },
         },
     )
+
+def send_generic_email(to_email: str, subject: str, body: str):
+    ses.send_email(
+        Source=SENDER_EMAIL,
+        Destination={"ToAddresses": [to_email]},
+        Message={
+            "Subject": {"Data": subject, "Charset": "UTF-8"},
+            "Body": {
+                "Text": {"Data": body, "Charset": "UTF-8"}
+            },
+        },
+    )
