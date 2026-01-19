@@ -13,6 +13,8 @@ from fastapi import (
     APIRouter,
     Query,
 )
+from src.api.db import get_db, engine, SessionLocal
+
 from src.api.sanctions import (
     load_sanctions,
     get_sanctions,
@@ -38,7 +40,8 @@ from src.api.models import WorkspaceRegulation
 from src.core.regulations.state_regulations.state_engine  import normalize_regulation
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
+from typing import Optional
 from src.core.store_file_data import save_extraction
 from src.core.regulations.state_regulations.state_engine import search_state_regulations,normalize_regulation
 from src.api.models import FileExtraction
@@ -92,7 +95,6 @@ from src.api.models import (
     Base,
 )
 from PyPDF2 import PdfReader
-from src.api.db import get_db, engine, SessionLocal
 
 from src.core.LLM import (
     generate_market_insight,
@@ -169,6 +171,9 @@ from src.api.validators import (
 from src.api.models import Regulation
 from fastapi.responses import StreamingResponse
 
+from src.api.auth_backend import router as auth_router
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("[Startup] Building Federal Register cache...")
@@ -197,6 +202,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(auth_router)
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
@@ -328,9 +334,6 @@ if not firebase_admin._apps:
     print("\n🔥 BACKEND FIREBASE PROJECT:", cred.project_id)
     print("📄 Using Firebase key file:", firebase_key_path)
 
-# SECURITY IMPROVEMENT: Remove in-memory sessions (now handled by auth_backend.py)
-# SESSIONS = {}  # REMOVED
-
 # Folder where files will be stored
 FILEHUB_DIR = os.path.abspath("filehub_storage")
 os.makedirs(FILEHUB_DIR, exist_ok=True)
@@ -427,10 +430,35 @@ def import_regulations(
         "count": len(created_ids)
     }
 
-from pydantic import BaseModel
-from typing import Optional
+from fastapi import Query
+from src.api.sanctions import get_sanctions_entities, search_sanctions
 
-from pydantic import BaseModel, EmailStr
+@app.get("/api/sanctions")
+def list_sanctions(
+    q: str | None = None,
+    entity_type: str | None = None,
+    country: str | None = None,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+):
+    # If filters are provided, reuse search logic
+    if q or entity_type or country:
+        results = search_sanctions(
+            q=q,
+            entity_type=entity_type,
+            country=country,
+        )
+    else:
+        results = get_sanctions_entities()
+
+    total = len(results)
+
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "results": results[offset : offset + limit],
+    }
 
 class DemoRequestCreate(BaseModel):
     company_name: str
@@ -1215,7 +1243,6 @@ class UserAccessRequest(BaseModel):
 
 # Local imports for DB
 from src.api.models import ObligationInstance, RemediationTask, EvidenceArtifact, AuditLog, TaskState, Base
-from src.api.db import get_db, engine, SessionLocal
 
 
 # Constants

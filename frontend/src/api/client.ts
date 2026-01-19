@@ -65,6 +65,32 @@ export interface SanctionsEntity {
   countries: string[]
 }
 
+export interface SanctionsListResponse {
+  total: number
+  offset: number
+  limit: number
+  results: SanctionsEntity[]
+}
+
+export async function checkSanctionsHealth() {
+  const res = await apiClient.get("/api/internal/sanctions/health")
+  return res.data
+}
+
+export async function getSanctions(params?: {
+  q?: string
+  entity_type?: string
+  country?: string
+  offset?: number
+  limit?: number
+}): Promise<SanctionsListResponse> {
+  const res = await apiClient.get("/api/sanctions", {
+    params,
+  })
+
+  return res.data
+}
+
 export async function searchSanctions(params: {
   q?: string
   entity_type?: string

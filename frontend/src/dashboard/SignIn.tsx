@@ -6,20 +6,10 @@ import {
   Typography,
   TextField,
   Button,
-  Divider,
   Stack,
   Alert,
-  IconButton,
-  InputAdornment,
 } from "@mui/material";
-import { Google, Visibility, VisibilityOff } from "@mui/icons-material";
-import {
-  signInWithEmailAndPassword,
-  sendPasswordResetEmail,
-} from "firebase/auth";
-import { Link, useNavigate } from "react-router-dom";
-import { auth } from "./firebaseConfig";
-import apiClient from "../api/client";
+import { useNavigate, Link } from "react-router-dom";
 
 const BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
@@ -28,103 +18,57 @@ const BASE_URL =
     : "https://api.nomioc.com");
 
 export default function SignIn() {
-  // console.log("🔥 FRONTEND FIREBASE PROJECT:", auth.app.options.projectId);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [step, setStep] = useState<"credentials" | "otp">("credentials");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
 
-  const togglePasswordVisibility = () => setShowPassword((prev) => !prev);
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError("Please enter your email first.");
-      return;
-    }
-
-    try {
-      await sendPasswordResetEmail(auth, email);
-      setSuccess("Password reset email sent! Check your inbox.");
-      setError("");
-    } catch (err: any) {
-      let message = "Failed to send reset email.";
-      if (err.code === "auth/invalid-email") message = "Invalid email format.";
-      if (err.code === "auth/user-not-found")
-        message = "No account found with this email.";
-      setError(message);
-      setSuccess("");
-    }
-  };
-
-  const handleEmailSignIn = async () => {
+  const handleLogin = async () => {
     setLoading(true);
     setError("");
     setSuccess("");
 
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      const user = userCredential.user;
-      if (!user?.email) throw new Error("No user returned.");
-
-      const idToken = await user.getIdToken(true);
-      const payload = { idToken, uid: user.uid, email: user.email };
-
-      localStorage.setItem("user_uid", user.uid);
-      localStorage.setItem("user_email", user.email);
-
       const response = await fetch(`${BASE_URL}/api/auth/login`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          otp: step === "otp" ? otp : null,
+        }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        if (response.status === 401) throw new Error("Invalid email or password.");
-        if (response.status === 500) throw new Error("Server error — try again later.");
-        throw new Error("Unexpected error occurred.");
+        throw new Error(data.detail || "Login failed");
       }
 
-      // Successful login
-      setSuccess("Signed in successfully!");
-
-      // Check profile completeness
-      try {
-const profileRes = await apiClient.get(
-  `/api/users/profile/${user.uid}`
-);
-
-const profile = profileRes.data;
-
-if (!profile.department || profile.department.trim() === "") {
-  return navigate("/dashboard/Onboarding");
-}
-
-
-      } catch (e) {
-        console.warn("Profile check failed", e);
+      // Step 1: OTP sent
+      if (data.status === "otp_sent") {
+        setStep("otp");
+        setSuccess("Verification code sent to your email.");
+        return;
       }
-      
-      console.log("FRONTEND FIREBASE PROJECT:", auth.app.options.projectId);
-      
-      return navigate("/dashboard/results");
+
+      // Step 2: Logged in
+      if (data.access_token) {
+        localStorage.setItem("access_token", data.access_token);
+        localStorage.setItem("token_type", data.token_type);
+
+        setSuccess("Login successful");
+        navigate("/dashboard/results");
+      }
     } catch (err: any) {
-      let message = "Something went wrong. Please try again.";
-      if (err.code === "auth/invalid-email") message = "Invalid email.";
-      if (err.code === "auth/user-not-found") message = "User not found.";
-      if (err.code === "auth/wrong-password") message = "Incorrect password.";
-      if (err.code === "auth/invalid-credential") message = "Invalid login.";
-      if (err.message?.includes("failed to fetch"))
-        message = "Cannot reach server. Try again later.";
-
-      setError(message);
-      setSuccess("");
+      setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -132,8 +76,7 @@ if (!profile.department || profile.department.trim() === "") {
 
   return (
     <Grid container sx={{ minHeight: "100vh", backgroundColor: "#f8fafc" }}>
-      
-      {/* LEFT SIDE — Brand panel with gradient */}
+      {/* LEFT PANEL */}
       <Grid
         item
         xs={12}
@@ -146,178 +89,103 @@ if (!profile.department || profile.department.trim() === "") {
           p: 6,
         }}
       >
-        <Box textAlign="left" maxWidth={420}>
-          <Typography
-            variant="overline"
-            sx={{ color: "#94a3b8", letterSpacing: 2 }}
-          >
+        <Box maxWidth={420}>
+          <Typography variant="overline" sx={{ color: "#94a3b8" }}>
             NOMIAI PLATFORM
           </Typography>
-
-          <Typography
-            variant="h3"
-            sx={{
-              color: "white",
-              fontWeight: 800,
-              lineHeight: 1.2,
-              mb: 2,
-            }}
-          >
+          <Typography variant="h3" sx={{ color: "white", fontWeight: 800 }}>
             Compliance made simple.
           </Typography>
-
-          <Typography
-            variant="h6"
-            sx={{
-              color: "#cbd5e1",
-              fontWeight: 400,
-              maxWidth: 380,
-            }}
-          >
-            Sign in to access your workspace, manage audits, and streamline compliance.
+          <Typography sx={{ color: "#cbd5e1", mt: 2 }}>
+            Secure access to your compliance workspace.
           </Typography>
         </Box>
       </Grid>
 
-      {/* RIGHT SIDE — Form */}
+      {/* RIGHT PANEL */}
       <Grid
         item
         xs={12}
         md={6}
         component={Paper}
-        elevation={0}
         square
         sx={{
-          backgroundColor: "#ffffff",
           display: "flex",
-          justifyContent: "center",
           alignItems: "center",
+          justifyContent: "center",
           p: 6,
         }}
       >
         <Box sx={{ width: "100%", maxWidth: 420 }}>
-          <Typography
-            variant="h4"
-            fontWeight={800}
-            sx={{ mb: 1, color: "#0f172a" }}
-          >
-            Welcome back
+          <Typography variant="h4" fontWeight={800} mb={1}>
+            Sign in
           </Typography>
 
-          <Typography variant="body2" sx={{ mb: 4, color: "#64748b" }}>
-            Sign in to continue to your dashboard
+          <Typography color="text.secondary" mb={4}>
+            {step === "credentials"
+              ? "Enter your email and password"
+              : "Enter the verification code sent to your email"}
           </Typography>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleEmailSignIn();
-            }}
-          >
-            <Stack spacing={2}>
-              <TextField
-                label="Email"
-                fullWidth
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-              />
+          <Stack spacing={2}>
+            <TextField
+              label="Email"
+              value={email}
+              fullWidth
+              disabled={step === "otp"}
+              onChange={(e) => setEmail(e.target.value)}
+            />
 
+            {step === "credentials" && (
               <TextField
                 label="Password"
-                type={showPassword ? "text" : "password"}
-                fullWidth
+                type="password"
                 value={password}
+                fullWidth
                 onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton onClick={togglePasswordVisibility} edge="end">
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
               />
+            )}
 
-              <Typography
-                variant="body2"
-                sx={{
-                  textAlign: "right",
-                  color: "#0f172a",
-                  cursor: "pointer",
-                  fontWeight: 600,
-                  "&:hover": { textDecoration: "underline" },
-                }}
-                onClick={handleForgotPassword}
-              >
-                Forgot your password?
-              </Typography>
-
-              {success && <Alert severity="success">{success}</Alert>}
-              {error && <Alert severity="error">{error}</Alert>}
-
-              {/* SIGN IN BUTTON */}
-              <Button
-                type="submit"
+            {step === "otp" && (
+              <TextField
+                label="Verification Code"
+                value={otp}
                 fullWidth
-                disabled={loading}
-                sx={{
-                  py: 1.4,
-                  mt: 1,
-                  backgroundColor: "#0f172a",
-                  fontWeight: 700,
-                  color: "white",
-                  borderRadius: "10px",
-                  "&:hover": {
-                    backgroundColor: "#020617",
-                  },
-                }}
-              >
-                {loading ? "Signing In..." : "Sign In"}
-              </Button>
+                onChange={(e) => setOtp(e.target.value)}
+              />
+            )}
 
-              <Divider sx={{ my: 3 }}>or</Divider>
+            {error && <Alert severity="error">{error}</Alert>}
+            {success && <Alert severity="success">{success}</Alert>}
 
-              <Button
-                variant="outlined"
-                startIcon={<Google />}
-                fullWidth
-                sx={{
-                  py: 1.2,
-                  borderRadius: "10px",
-                  textTransform: "none",
-                  borderColor: "#cbd5e1",
-                  color: "#0f172a",
-                  "&:hover": {
-                    borderColor: "#0f172a",
-                    backgroundColor: "#f8fafc",
-                  },
-                }}
-              >
-                Sign in with Google
-              </Button>
+            <Button
+              fullWidth
+              disabled={loading}
+              onClick={handleLogin}
+              sx={{
+                py: 1.4,
+                fontWeight: 700,
+                backgroundColor: "#0f172a",
+                color: "white",
+                "&:hover": { backgroundColor: "#020617" },
+              }}
+            >
+              {loading
+                ? "Please wait..."
+                : step === "credentials"
+                ? "Continue"
+                : "Verify & Sign In"}
+            </Button>
 
-              <Typography
-                variant="body2"
-                textAlign="center"
-                sx={{ mt: 3, color: "#64748b" }}
-              >
+            {step === "credentials" && (
+              <Typography textAlign="center" mt={2}>
                 Don’t have an account?{" "}
-                <Link
-                  to="/signup"
-                  style={{
-                    textDecoration: "none",
-                    color: "#0f172a",
-                    fontWeight: 600,
-                  }}
-                >
+                <Link to="/signup" style={{ fontWeight: 600 }}>
                   Sign up
                 </Link>
               </Typography>
-            </Stack>
-          </form>
+            )}
+          </Stack>
         </Box>
       </Grid>
     </Grid>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { searchSanctions } from "../../api/client"
-
+import getSanctions from "../../api/client"
 type SanctionEntity = {
   name: string | null
   aliases: string[]

@@ -3,25 +3,26 @@ from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
 from src.api.db import Base
+import uuid
+from sqlalchemy.dialects.postgresql import UUID
 
 class User(Base):
     __tablename__ = "users"
-    uid = Column(String, primary_key=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(UUID(as_uuid=True), nullable=False)
     email = Column(String, unique=True, index=True)
     full_name = Column(String, nullable=True)
-    display_name = Column(String, nullable=True)
-    job_title = Column(String, nullable=True)
-    department = Column(String, nullable=True)
-    company_name = Column(String, nullable=True)
-    industry = Column(String, nullable=True)
-    photo_url = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class FileExtraction(Base):
     __tablename__ = "file_extractions"
-    id = Column(Integer, primary_key=True, index=True)
+
+    id = Column(Integer, primary_key=True)
     file_id = Column(String, index=True)
-    user_uid = Column(String, index=True)
+
+    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+
     extraction = Column(JSON)
     file_name = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -38,7 +39,7 @@ class TaskState(str, enum.Enum):
 class ObligationInstance(Base):
     __tablename__ = "obligations"
     id = Column(Integer, primary_key=True)
-    user_uid = Column(String, ForeignKey("users.uid"))
+    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     description = Column(String)
     regulation = Column(String)
     due_date = Column(DateTime)
@@ -48,7 +49,7 @@ class RemediationTask(Base):
     __tablename__ = "remediation_tasks"
     id = Column(Integer, primary_key=True)
     obligation_id = Column(Integer, ForeignKey("obligations.id"))
-    user_uid = Column(String, ForeignKey("users.uid"))
+    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     supplier_id = Column(Integer, ForeignKey("suppliers.id"))
     assigned_to = Column(String)
     sla_due = Column(DateTime)
@@ -62,7 +63,7 @@ class RemediationTask(Base):
 class EvidenceArtifact(Base):
     __tablename__ = "evidence_artifacts"
     id = Column(Integer, primary_key=True)
-    user_uid = Column(String, ForeignKey("users.uid"))
+    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     task_id = Column(Integer, ForeignKey("remediation_tasks.id"))
     chromadb_id = Column(String)
     valid = Column(Boolean, default=False)
@@ -79,10 +80,10 @@ class AuditLog(Base):
     entity_id = Column(Integer)
     action = Column(String)
     user = Column(String)
-    user_uid = Column(String, ForeignKey("users.uid"))
+    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     timestamp = Column(DateTime, default=datetime.utcnow)
     detail = Column(String)
-    
+
 class DemoRequest(Base):
     __tablename__ = "demo_requests"
 
@@ -95,10 +96,11 @@ class DemoRequest(Base):
     phone = Column(String, nullable=False)  # E.164
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
 class FileHubFile(Base):
     __tablename__ = "filehub_files"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_uid = Column(String, ForeignKey("users.uid"), nullable=False, index=True)
+    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     file_id = Column(String, unique=True, index=True)
     original_name = Column(String)
     stored_name = Column(String)
@@ -112,7 +114,7 @@ class WorkspaceRegulation(Base):
     __tablename__ = "workspace_regulations"
     id = Column(Integer, primary_key=True, autoincrement=True)
     regulation_id = Column(String, index=True)
-    user_uid = Column(String, ForeignKey("users.uid"), index=True)
+    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
     workspace_status = Column(String, default="added")
     created_at = Column(DateTime, default=datetime.utcnow)
     name = Column(String, nullable=True)
@@ -157,7 +159,7 @@ class Supplier(Base):
     industry = Column(String)
     region = Column(String)
     country = Column(String, index=True)
-    user_uid = Column(String, ForeignKey("users.uid"))
+    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     
     is_verified = Column(Boolean, default=False)
     status = Column(SQLEnum(SupplierStatus), default=SupplierStatus.ACTIVE)
@@ -275,7 +277,7 @@ class SupplierOrder(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
-    user_uid = Column(String, ForeignKey("users.uid"), index=True)
+    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
     
     # Order identification
     order_number = Column(String, unique=True, index=True)
@@ -316,7 +318,7 @@ class QualityIncident(Base):
     id = Column(Integer, primary_key=True, index=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
     order_id = Column(Integer, ForeignKey("supplier_orders.id"), nullable=True)
-    user_uid = Column(String, ForeignKey("users.uid"), index=True)
+    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
     
     
     incident_type = Column(SQLEnum(QualityIncidentType))
@@ -346,8 +348,8 @@ class InventoryEvent(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
-    user_uid = Column(String, ForeignKey("users.uid"), index=True)
     
+    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
    
     event_type = Column(String)  # "STOCKOUT", "DELAYED_SHIPMENT", "PRODUCTION_HALT", etc.
     item_description = Column(String)
