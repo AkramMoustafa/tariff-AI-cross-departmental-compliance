@@ -45,7 +45,32 @@ def set_framework_status(
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e))
 
+@router.get("/dashboard")
+def get_compliance_dashboard(
+    session: Dict[str, Any] = Depends(get_session),
+):
+    return ComplianceOwnerService.get_dashboard_summary(
+        session["tenant_id"]
+    )
 
+
+@router.get("/executive-compliance/snapshot")
+def get_executive_compliance_snapshot(
+    session: Dict[str, Any] = Depends(get_session),
+):
+    try:
+        return ComplianceOwnerService.get_executive_compliance_snapshot(session)
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+@router.post("/executive-compliance/send")
+def send_executive_compliance_report(
+    session: Dict[str, Any] = Depends(get_session),
+):
+    try:
+        return ComplianceOwnerService.send_executive_compliance_report(session)
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+        
 @router.post("/frameworks/custom")
 def create_custom_framework(
     payload: Dict[str, Any],

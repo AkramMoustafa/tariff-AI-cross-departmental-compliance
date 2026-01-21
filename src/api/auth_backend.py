@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-
+from uuid import UUID
 from src.api.db import get_db, SessionLocal
 from src.api.models import User
 from src.api.cli.admin_cli import get_conn
@@ -19,15 +19,36 @@ from src.api.cli.tokens import (
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 security = HTTPBearer(auto_error=False)
 
+def fetch_user_roles(user_id: UUID) -> list[str]:
+    with get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT r.name
+                FROM user_roles ur
+                JOIN roles r ON r.id = ur.role_id
+                WHERE ur.user_id = %s
+                """,
+                (user_id,),
+            )
+            return [row[0] for row in cur.fetchall()]
+
 class LoginRequest(BaseModel):
     email: str
     password: str
     otp: str | None = None
 
+from fastapi import Request
+
 def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
-) -> User:
+) -> User | None:
+    # ✅ Allow CORS preflight
+    if request.method == "OPTIONS":
+        return None
+
     if credentials is None:
         raise HTTPException(status_code=401, detail="Missing Authorization header")
 
@@ -53,25 +74,20 @@ def login_api(payload: LoginRequest, db: Session = Depends(get_db)):
                 "SELECT password_hash FROM users WHERE id = %s",
                 (user_id,),
             )
-            if not verify_password(payload.password, cur.fetchone()[0]):
+            row = cur.fetchone()
+            if not row or not verify_password(payload.password, row[0]):
                 raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    # OTP step
-    if not payload.otp:
-        token = generate_token(email)
-        send_auth_token_email(email, token)
-        return {"status": "otp_sent"}
-
-    if not verify_token(email, payload.otp):
-        raise HTTPException(status_code=401, detail="Invalid or expired OTP")
-
-    access_token = create_access_token(user_uid=str(user_id), db=db)
+    access_token = create_access_token(
+        user_uid=str(user_id),
+        db=db,
+    )
 
     return {
         "access_token": access_token,
         "token_type": "bearer",
     }
-
+    
 @router.post("/logout")
 def logout(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -82,7 +98,6 @@ def logout(
 
     revoke_token(credentials.credentials, db)
     return {"status": "logged_out"}
-
 
 def fetch_user_tenants(email):
     with get_conn() as conn:
@@ -153,6 +168,34 @@ def login_user():
         "email": email,
         "roles": roles,
         "access_token": access_token,  
+    }
+
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+from fastapi import Depends
+
+@router.get("/me")
+def get_me(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    tenant = db.execute(
+        text("SELECT name FROM tenants WHERE id = :id"),
+        {"id": user.tenant_id},
+    ).fetchone()
+
+    if not tenant:
+        raise HTTPException(status_code=500, detail="Tenant not found")
+
+    roles = fetch_user_roles(user.id)
+
+    return {
+        "user_id": user.id,
+        "email": user.email,
+        "tenant_id": user.tenant_id,
+        "tenant_name": tenant.name,
+        "roles": roles,
+        "active_role": roles[0],
     }
 
 def main():

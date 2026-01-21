@@ -15,10 +15,11 @@ from src.api.cli.authorization import Role
 
 TOKEN_EXPIRY_HOURS = 24  # API session lifetime
 
+
 def create_access_token(
     user_uid: str,
     db: Session,
-    expires_in_hours: int = TOKEN_EXPIRY_HOURS
+    expires_in_hours: int = TOKEN_EXPIRY_HOURS,
 ) -> str:
     """
     Create and persist a bearer token for API authentication.
@@ -50,7 +51,7 @@ def get_user_by_token(token: str, db: Session) -> Optional[User]:
         text("""
             SELECT u.*
             FROM auth_tokens t
-            JOIN users u ON u.uid = t.user_uid
+            JOIN users u ON u.id = t.user_uid
             WHERE t.token = :token
               AND t.revoked = FALSE
               AND t.expires_at > NOW()
@@ -61,7 +62,7 @@ def get_user_by_token(token: str, db: Session) -> Optional[User]:
     if not row:
         return None
 
-    return db.query(User).filter(User.uid == row.uid).first()
+    return db.query(User).filter(User.id == row.id).first()
 
 
 def revoke_token(token: str, db: Session) -> None:
@@ -93,12 +94,13 @@ def revoke_all_tokens_for_user(user_uid: str, db: Session) -> None:
     )
     db.commit()
 
+
 def get_session(
     request: Request,
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """
-    Resolve the current request into a session dict using a Bearer token.
+    Resolve the current HTTP request into a session dict using a Bearer token.
     """
 
     auth_header = request.headers.get("Authorization")
@@ -109,21 +111,57 @@ def get_session(
             detail="Missing or invalid Authorization header",
         )
 
-    token = auth_header.replace("Bearer ", "", 1).strip()
-    user = get_user_by_token(token, db)
+    token = auth_header.split(" ", 1)[1].strip()
 
-    if not user:
+    row = db.execute(
+        text("""
+            SELECT
+                u.id,
+                u.email,
+                u.tenant_id,
+                u.is_active
+            FROM auth_tokens t
+            JOIN users u ON u.id = t.user_uid
+            WHERE t.token = :token
+            AND t.revoked = FALSE
+            AND t.expires_at > NOW()
+        """),
+        {"token": token},
+    ).fetchone()
+    if not row:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
         )
 
+    if not row.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is inactive",
+        )
+
+    roles = db.execute(
+        text("""
+            SELECT r.name
+            FROM user_roles ur
+            JOIN roles r ON r.id = ur.role_id
+            WHERE ur.user_id = :user_id
+        """),
+        {"user_id": row.id},
+    ).fetchall()
+
+    role_names = [r[0] for r in roles]
+
+    if not role_names:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User has no assigned roles",
+        )
+
     return {
-        "user_id": user.id,
-        "user_uid": user.uid,
-        "email": user.email,
-        "tenant_id": user.tenant_id,
-        "tenant_name": user.tenant.name if user.tenant else None,
-        "roles": [role.name for role in user.roles],
-        "active_role": Role[user.roles[0].name] if user.roles else None,
+        "user_id": row.id,
+        "email": row.email,
+        "tenant_id": row.tenant_id,
+        "roles": role_names,
+        "active_role": Role[role_names[0]],
     }

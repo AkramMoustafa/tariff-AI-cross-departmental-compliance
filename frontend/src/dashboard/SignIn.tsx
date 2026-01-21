@@ -20,8 +20,6 @@ const BASE_URL =
 export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [otp, setOtp] = useState("");
-  const [step, setStep] = useState<"credentials" | "otp">("credentials");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -42,7 +40,6 @@ export default function SignIn() {
         body: JSON.stringify({
           email,
           password,
-          otp: step === "otp" ? otp : null,
         }),
       });
 
@@ -52,21 +49,15 @@ export default function SignIn() {
         throw new Error(data.detail || "Login failed");
       }
 
-      // Step 1: OTP sent
-      if (data.status === "otp_sent") {
-        setStep("otp");
-        setSuccess("Verification code sent to your email.");
-        return;
+      if (!data.access_token) {
+        throw new Error("Invalid login response");
       }
 
-      // Step 2: Logged in
-      if (data.access_token) {
-        localStorage.setItem("access_token", data.access_token);
-        localStorage.setItem("token_type", data.token_type);
+      localStorage.setItem("access_token", data.access_token);
+      localStorage.setItem("token_type", data.token_type || "bearer");
 
-        setSuccess("Login successful");
-        navigate("/dashboard/results");
-      }
+      setSuccess("Login successful");
+      navigate("/redirect", { replace: true });
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {
@@ -122,9 +113,7 @@ export default function SignIn() {
           </Typography>
 
           <Typography color="text.secondary" mb={4}>
-            {step === "credentials"
-              ? "Enter your email and password"
-              : "Enter the verification code sent to your email"}
+            Enter your email and password
           </Typography>
 
           <Stack spacing={2}>
@@ -132,28 +121,16 @@ export default function SignIn() {
               label="Email"
               value={email}
               fullWidth
-              disabled={step === "otp"}
               onChange={(e) => setEmail(e.target.value)}
             />
 
-            {step === "credentials" && (
-              <TextField
-                label="Password"
-                type="password"
-                value={password}
-                fullWidth
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            )}
-
-            {step === "otp" && (
-              <TextField
-                label="Verification Code"
-                value={otp}
-                fullWidth
-                onChange={(e) => setOtp(e.target.value)}
-              />
-            )}
+            <TextField
+              label="Password"
+              type="password"
+              value={password}
+              fullWidth
+              onChange={(e) => setPassword(e.target.value)}
+            />
 
             {error && <Alert severity="error">{error}</Alert>}
             {success && <Alert severity="success">{success}</Alert>}
@@ -170,21 +147,15 @@ export default function SignIn() {
                 "&:hover": { backgroundColor: "#020617" },
               }}
             >
-              {loading
-                ? "Please wait..."
-                : step === "credentials"
-                ? "Continue"
-                : "Verify & Sign In"}
+              {loading ? "Signing in..." : "Sign in"}
             </Button>
 
-            {step === "credentials" && (
-              <Typography textAlign="center" mt={2}>
-                Don’t have an account?{" "}
-                <Link to="/signup" style={{ fontWeight: 600 }}>
-                  Sign up
-                </Link>
-              </Typography>
-            )}
+            <Typography textAlign="center" mt={2}>
+              Don’t have an account?{" "}
+              <Link to="/signup" style={{ fontWeight: 600 }}>
+                Sign up
+              </Link>
+            </Typography>
           </Stack>
         </Box>
       </Grid>

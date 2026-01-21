@@ -157,7 +157,7 @@ from contextlib import asynccontextmanager
 from src.api.order_routes import router as order_router
 import threading
 import time
-from src.api.auth_backend import router as auth_router, get_current_user
+from src.api.auth_backend import router as auth_router, get_current_user, get_me
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -179,7 +179,6 @@ from src.api.cli.team_routes.auditor_route import router as auditor_router
 from src.api.cli.team_routes.department_owner_route import router as department_owner_router
 from src.api.cli.team_routes.executive_route import router as executive_router
 from src.api.cli.team_routes.tenant_admin_route import router as compliance_owner_router
-
 
 
 
@@ -211,9 +210,37 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+# SECURITY IMPROVEMENT: Load CORS origins from environment
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",")
+if not ALLOWED_ORIGINS or ALLOWED_ORIGINS == [""]:
+    # Fallback for development only
+    ALLOWED_ORIGINS = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://localhost:8501",
+    ]
+    print("WARNING: Using default CORS origins (development mode)")
+else:
+    print(f"Using CORS origins from environment: {ALLOWED_ORIGINS}")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+    max_age=3600,
+)
 app.include_router(auth_router)
+
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 app.state.limiter = limiter
+
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(control_owner_router)
 app.include_router(auditor_router)
@@ -240,30 +267,7 @@ else:
     load_dotenv(".env", override=True)
     print("Loaded environment from local .env")
 
-# SECURITY IMPROVEMENT: Load CORS origins from environment
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",")
-if not ALLOWED_ORIGINS or ALLOWED_ORIGINS == [""]:
-    # Fallback for development only
-    ALLOWED_ORIGINS = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:8000",
-        "http://localhost:8501",
-    ]
-    print("WARNING: Using default CORS origins (development mode)")
-else:
-    print(f"Using CORS origins from environment: {ALLOWED_ORIGINS}")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type"],
-    max_age=3600,
-)
 # SECURITY ENHANCEMENT: Global exception handlers
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
@@ -2152,16 +2156,16 @@ async def get_dashboard_summary(
         "overdue": overdue_tasks
     }
 
-@app.get("/api/audit_log")
-async def get_audit_log(
-    limit: int = 100, 
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    logs = db.query(AuditLog).filter(
-        AuditLog.user == current_user.uid
-    ).order_by(AuditLog.timestamp.desc()).limit(limit).all()
-    return logs
+# @app.get("/api/audit_log")
+# async def get_audit_log(
+#     limit: int = 100, 
+#     current_user: User = Depends(get_current_user),
+#     db: Session = Depends(get_db)
+# ):
+#     logs = db.query(AuditLog).filter(
+#         AuditLog.user == current_user.id
+#     ).order_by(AuditLog.timestamp.desc()).limit(limit).all()
+#     return logs
 
 # Automation
 @app.post("/api/auto_generate_compliance")

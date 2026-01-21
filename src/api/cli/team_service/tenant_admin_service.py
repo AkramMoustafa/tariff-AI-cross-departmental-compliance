@@ -13,22 +13,287 @@ from src.api.cli.authorization import (
     is_authorized,
 )
 
-
 class ComplianceOwnerService:
     """
     Backend service for COMPLIANCE_OWNER (Tenant Admin).
     No CLI. No input(). No print().
     """
 
-    # ---------- guards ----------
-
     @staticmethod
     def _assert_admin(session):
         if Role.COMPLIANCE_OWNER.value not in session["roles"]:
             raise PermissionError("Compliance Owner privileges required")
 
-    # ---------- frameworks ----------
+    @staticmethod
+    def get_executive_compliance_snapshot(session):
+        """
+        Returns executive-level compliance posture WITHOUT sending emails.
+        Read-only. Safe for dashboards and previews.
+        """
+        ComplianceOwnerService._assert_admin(session)
 
+        tenant_id = session["tenant_id"]
+
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+
+                # 1. Framework coverage
+                cur.execute(
+                    """
+                    SELECT
+                        COUNT(*) FILTER (WHERE tf.status = 'ACTIVE') AS active,
+                        COUNT(*) FILTER (WHERE tf.status = 'OUT_OF_SCOPE') AS out_of_scope,
+                        COUNT(*) FILTER (
+                            WHERE tf.status = 'INACTIVE' OR tf.status IS NULL
+                        ) AS inactive
+                    FROM frameworks f
+                    LEFT JOIN tenant_frameworks tf
+                    ON tf.framework_id = f.id
+                    AND tf.tenant_id = %s
+                    WHERE f.created_by_tenant IS NULL
+                    OR f.created_by_tenant = %s
+                    """,
+                    (tenant_id, tenant_id),
+                )
+                frameworks_active, frameworks_oos, frameworks_inactive = cur.fetchone()
+
+                # 2. Evidence request health
+                cur.execute(
+                    """
+                    SELECT
+                        COUNT(*) FILTER (WHERE status = 'OPEN') AS open,
+                        COUNT(*) FILTER (WHERE status = 'SUBMITTED') AS submitted,
+                        COUNT(*) FILTER (WHERE status = 'COMPLETED') AS completed,
+                        COUNT(*) FILTER (WHERE status = 'OVERDUE') AS overdue
+                    FROM evidence_requests
+                    WHERE tenant_id = %s
+                    """,
+                    (tenant_id,),
+                )
+                ev_open, ev_submitted, ev_completed, ev_overdue = cur.fetchone()
+
+                # 3. Control execution risk
+                cur.execute(
+                    """
+                    SELECT
+                        COUNT(*) FILTER (WHERE status = 'EXCEPTION') AS exceptions,
+                        COUNT(*) FILTER (WHERE status = 'OVERDUE') AS overdue
+                    FROM control_executions
+                    WHERE tenant_id = %s
+                    """,
+                    (tenant_id,),
+                )
+                ctrl_exceptions, ctrl_overdue = cur.fetchone()
+
+                # 4. Governance gaps
+                cur.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM control_owner_nominations
+                    WHERE tenant_id = %s
+                    AND status = 'PENDING'
+                    """,
+                    (tenant_id,),
+                )
+                pending_nominations = cur.fetchone()[0]
+
+        # 5. Overall posture (same logic as executive report)
+        posture = (
+            "AT RISK"
+            if ev_overdue > 0 or ctrl_exceptions > 0
+            else "HEALTHY"
+        )
+
+        return {
+            "posture": posture,
+            "frameworks": {
+                "active": frameworks_active,
+                "out_of_scope": frameworks_oos,
+                "inactive": frameworks_inactive,
+            },
+            "evidence": {
+                "open": ev_open,
+                "submitted": ev_submitted,
+                "completed": ev_completed,
+                "overdue": ev_overdue,
+            },
+            "controls": {
+                "exceptions": ctrl_exceptions,
+                "overdue": ctrl_overdue,
+            },
+            "governance": {
+                "pendingControlOwnerNominations": pending_nominations,
+            },
+            "generatedAt": datetime.now(timezone.utc).isoformat(),
+        }
+
+
+    @staticmethod
+    def send_executive_compliance_report(session):
+        """
+        Generates and emails an executive-level compliance summary
+        to all EXECUTIVE_VIEWER users for the tenant and records an audit event.
+        """
+        ComplianceOwnerService._assert_admin(session)
+
+        tenant_id = session["tenant_id"]
+
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+
+                # 1. Framework coverage
+                cur.execute(
+                    """
+                    SELECT
+                        COUNT(*) FILTER (WHERE tf.status = 'ACTIVE') AS active,
+                        COUNT(*) FILTER (WHERE tf.status = 'OUT_OF_SCOPE') AS out_of_scope,
+                        COUNT(*) FILTER (
+                            WHERE tf.status = 'INACTIVE' OR tf.status IS NULL
+                        ) AS inactive
+                    FROM frameworks f
+                    LEFT JOIN tenant_frameworks tf
+                      ON tf.framework_id = f.id
+                     AND tf.tenant_id = %s
+                    WHERE f.created_by_tenant IS NULL
+                       OR f.created_by_tenant = %s
+                    """,
+                    (tenant_id, tenant_id),
+                )
+                frameworks_active, frameworks_oos, frameworks_inactive = cur.fetchone()
+
+                # 2. Evidence request health
+                cur.execute(
+                    """
+                    SELECT
+                        COUNT(*) FILTER (WHERE status = 'OPEN') AS open,
+                        COUNT(*) FILTER (WHERE status = 'SUBMITTED') AS submitted,
+                        COUNT(*) FILTER (WHERE status = 'COMPLETED') AS completed,
+                        COUNT(*) FILTER (WHERE status = 'OVERDUE') AS overdue
+                    FROM evidence_requests
+                    WHERE tenant_id = %s
+                    """,
+                    (tenant_id,),
+                )
+                ev_open, ev_submitted, ev_completed, ev_overdue = cur.fetchone()
+
+                # 3. Control execution risk
+                cur.execute(
+                    """
+                    SELECT
+                        COUNT(*) FILTER (WHERE status = 'EXCEPTION') AS exceptions,
+                        COUNT(*) FILTER (WHERE status = 'OVERDUE') AS overdue
+                    FROM control_executions
+                    WHERE tenant_id = %s
+                    """,
+                    (tenant_id,),
+                )
+                ctrl_exceptions, ctrl_overdue = cur.fetchone()
+
+                # 4. Governance gaps
+                cur.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM control_owner_nominations
+                    WHERE tenant_id = %s
+                      AND status = 'PENDING'
+                    """,
+                    (tenant_id,),
+                )
+                pending_nominations = cur.fetchone()[0]
+
+                # 5. Executive recipients
+                cur.execute(
+                    """
+                    SELECT u.email
+                    FROM users u
+                    JOIN user_roles ur ON ur.user_id = u.id
+                    JOIN roles r ON r.id = ur.role_id
+                    WHERE u.tenant_id = %s
+                      AND r.name = 'EXECUTIVE_VIEWER'
+                      AND u.is_active = TRUE
+                    """,
+                    (tenant_id,),
+                )
+                executive_emails = [row[0] for row in cur.fetchall()]
+
+        if not executive_emails:
+            return {
+                "status": "no_recipients"
+            }
+
+        # 6. Overall posture
+        posture = (
+            "AT RISK"
+            if ev_overdue > 0 or ctrl_exceptions > 0
+            else "HEALTHY"
+        )
+
+        # 7. Email body
+        body = f"""
+EXECUTIVE COMPLIANCE STATUS REPORT
+Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}
+
+OVERALL POSTURE
+- Status: {posture}
+
+FRAMEWORK COVERAGE
+- Active: {frameworks_active}
+- Out of scope: {frameworks_oos}
+- Inactive: {frameworks_inactive}
+
+EVIDENCE READINESS
+- Open requests: {ev_open}
+- Submitted (pending review): {ev_submitted}
+- Completed: {ev_completed}
+- Overdue: {ev_overdue}
+
+CONTROL EXECUTION RISK
+- Exceptions: {ctrl_exceptions}
+- Overdue executions: {ctrl_overdue}
+
+GOVERNANCE
+- Pending control owner nominations: {pending_nominations}
+
+This report reflects the current compliance posture across the organization.
+"""
+
+        # 8. Send emails
+        for email in executive_emails:
+            send_generic_email(
+                to_email=email,
+                subject="Executive Compliance Status Report",
+                body=body,
+            )
+
+        # 9. Audit log
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO audit_log (
+                        tenant_id,
+                        actor_user_id,
+                        action,
+                        target_type,
+                        created_at
+                    )
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (
+                        tenant_id,
+                        session["user_id"],
+                        "EXECUTIVE_REPORT_SENT",
+                        "TENANT",
+                        datetime.now(timezone.utc),
+                    ),
+                )
+                conn.commit()
+
+        return {
+            "status": "sent",
+            "recipients": len(executive_emails),
+            "posture": posture,
+        }
     @staticmethod
     def fetch_frameworks(tenant_id):
         with get_conn() as conn:
@@ -53,6 +318,107 @@ class ComplianceOwnerService:
                     (tenant_id, tenant_id),
                 )
                 return cur.fetchall()
+
+    @staticmethod
+    def get_dashboard_summary(tenant_id: str):
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+
+                # Pending evidence access (auditor requests)
+                cur.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM auditor_evidence_access
+                    WHERE tenant_id = %s
+                      AND status = 'REQUESTED'
+                    """,
+                    (tenant_id,),
+                )
+                pending_evidence_access = cur.fetchone()[0]
+
+                # Pending control owner nominations
+                cur.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM control_owner_nominations
+                    WHERE tenant_id = %s
+                      AND status = 'PENDING'
+                    """,
+                    (tenant_id,),
+                )
+                pending_nominations = cur.fetchone()[0]
+
+                # Executive requests (simple version: reuse auditor requests for now)
+                cur.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM auditor_evidence_access
+                    WHERE tenant_id = %s
+                      AND status = 'REQUESTED'
+                    """,
+                    (tenant_id,),
+                )
+                executive_requests = cur.fetchone()[0]
+
+                # Overdue evidence requests
+                cur.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM evidence_requests
+                    WHERE tenant_id = %s
+                      AND due_at < now()
+                      AND status NOT IN ('COMPLETED', 'WAIVED')
+                    """,
+                    (tenant_id,),
+                )
+                overdue_evidence = cur.fetchone()[0]
+
+                # Overdue controls
+                cur.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM control_executions
+                    WHERE tenant_id = %s
+                      AND due_at < now()
+                      AND status IN ('PENDING', 'IN_PROGRESS')
+                    """,
+                    (tenant_id,),
+                )
+                overdue_controls = cur.fetchone()[0]
+                cur.execute(
+                    """
+                    SELECT
+                        al.id,
+                        al.action,
+                        u.email AS actor_email,
+                        al.created_at
+                    FROM audit_log al
+                    LEFT JOIN users u ON u.id = al.actor_user_id
+                    WHERE al.tenant_id = %s
+                    ORDER BY al.created_at DESC
+                    LIMIT %s
+                    """,
+                    (tenant_id, 10),
+                )
+
+                recent_activity = [
+                    {
+                        "id": str(row[0]),
+                        "action": row[1],
+                        "actorEmail": row[2],
+                        "createdAt": row[3].isoformat(),
+                    }
+                    for row in cur.fetchall()
+                ]
+
+                return {
+                    "pendingEvidenceAccess": pending_evidence_access,
+                    "pendingNominations": pending_nominations,
+                    "executiveRequests": executive_requests,
+                    "overdueEvidence": overdue_evidence,
+                    "overdueControls": overdue_controls,
+                    "recentActivity": recent_activity,
+                }
 
     @staticmethod
     def set_framework_status(session, framework_id: int, status: str):
@@ -113,7 +479,6 @@ class ComplianceOwnerService:
                 )
                 conn.commit()
 
-    # ---------- users / roles ----------
 
     @staticmethod
     def fetch_users_for_tenant(tenant_id):

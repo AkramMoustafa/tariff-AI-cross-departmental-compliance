@@ -1,5 +1,4 @@
 import axios from "axios";
-import { getAuth } from "firebase/auth";
 const rawEnvBase = import.meta.env.VITE_API_BASE_URL;
 
 // 🔍 startup debug
@@ -15,6 +14,8 @@ export const BASE_URL =
 
 console.log("[client.ts] RESOLVED BASE_URL:", BASE_URL);
 
+
+
 // Create axios instance with default config
 const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -23,16 +24,12 @@ const apiClient = axios.create({
   },
   withCredentials: true,
 });
-// ✅ Attach Firebase ID token to every request
 apiClient.interceptors.request.use(
-  async (config) => {
-    const auth = getAuth();
-    const user = auth.currentUser;
+  (config) => {
+    const token = localStorage.getItem("access_token");
 
-    if (user) {
-      const token = await user.getIdToken(true);
-      config.headers = config.headers ?? new axios.AxiosHeaders();
-      config.headers.set("Authorization", `Bearer ${token}`);
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
 
     return config;
@@ -54,6 +51,24 @@ export async function fetchWorkspace(user_id: string) {
   return res.data;
 }
 
+export interface ComplianceDashboardResponse {
+  pendingEvidenceAccess: number;
+  pendingNominations: number;
+  executiveRequests: number;
+  overdueEvidence: number;
+  overdueControls: number;
+  recentActivity: {
+    id: string;
+    action: string;
+    actorEmail: string;   
+    createdAt: string;
+  }[];
+}
+
+export const getComplianceDashboard = async (): Promise<ComplianceDashboardResponse> => {
+  const { data } = await apiClient.get("/compliance-owner/dashboard");
+  return data;
+};
 
 export interface SanctionsEntity {
   name: string | null
@@ -618,11 +633,75 @@ export interface DashboardSummary {
   overdue: number
 }
 
-export const getDashboardSummary = async (): Promise<DashboardSummary> => {
-  const response = await apiClient.get('/api/dashboard/summary')
-  return response.data
+// export const getDashboardSummary = async (): Promise<DashboardSummary> => {
+//   const response = await apiClient.get('/api/dashboard/summary')
+//   return response.data
   
+// }
+
+export interface AuditorAccessRequest {
+  id: number;
+  evidence_request_id: number;
+  email: string;
+  requested_at: string;
 }
+export interface TenantUser {
+  id: number;
+  email: string;
+  full_name: string;
+  is_active: boolean;
+  roles: string[];   
+}
+
+export const getTenantUsers = async (): Promise<TenantUser[]> => {
+  const { data } = await apiClient.get("/compliance-owner/users");
+
+  // Backend returns tuples:
+  // [id, email, full_name, is_active, created_at, last_login_at, roles_string]
+  return data.map((row: any[]) => ({
+    id: row[0],
+    email: row[1],
+    full_name: row[2],
+    is_active: row[3],
+    roles:
+      typeof row[6] === "string" && row[6] !== "NONE"
+        ? row[6].split(", ").filter(Boolean)
+        : [],
+  }));
+};
+
+export const assignUserRole = async (userId: number, role: string) => {
+  return apiClient.post(`/compliance-owner/users/${userId}/roles`, { role });
+};
+
+export const removeUserRole = async (userId: number, role: string) => {
+  return apiClient.delete(`/compliance-owner/users/${userId}/roles`, {
+    data: { role },
+  });
+};
+
+
+export const getPendingAuditorAccess = async (): Promise<AuditorAccessRequest[]> => {
+  const { data } = await apiClient.get(
+    "/compliance-owner/auditor-access/pending"
+  );
+  return data;
+};
+
+export const reviewAuditorAccess = async (
+  accessId: number,
+  payload: {
+    evidence_request_id: number;
+    auditor_email: string;
+    approve: boolean;
+  }
+) => {
+  const { data } = await apiClient.post(
+    `/compliance-owner/auditor-access/${accessId}/review`,
+    payload
+  );
+  return data;
+};
 
 export async function getCfrTitles() {
   const res = await apiClient.get("/api/v1/cfr/titles");
@@ -678,19 +757,68 @@ export async function ensureCfrIndexes() {
 
 export interface AuditLogEntry {
   id: number
-  entity_type: string
-  entity_id: number
   action: string
-  user: string
-  timestamp: string
-  detail: string
+  actorEmail?: string | null
+  createdAt: string
+}
+export interface ExecutiveComplianceSnapshot {
+  posture: "HEALTHY" | "AT RISK"
+  frameworks: {
+    active: number
+    out_of_scope: number
+    inactive: number
+  }
+  evidence: {
+    open: number
+    submitted: number
+    completed: number
+    overdue: number
+  }
+  controls: {
+    exceptions: number
+    overdue: number
+  }
+  governance: {
+    pending_control_owner_nominations: number
+  }
 }
 
-export const getAuditLog = async (limit: number = 100): Promise<AuditLogEntry[]> => {
-  const response = await apiClient.get('/api/audit_log', {
+export const getExecutiveComplianceSnapshot =
+  async (): Promise<ExecutiveComplianceSnapshot> => {
+    const { data } = await apiClient.get(
+      "/compliance-owner/executive-compliance/snapshot"
+    )
+    return data
+  }
+
+  export interface ExecutiveComplianceSendResponse {
+  status: "sent" | "no_recipients"
+  recipients?: number
+  posture?: "HEALTHY" | "AT RISK"
+}
+
+
+export const sendExecutiveComplianceReport =
+  async (): Promise<ExecutiveComplianceSendResponse> => {
+    const { data } = await apiClient.post(
+      "/compliance-owner/executive-compliance/send"
+    )
+    return data
+  }
+
+export const getAuditLog = async (
+  limit: number = 100
+): Promise<AuditLogEntry[]> => {
+  const { data } = await apiClient.get("/api/audit_log", {
     params: { limit },
   })
-  return response.data
+
+  return data.map((row: any) => ({
+    id: row.id,
+    action: row.action,
+    actorEmail: row.actor_email,
+    createdAt: row.created_at,
+  }))
 }
 
 export const healthCheck = async () => {
