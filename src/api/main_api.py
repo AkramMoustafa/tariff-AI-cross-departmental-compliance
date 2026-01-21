@@ -1,4 +1,4 @@
-# Updated main_api.py with security improvements
+
 from src.api.email_service import send_demo_email
 from fastapi import (
     FastAPI,
@@ -168,6 +168,8 @@ from src.api.validators import (
 )
 from src.api.models import Regulation
 from fastapi.responses import StreamingResponse
+from src.api.tariff_routes import router as tariff_router
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -200,7 +202,7 @@ app = FastAPI(lifespan=lifespan)
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
+app.include_router(tariff_router)
 @app.get("/api/sanctions/search")
 def sanctions_search(
     q: str | None = None,

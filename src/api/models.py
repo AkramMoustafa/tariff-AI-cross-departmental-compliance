@@ -276,6 +276,7 @@ class SupplierOrder(Base):
     id = Column(Integer, primary_key=True, index=True)
     supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
     user_uid = Column(String, ForeignKey("users.uid"), index=True)
+
     
     # Order identification
     order_number = Column(String, unique=True, index=True)
@@ -309,6 +310,13 @@ class SupplierOrder(Base):
     supplier = relationship("Supplier", backref="orders")
     quality_incidents = relationship("QualityIncident", back_populates="order")
 
+    total_value = Column(Float)
+    currency = Column(String, default="USD")
+
+    # Tariff calculation details
+    estimated_duty = Column(Float, nullable=True)
+    duty_effective_rate = Column(Float, nullable=True)
+    tariff_log_id = Column(Integer, ForeignKey("tariff_calculation_logs.id"), nullable=True)
 
 class QualityIncident(Base):
     __tablename__ = "quality_incidents"

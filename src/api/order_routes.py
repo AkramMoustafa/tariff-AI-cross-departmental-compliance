@@ -8,24 +8,30 @@ from src.api.db import get_db
 from src.api.auth_backend import get_current_user
 from src.api.models import User
 from src.api.models import (
-    SupplierOrder, QualityIncident, InventoryEvent, 
+    SupplierOrder, QualityIncident, InventoryEvent,
     SupplierFinancialHealth, OrderStatus, QualityIncidentType,
     QualityIncidentSeverity, Supplier, RatingRecalculationLog
 )
 from src.api.rating_engine import SupplierRatingEngine
 
+# NEW imports for tariff integration
+from src.core.tariff.engine import calculate_tariff
+from src.api.models_tariff import HSCode, TariffSchedule, TariffLine, TariffCalculationLog
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 
 
+from datetime import datetime
+
 class OrderCreate(BaseModel):
     supplier_id: int
     order_number: str
-    expected_delivery_date: str  
+    expected_delivery_date: datetime
     item_count: int
     total_value: float
     currency: str = "USD"
     stock_availability_on_order: bool = True
+
 
 
 class OrderUpdate(BaseModel):
@@ -48,7 +54,7 @@ class QualityIncidentCreate(BaseModel):
 
 class InventoryEventCreate(BaseModel):
     supplier_id: int
-    event_type: str  
+    event_type: str
     item_description: str
     quantity_affected: int
     expected_availability_date: Optional[str] = None
@@ -75,7 +81,7 @@ def trigger_score_update(supplier_id: int):
     """
     from src.api.db import SessionLocal
     import traceback
-    
+
     db = SessionLocal()
     try:
         engine = SupplierRatingEngine(db)
@@ -92,6 +98,81 @@ def trigger_score_update(supplier_id: int):
         db.close()
 
 
+# NEW: helper to calculate and persist duty for an order
+def calculate_order_duty(db: Session, order: SupplierOrder, supplier: Supplier):
+    hs_code = (getattr(supplier, "tariff_code", "") or "").replace(".", "").strip() or "01013000"
+    origin_country = (supplier.country or "CN").upper()
+    destination_country = "US"
+    customs_value = float(order.total_value or 0.0)
+
+    if customs_value <= 0:
+        return
+
+    schedule = (
+        db.query(TariffSchedule)
+        .filter(TariffSchedule.country == destination_country)
+        .order_by(TariffSchedule.effective_from.desc())
+        .first()
+    )
+    if not schedule:
+        return
+
+    hs = db.query(HSCode).filter(HSCode.code == hs_code).first()
+    if not hs:
+        return
+
+    lines = (
+        db.query(TariffLine)
+        .filter(
+            TariffLine.tariff_schedule_id == schedule.id,
+            TariffLine.hs_code_id == hs.id,
+        )
+        .all()
+    )
+    if not lines:
+        return
+
+    engine_input = [
+        {
+            "duty_type": line.duty_type,
+            "rate_type": line.rate_type,
+            "rate_value": line.rate_value,
+            "priority": line.priority or 100,
+        }
+        for line in lines
+    ]
+
+    result = calculate_tariff(
+        tariff_lines=engine_input,
+        customs_value=customs_value,
+        freight=0.0,
+        insurance=0.0,
+        quantity=1.0,
+    )
+
+    log = TariffCalculationLog(
+        user_uid=order.user_uid,
+        hs_code=hs_code,
+        origin_country=origin_country,
+        destination_country=destination_country,
+        customs_value=customs_value,
+        freight=0.0,
+        insurance=0.0,
+        quantity=1.0,
+        currency=order.currency,
+        result_json=result,
+        total_duty=result["total_duty"],
+        effective_rate=result["effective_rate"],
+        tariff_schedule_id=schedule.id,
+    )
+    db.add(log)
+    db.flush()  # get log.id without extra commit
+
+    order.estimated_duty = result["total_duty"]
+    order.duty_effective_rate = result["effective_rate"]
+    order.tariff_log_id = log.id
+
+
 @router.post("/")
 def create_order(
     order: OrderCreate,
@@ -99,51 +180,52 @@ def create_order(
     db: Session = Depends(get_db)
 ):
     """Create a new supplier order"""
-    
+
     supplier = db.query(Supplier).filter(
         Supplier.id == order.supplier_id,
         Supplier.user_uid == current_user.uid
     ).first()
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
-    
+
     existing = db.query(SupplierOrder).filter(
         SupplierOrder.order_number == order.order_number
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Order number already exists")
-    
-    try:
-        expected_date = datetime.fromisoformat(order.expected_delivery_date.replace('Z', '+00:00'))
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format. Use ISO 8601")
-    
+
     db_order = SupplierOrder(
         supplier_id=order.supplier_id,
         user_uid=current_user.uid,
         order_number=order.order_number,
         order_date=datetime.utcnow(),
-        expected_delivery_date=expected_date,
+        expected_delivery_date=order.expected_delivery_date,  # <‑‑ use directly
         item_count=order.item_count,
         total_value=order.total_value,
         currency=order.currency,
         stock_availability_on_order=order.stock_availability_on_order,
         status=OrderStatus.PENDING
     )
-    
+
     db.add(db_order)
     supplier.total_orders += 1
-    
     db.commit()
     db.refresh(db_order)
-    
+
+    calculate_order_duty(db, db_order, supplier)
+    db.commit()
+    db.refresh(db_order)
+
     return {
         "status": "success",
         "order_id": db_order.id,
         "order_number": db_order.order_number,
         "supplier_id": db_order.supplier_id,
-        "expected_delivery": db_order.expected_delivery_date.isoformat()
+        "expected_delivery": db_order.expected_delivery_date.isoformat(),
+        "estimated_duty": db_order.estimated_duty,
+        "duty_effective_rate": db_order.duty_effective_rate,
     }
+
 
 
 @router.put("/{order_id}")
@@ -155,49 +237,49 @@ def update_order(
     db: Session = Depends(get_db)
 ):
     """Update order status and trigger score recalculation on delivery"""
-    
+
     order = db.query(SupplierOrder).filter(
         SupplierOrder.id == order_id,
         SupplierOrder.user_uid == current_user.uid
     ).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    
+
     if update.status:
         order.status = OrderStatus[update.status]
-    
+
     if update.actual_delivery_date:
         try:
             actual_date = datetime.fromisoformat(update.actual_delivery_date.replace('Z', '').replace('+00:00', ''))
             order.actual_delivery_date = actual_date
-            
+
             if order.expected_delivery_date:
                 delay = (actual_date - order.expected_delivery_date).days
                 order.is_on_time = delay <= 0
                 order.days_delayed = max(delay, 0)
-                
+
                 if order.is_on_time and order.status == OrderStatus.DELIVERED:
                     supplier = db.query(Supplier).filter(Supplier.id == order.supplier_id).first()
                     if supplier:
                         supplier.successful_deliveries += 1
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date format")
-    
+
     if update.quality_check_passed is not None:
         order.quality_check_passed = update.quality_check_passed
-    
+
     if update.defect_count is not None:
         order.defect_count = update.defect_count
-    
+
     if update.lead_time_accuracy_days is not None:
         order.lead_time_accuracy_days = update.lead_time_accuracy_days
-    
+
     db.commit()
     db.refresh(order)
-    
+
     if order.status == OrderStatus.DELIVERED:
         background_tasks.add_task(trigger_score_update, order.supplier_id)
-    
+
     return {
         "status": "success",
         "order_id": order.id,
@@ -223,14 +305,14 @@ def get_supplier_orders(
     ).first()
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
-    
+
     query = db.query(SupplierOrder).filter(SupplierOrder.supplier_id == supplier_id)
-    
+
     if status:
         query = query.filter(SupplierOrder.status == OrderStatus[status])
-    
+
     orders = query.order_by(SupplierOrder.order_date.desc()).limit(limit).all()
-    
+
     return {
         "supplier_id": supplier_id,
         "order_count": len(orders),
@@ -245,7 +327,10 @@ def get_supplier_orders(
                 "is_on_time": o.is_on_time,
                 "days_delayed": o.days_delayed,
                 "item_count": o.item_count,
-                "total_value": o.total_value
+                "total_value": o.total_value,
+                "currency": o.currency,
+                "estimated_duty": o.estimated_duty,
+                "duty_effective_rate": o.duty_effective_rate,
             }
             for o in orders
         ]
@@ -260,14 +345,14 @@ def create_quality_incident(
     db: Session = Depends(get_db)
 ):
     """Report a quality incident"""
-    
+
     supplier = db.query(Supplier).filter(
         Supplier.id == incident.supplier_id,
         Supplier.user_uid == current_user.uid
     ).first()
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
-    
+
     db_incident = QualityIncident(
         supplier_id=incident.supplier_id,
         order_id=incident.order_id,
@@ -279,13 +364,13 @@ def create_quality_incident(
         items_affected=incident.items_affected,
         reported_at=datetime.utcnow()
     )
-    
+
     db.add(db_incident)
     db.commit()
     db.refresh(db_incident)
-    
+
     background_tasks.add_task(trigger_score_update, incident.supplier_id)
-    
+
     return {
         "status": "success",
         "incident_id": db_incident.id,
@@ -310,14 +395,14 @@ def get_supplier_incidents(
     ).first()
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
-    
+
     query = db.query(QualityIncident).filter(QualityIncident.supplier_id == supplier_id)
-    
+
     if resolved is not None:
         query = query.filter(QualityIncident.resolved == resolved)
-    
+
     incidents = query.order_by(QualityIncident.reported_at.desc()).limit(limit).all()
-    
+
     return {
         "supplier_id": supplier_id,
         "incident_count": len(incidents),
@@ -351,13 +436,13 @@ def resolve_quality_incident(
     ).first()
     if not incident:
         raise HTTPException(status_code=404, detail="Incident not found")
-    
+
     incident.resolved = True
     incident.resolution_date = datetime.utcnow()
     incident.resolution_notes = resolution_notes
-    
+
     db.commit()
-    
+
     return {"status": "success", "incident_id": incident_id, "resolved": True}
 
 
@@ -369,21 +454,21 @@ def create_inventory_event(
     db: Session = Depends(get_db)
 ):
     """Report an inventory availability event"""
-    
+
     supplier = db.query(Supplier).filter(
         Supplier.id == event.supplier_id,
         Supplier.user_uid == current_user.uid
     ).first()
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
-    
+
     expected_date = None
     if event.expected_availability_date:
         try:
             expected_date = datetime.fromisoformat(event.expected_availability_date.replace('Z', '+00:00'))
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date format")
-    
+
     db_event = InventoryEvent(
         supplier_id=event.supplier_id,
         user_uid=current_user.uid,
@@ -394,13 +479,13 @@ def create_inventory_event(
         days_unavailable=event.days_unavailable,
         event_date=datetime.utcnow()
     )
-    
+
     db.add(db_event)
     db.commit()
     db.refresh(db_event)
-    
+
     background_tasks.add_task(trigger_score_update, event.supplier_id)
-    
+
     return {
         "status": "success",
         "event_id": db_event.id,
@@ -417,14 +502,14 @@ def update_financial_health(
     db: Session = Depends(get_db)
 ):
     """Update supplier financial health record"""
-    
+
     supplier = db.query(Supplier).filter(
         Supplier.id == health.supplier_id,
         Supplier.user_uid == current_user.uid
     ).first()
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
-    
+
     db_health = SupplierFinancialHealth(
         supplier_id=health.supplier_id,
         credit_score=health.credit_score,
@@ -438,13 +523,13 @@ def update_financial_health(
         data_source=health.data_source,
         last_updated=datetime.utcnow()
     )
-    
+
     db.add(db_health)
     db.commit()
     db.refresh(db_health)
-    
+
     background_tasks.add_task(trigger_score_update, health.supplier_id)
-    
+
     return {
         "status": "success",
         "supplier_id": db_health.supplier_id,
@@ -459,17 +544,17 @@ def manual_score_recalculation(
     db: Session = Depends(get_db)
 ):
     """Manually trigger score recalculation for a supplier"""
-    
+
     supplier = db.query(Supplier).filter(
         Supplier.id == supplier_id,
         Supplier.user_uid == current_user.uid
     ).first()
     if not supplier:
         raise HTTPException(status_code=404, detail="Supplier not found")
-    
+
     engine = SupplierRatingEngine(db)
     scores = engine.update_all_supplier_scores(supplier_id)
-    
+
     return {
         "status": "success",
         "supplier_id": supplier_id,
@@ -484,16 +569,16 @@ def recalculate_all_supplier_scores(
     db: Session = Depends(get_db)
 ):
     """Recalculate scores for all suppliers (background job)"""
-    
+
     user_uid = current_user.uid
-    
+
     def bulk_recalculation():
         from src.api.db import SessionLocal
         import traceback
-        
+
         db_local = SessionLocal()
         start_time = datetime.utcnow()
-        
+
         log = RatingRecalculationLog(
             job_type="MANUAL",
             trigger_event="Manual bulk recalculation",
@@ -502,11 +587,11 @@ def recalculate_all_supplier_scores(
         )
         db_local.add(log)
         db_local.commit()
-        
+
         try:
             suppliers = db_local.query(Supplier).filter(Supplier.user_uid == user_uid).all()
             engine = SupplierRatingEngine(db_local)
-            
+
             tier_changes = 0
             for supplier in suppliers:
                 old_tier = supplier.tier_level
@@ -514,19 +599,19 @@ def recalculate_all_supplier_scores(
                 db_local.refresh(supplier)
                 if supplier.tier_level != old_tier:
                     tier_changes += 1
-            
+
             end_time = datetime.utcnow()
             execution_time = (end_time - start_time).total_seconds()
-            
+
             log.suppliers_processed = len(suppliers)
             log.suppliers_tier_changed = tier_changes
             log.execution_time_seconds = execution_time
             log.completed_at = end_time
             log.status = "COMPLETED"
             db_local.commit()
-            
+
             print(f"Bulk recalculation complete: {len(suppliers)} suppliers, {tier_changes} tier changes")
-            
+
         except Exception as e:
             log.status = "FAILED"
             log.error_message = str(e)
@@ -535,9 +620,9 @@ def recalculate_all_supplier_scores(
             traceback.print_exc()
         finally:
             db_local.close()
-    
+
     background_tasks.add_task(bulk_recalculation)
-    
+
     return {
         "status": "started",
         "message": "Bulk score recalculation started in background"
