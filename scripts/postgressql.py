@@ -33,7 +33,8 @@ def run():
         full_name TEXT,
         is_active BOOLEAN NOT NULL DEFAULT TRUE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        UNIQUE (tenant_id, email)
+        UNIQUE (tenant_id, email),
+        active_role TEXT
     );
     """)
 

@@ -13,6 +13,9 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     full_name = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
+      
+    active_role = Column(String, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class FileExtraction(Base):

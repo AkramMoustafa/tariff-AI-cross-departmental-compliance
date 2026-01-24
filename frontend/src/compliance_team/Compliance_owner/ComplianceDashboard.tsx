@@ -143,8 +143,6 @@ const DashboardCard: React.FC<DashboardCardProps> = ({
   );
 };
 
-/* ---------- styles ---------- */
-
 const styles: Record<string, React.CSSProperties> = {
   root: {
     maxWidth: "1200px",

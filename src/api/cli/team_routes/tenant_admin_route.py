@@ -2,16 +2,26 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Any, Dict
 from src.api.cli.team_service.tenant_admin_service import ComplianceOwnerService
 from src.api.cli.tokens import get_session 
+from uuid import UUID
 
 router = APIRouter(
     prefix="/compliance-owner",
     tags=["Compliance Owner"],
 )
-
-
-# ---------- frameworks ----------
-
-
+@router.get("/me")
+def get_compliance_owner_context(
+    session: Dict[str, Any] = Depends(get_session),
+):
+    """
+    Returns the authenticated user's context:
+    roles + active_role.
+    Safe, read-only.
+    """
+    try:
+        return ComplianceOwnerService.get_user_context(session)
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+    
 @router.get("/frameworks")
 def fetch_frameworks(
     session: Dict[str, Any] = Depends(get_session),
@@ -20,11 +30,33 @@ def fetch_frameworks(
         return ComplianceOwnerService.fetch_frameworks(session["tenant_id"])
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e))
+@router.get("/controls/overview")
+def get_controls_overview(
+    session: Dict[str, Any] = Depends(get_session),
+):
+    """
+    High-level overview of control executions for Compliance Owner
+    """
+    try:
+        return ComplianceOwnerService.get_controls_overview(session)
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
 
+@router.get("/inbox")
+def get_compliance_owner_inbox(
+    session: Dict[str, Any] = Depends(get_session),
+):
+    """
+    Unified inbox for Compliance Owner
+    """
+    try:
+        return ComplianceOwnerService.get_inbox(session)
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
 
 @router.post("/frameworks/{framework_id}/status")
 def set_framework_status(
-    framework_id: int,
+    framework_id: UUID,
     payload: Dict[str, Any],
     session: Dict[str, Any] = Depends(get_session),
 ):
@@ -73,6 +105,7 @@ def send_executive_compliance_report(
         
 @router.post("/frameworks/custom")
 def create_custom_framework(
+    
     payload: Dict[str, Any],
     session: Dict[str, Any] = Depends(get_session),
 ):
@@ -94,10 +127,6 @@ def create_custom_framework(
 
     return {"status": "created"}
 
-
-# ---------- users & roles ----------
-
-
 @router.get("/users")
 def fetch_users_for_tenant(
     session: Dict[str, Any] = Depends(get_session),
@@ -110,7 +139,7 @@ def fetch_users_for_tenant(
 
 @router.post("/users/{user_id}/roles")
 def assign_role(
-    user_id: int,
+    user_id: UUID,
     payload: Dict[str, Any],
     session: Dict[str, Any] = Depends(get_session),
 ):
@@ -127,7 +156,7 @@ def assign_role(
 
 @router.delete("/users/{user_id}/roles")
 def remove_role(
-    user_id: int,
+    user_id: UUID,
     payload: Dict[str, Any],
     session: Dict[str, Any] = Depends(get_session),
 ):
@@ -140,10 +169,6 @@ def remove_role(
 
     ComplianceOwnerService.remove_role(user_id, role_name)
     return {"status": "removed"}
-
-
-# ---------- departments ----------
-
 
 @router.post("/departments")
 def create_department(
@@ -171,10 +196,6 @@ def assign_user_to_department(
 ):
     ComplianceOwnerService.assign_user_to_department(user_id, department_id)
     return {"status": "assigned"}
-
-
-# ---------- compliance evidence ----------
-
 
 @router.post("/evidence-requests")
 def issue_compliance_request(
@@ -225,10 +246,6 @@ def review_evidence_submission(
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e))
 
-
-# ---------- auditor access ----------
-
-
 @router.get("/auditor-access/pending")
 def fetch_pending_auditor_requests(
     session: Dict[str, Any] = Depends(get_session),
@@ -263,10 +280,19 @@ def review_auditor_request(
         return {"status": "reviewed"}
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e))
-
-
-# ---------- control owner nominations ----------
-
+@router.get("/departments")
+def fetch_departments(
+    session: Dict[str, Any] = Depends(get_session),
+):
+    """
+    List all departments for the tenant (Compliance Owner only)
+    """
+    try:
+        return ComplianceOwnerService.fetch_departments_for_tenant(
+            session["tenant_id"]
+        )
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
 
 @router.get("/control-owner-nominations/pending")
 def fetch_pending_control_owner_nominations(

@@ -1,16 +1,28 @@
 import React from "react";
-import { Navigate, Outlet, NavLink } from "react-router-dom";
+import { Navigate, Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useSession } from "@/api/SessionProvider";
-import { Role } from "@/api/roles";
 
-export const ComplianceLayout: React.FC = () => {
-  const { session, loading } = useSession();
+type ComplianceLayoutProps = {
+  readOnly?: boolean;
+};
+
+export const ComplianceLayout: React.FC<ComplianceLayoutProps> = ({
+  readOnly = false,
+}) => {
+  const {
+    session,
+    loading,
+    logout,
+    setActiveRole,
+  } = useSession();
+
+  const navigate = useNavigate();
 
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  if (!session || session.active_role !== Role.COMPLIANCE_OWNER) {
+  if (!session) {
     return <Navigate to="/unauthorized" replace />;
   }
 
@@ -21,14 +33,43 @@ export const ComplianceLayout: React.FC = () => {
         <div>
           <strong>{session.tenant_name}</strong>
         </div>
-        <div>
-          Role: Compliance Owner &nbsp;|&nbsp; {session.email}
+
+        <div style={styles.topBarRight}>
+          {/* 🔁 ROLE TOGGLE */}
+          {session.roles.length > 1 ? (
+            <select
+              value={session.active_role ?? ""}
+              onChange={async (e) => {
+                const role = e.target.value;
+                if (!role) return;
+
+                await setActiveRole(role);
+                navigate("/redirect", { replace: true });
+              }}
+              style={styles.roleSelect}
+            >
+              {session.roles.map((role) => (
+                <option key={role} value={role}>
+                  {role.replace("_", " ")}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span>
+              Role: {session.active_role?.replace("_", " ")}
+            </span>
+          )}
+
+          <span>{session.email}</span>
+
+          <button onClick={logout} style={styles.logoutButton}>
+            Logout
+          </button>
         </div>
       </header>
 
       {/* Main Layout */}
       <div style={styles.body}>
-        {/* Side Navigation */}
         <nav style={styles.nav}>
           <NavLink to="/compliance" end style={navLinkStyle}>
             Dashboard
@@ -36,18 +77,17 @@ export const ComplianceLayout: React.FC = () => {
           <NavLink to="/compliance/inbox" style={navLinkStyle}>
             Inbox
           </NavLink>
-          <NavLink to="/compliance/evidence" style={navLinkStyle}>
-            Evidence
+          <NavLink to="/compliance/framework" style={navLinkStyle}>
+            Frameworks
           </NavLink>
           <NavLink to="/compliance/controls" style={navLinkStyle}>
             Controls
           </NavLink>
-          <NavLink to="/Compliance_owner/AuditLog" style={navLinkStyle}>
+          <NavLink to="/compliance/audit-log" style={navLinkStyle}>
             Audit Log
           </NavLink>
         </nav>
 
-        {/* Page Content */}
         <main style={styles.content}>
           <Outlet />
         </main>
@@ -55,8 +95,6 @@ export const ComplianceLayout: React.FC = () => {
     </div>
   );
 };
-
-/* ---------- styles ---------- */
 
 const styles: Record<string, React.CSSProperties> = {
   root: {
@@ -72,6 +110,19 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "space-between",
     borderBottom: "1px solid #e0e0e0",
     backgroundColor: "#ffffff",
+  },
+  topBarRight: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+  logoutButton: {
+    padding: "6px 10px",
+    borderRadius: "4px",
+    border: "1px solid #ccc",
+    backgroundColor: "#ffffff",
+    cursor: "pointer",
+    fontWeight: 500,
   },
   body: {
     display: "flex",
@@ -93,7 +144,11 @@ const styles: Record<string, React.CSSProperties> = {
   },
 };
 
-const navLinkStyle = ({ isActive }: { isActive: boolean }): React.CSSProperties => ({
+const navLinkStyle = ({
+  isActive,
+}: {
+  isActive: boolean;
+}): React.CSSProperties => ({
   padding: "8px 12px",
   borderRadius: "4px",
   textDecoration: "none",

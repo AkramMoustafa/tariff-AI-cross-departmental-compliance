@@ -1,68 +1,107 @@
-import React, { useEffect, useState } from "react"
+import React, { useState } from "react"
 import {
-  getAuditLog,
   sendExecutiveComplianceReport,
-  type AuditLogEntry,
+  getExecutiveComplianceSnapshot,
   type ExecutiveComplianceSendResponse,
+  type ExecutiveComplianceSnapshot,
 } from "@/api/client"
 
-export const AuditLog: React.FC = () => {
-  const [logs, setLogs] = useState<AuditLogEntry[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export const ExecutiveCompliancePanel: React.FC = () => {
+  const [loadingSnapshot, setLoadingSnapshot] = useState(false)
+  const [snapshot, setSnapshot] =
+    useState<ExecutiveComplianceSnapshot | null>(null)
+  const [snapshotError, setSnapshotError] = useState<string | null>(null)
 
   const [sending, setSending] = useState(false)
   const [sendResult, setSendResult] =
     useState<ExecutiveComplianceSendResponse | null>(null)
+  const [sendError, setSendError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const loadAuditLog = async () => {
-      try {
-        const data = await getAuditLog(100)
-        setLogs(data)
-      } catch (err) {
-        console.error("Failed to load audit log", err)
-        setError("Failed to load audit log")
-      } finally {
-        setLoading(false)
-      }
+  const loadSnapshot = async () => {
+    setLoadingSnapshot(true)
+    setSnapshotError(null)
+
+    try {
+      const data = await getExecutiveComplianceSnapshot()
+      setSnapshot(data)
+    } catch (err) {
+      console.error("Failed to load executive snapshot", err)
+      setSnapshotError("Failed to load executive compliance snapshot")
+    } finally {
+      setLoadingSnapshot(false)
     }
-
-    loadAuditLog()
-  }, [])
+  }
 
   const handleSendReport = async () => {
     setSending(true)
     setSendResult(null)
+    setSendError(null)
 
     try {
       const result = await sendExecutiveComplianceReport()
       setSendResult(result)
 
-      // refresh audit log after sending
-      const updatedLogs = await getAuditLog(100)
-      setLogs(updatedLogs)
+      // Optional: refresh snapshot after sending
+      await loadSnapshot()
     } catch (err) {
       console.error("Failed to send executive report", err)
-      setError("Failed to send executive report")
+      setSendError("Failed to send executive compliance report")
     } finally {
       setSending(false)
     }
   }
 
-  if (loading) {
-    return <div>Loading audit log…</div>
-  }
-
-  if (error) {
-    return <div style={{ color: "red" }}>{error}</div>
-  }
-
   return (
     <div style={styles.root}>
-      <h1 style={styles.title}>Audit Log</h1>
+      <h1 style={styles.title}>Executive Compliance</h1>
 
-      {/* ---------- Executive Action ---------- */}
+      {/* ---------- Snapshot ---------- */}
+      <section style={styles.section}>
+        <button
+          onClick={loadSnapshot}
+          disabled={loadingSnapshot}
+          style={styles.button}
+        >
+          {loadingSnapshot ? "Loading Snapshot…" : "Load Compliance Snapshot"}
+        </button>
+
+        {snapshotError && (
+          <div style={styles.error}>{snapshotError}</div>
+        )}
+
+        {snapshot && (
+          <div style={styles.snapshot}>
+            <h3>
+              Overall Posture:{" "}
+              <strong>{snapshot.posture}</strong>
+            </h3>
+
+            <ul>
+              <li>
+                Frameworks — Active: {snapshot.frameworks.active}, Out of
+                Scope: {snapshot.frameworks.out_of_scope}, Inactive:{" "}
+                {snapshot.frameworks.inactive}
+              </li>
+              <li>
+                Evidence — Open: {snapshot.evidence.open}, Submitted:{" "}
+                {snapshot.evidence.submitted}, Completed:{" "}
+                {snapshot.evidence.completed}, Overdue:{" "}
+                {snapshot.evidence.overdue}
+              </li>
+              <li>
+                Controls — Exceptions: {snapshot.controls.exceptions},
+                Overdue: {snapshot.controls.overdue}
+              </li>
+              <li>
+                Governance — Pending Nominations:{" "}
+                {snapshot.governance.pending_control_owner_nominations}
+              </li>
+            </ul>
+          </div>
+        )}
+      </section>
+
+      {/* ---------- Send Executive Report ---------- */}
       <section style={styles.section}>
         <button
           onClick={handleSendReport}
@@ -74,12 +113,17 @@ export const AuditLog: React.FC = () => {
             : "Send Executive Compliance Report"}
         </button>
 
+        {sendError && (
+          <div style={styles.error}>{sendError}</div>
+        )}
+
         {sendResult && (
           <div style={styles.result}>
             {sendResult.status === "sent" ? (
               <>
                 Report sent to {sendResult.recipients} executive(s). <br />
-                Posture: <strong>{sendResult.posture}</strong>
+                Posture at send time:{" "}
+                <strong>{sendResult.posture}</strong>
               </>
             ) : (
               "No executive recipients found."
@@ -87,75 +131,39 @@ export const AuditLog: React.FC = () => {
           </div>
         )}
       </section>
-
-      {/* ---------- Audit Log Table ---------- */}
-      {logs.length === 0 ? (
-        <div>No audit entries found.</div>
-      ) : (
-        <table style={styles.table}>
-          <thead>
-            <tr>
-              <th style={styles.th}>Action</th>
-              <th style={styles.th}>Actor</th>
-              <th style={styles.th}>Timestamp</th>
-            </tr>
-          </thead>
-          <tbody>
-            {logs.map((log) => (
-              <tr key={log.id}>
-                <td style={styles.td}>{log.action}</td>
-                <td style={styles.td}>
-                  {log.actorEmail ?? "System"}
-                </td>
-                <td style={styles.td}>
-                  {new Date(log.createdAt).toLocaleString()}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
     </div>
   )
 }
 
-/* ===============================
- * Styles
- * =============================== */
-
 const styles: Record<string, React.CSSProperties> = {
   root: {
-    maxWidth: "1200px",
+    maxWidth: "1000px",
   },
   title: {
     marginBottom: "16px",
   },
   section: {
-    marginBottom: "24px",
+    marginBottom: "32px",
   },
   button: {
     padding: "10px 16px",
     fontSize: "0.95rem",
     cursor: "pointer",
   },
+  snapshot: {
+    marginTop: "16px",
+    backgroundColor: "#f9f9f9",
+    padding: "16px",
+    borderRadius: "4px",
+  },
   result: {
     marginTop: "12px",
     color: "#2e7d32",
     fontSize: "0.9rem",
   },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    backgroundColor: "#fff",
-  },
-  th: {
-    textAlign: "left",
-    padding: "10px",
-    borderBottom: "2px solid #e0e0e0",
-    fontWeight: 600,
-  },
-  td: {
-    padding: "10px",
-    borderBottom: "1px solid #eee",
+  error: {
+    marginTop: "12px",
+    color: "#d32f2f",
+    fontSize: "0.9rem",
   },
 }

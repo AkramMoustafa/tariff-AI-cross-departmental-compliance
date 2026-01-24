@@ -14,10 +14,323 @@ from src.api.cli.authorization import (
 )
 
 class ComplianceOwnerService:
+
+    @staticmethod
+    def set_active_role(session, role: str):
+        user_id = session["user_id"]
+
+        # 🔒 validate role belongs to user
+        if role not in session["roles"]:
+            raise PermissionError("Role not assigned to user")
+
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE users
+                    SET active_role = %s
+                    WHERE id = %s
+                    """,
+                    (role, user_id),
+                )
+
+        return {
+            "active_role": role
+        }
     """
     Backend service for COMPLIANCE_OWNER (Tenant Admin).
     No CLI. No input(). No print().
     """
+    @staticmethod
+    def get_user_context(session):
+        """
+        Returns the authenticated user's context:
+        - user_id
+        - tenant_id
+        - roles
+        - active_role
+
+        This is READ-ONLY and safe to call during auth/session hydration.
+        """
+        user_id = session["user_id"]
+        tenant_id = session["tenant_id"]
+
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        u.id,
+                        u.email,
+                        u.full_name,
+                        u.active_role,
+                        ARRAY_AGG(r.name ORDER BY r.name) AS roles
+                    FROM users u
+                    JOIN user_roles ur ON ur.user_id = u.id
+                    JOIN roles r ON r.id = ur.role_id
+                    WHERE u.id = %s
+                    GROUP BY u.id
+                    """,
+                    (user_id,),
+                )
+
+                row = cur.fetchone()
+                if not row:
+                    raise PermissionError("User not found")
+
+                (
+                    uid,
+                    email,
+                    full_name,
+                    active_role,
+                    roles,
+                ) = row
+
+        return {
+            "user_id": str(uid),
+            "tenant_id": str(tenant_id),
+            "email": email,
+            "full_name": full_name,
+            "roles": roles or [],
+            "active_role": active_role,
+        }
+
+    @staticmethod
+    def get_controls_overview(session):
+        """
+        High-level control execution visibility for Compliance Owner.
+        One row per control_id, aggregated from control_executions.
+        """
+        ComplianceOwnerService._assert_admin(session)
+        tenant_id = session["tenant_id"]
+
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        ce.control_id,
+
+                        COUNT(*) AS total_runs,
+
+                        COUNT(*) FILTER (
+                            WHERE ce.status = 'COMPLETED'
+                        ) AS completed,
+
+                        COUNT(*) FILTER (
+                            WHERE ce.status IN ('PENDING', 'IN_PROGRESS')
+                              AND ce.due_at >= now()
+                        ) AS in_progress,
+
+                        COUNT(*) FILTER (
+                            WHERE ce.due_at < now()
+                              AND ce.status NOT IN ('COMPLETED')
+                        ) AS overdue,
+
+                        COUNT(*) FILTER (
+                            WHERE ce.status = 'EXCEPTION'
+                        ) AS exceptions,
+
+                        MIN(ce.due_at) FILTER (
+                            WHERE ce.status IN ('PENDING', 'IN_PROGRESS')
+                              AND ce.due_at >= now()
+                        ) AS next_due_at
+
+                    FROM control_executions ce
+                    WHERE ce.tenant_id = %s
+                    GROUP BY ce.control_id
+                    ORDER BY overdue DESC, exceptions DESC
+                    """,
+                    (tenant_id,),
+                )
+
+                controls = []
+                for (
+                    control_id,
+                    total_runs,
+                    completed,
+                    in_progress,
+                    overdue,
+                    exceptions,
+                    next_due_at,
+                ) in cur.fetchall():
+
+                    # Risk is derived strictly from execution state
+                    if overdue > 0 or exceptions > 0:
+                        risk_level = "HIGH"
+                    elif in_progress > 0:
+                        risk_level = "MEDIUM"
+                    else:
+                        risk_level = "LOW"
+
+                    controls.append({
+                        "controlId": str(control_id),
+                        "runs": total_runs,
+                        "completed": completed,
+                        "inProgress": in_progress,
+                        "overdue": overdue,
+                        "exceptions": exceptions,
+                        "nextDueAt": (
+                            next_due_at.isoformat()
+                            if next_due_at else None
+                        ),
+                        "riskLevel": risk_level,
+                    })
+
+        return {
+            "count": len(controls),
+            "controls": controls,
+            "generatedAt": datetime.now(timezone.utc).isoformat(),
+        }
+   
+    @staticmethod
+    def get_inbox(session):
+            """
+            Unified inbox for Compliance Owner.
+            Computed from authoritative tables.
+            """
+            ComplianceOwnerService._assert_admin(session)
+
+            tenant_id = session["tenant_id"]
+            user_id = session["user_id"]
+
+            inbox = []
+
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+
+                    cur.execute(
+                        """
+                        SELECT
+                            aea.id,
+                            aea.evidence_request_id,
+                            u.email,
+                            aea.requested_at
+                        FROM auditor_evidence_access aea
+                        JOIN users u ON u.id = aea.auditor_user_id
+                        WHERE aea.tenant_id = %s
+                        AND aea.status = 'REQUESTED'
+                        ORDER BY aea.requested_at DESC
+                        """,
+                        (tenant_id,),
+                    )
+
+                    for access_id, evidence_id, auditor_email, requested_at in cur.fetchall():
+                        inbox.append({
+                            "type": "AUDITOR_EVIDENCE_REQUEST",
+                            "priority": "HIGH",
+                            "requiresAction": True,
+                            "createdAt": requested_at.isoformat(),
+                            "data": {
+                                "accessRequestId": str(access_id),
+                                "evidenceRequestId": str(evidence_id),
+                                "auditorEmail": auditor_email,
+                            },
+                        })
+
+                    # -------------------------------------------------
+                    # 2. Control owner nominations
+                    # -------------------------------------------------
+                    cur.execute(
+                        """
+                        SELECT
+                            n.id,
+                            n.control_id,
+                            u.email,
+                            n.created_at
+                        FROM control_owner_nominations n
+                        JOIN users u ON u.id = n.nominated_user_id
+                        WHERE n.tenant_id = %s
+                        AND n.status = 'PENDING'
+                        ORDER BY n.created_at DESC
+                        """,
+                        (tenant_id,),
+                    )
+
+                    for nomination_id, control_id, nominee_email, created_at in cur.fetchall():
+                        inbox.append({
+                            "type": "CONTROL_OWNER_NOMINATION",
+                            "priority": "MEDIUM",
+                            "requiresAction": True,
+                            "createdAt": created_at.isoformat(),
+                            "data": {
+                                "nominationId": str(nomination_id),
+                                "controlId": str(control_id),
+                                "nomineeEmail": nominee_email,
+                            },
+                        })
+
+                    # -------------------------------------------------
+                    # 3. Evidence submissions awaiting review
+                    # -------------------------------------------------
+                    cur.execute(
+                        """
+                        SELECT
+                            er.id,
+                            er.description,
+                            u.email,
+                            er.created_at
+                        FROM evidence_requests er
+                        JOIN users u ON u.id = er.requested_from
+                        WHERE er.tenant_id = %s
+                        AND er.status = 'SUBMITTED'
+                        AND er.requested_by = %s
+                        ORDER BY er.created_at DESC
+                        """,
+                        (tenant_id, user_id),
+                    )
+
+                    for req_id, description, submitter_email, created_at in cur.fetchall():
+                        inbox.append({
+                            "type": "EVIDENCE_REVIEW",
+                            "priority": "HIGH",
+                            "requiresAction": True,
+                            "createdAt": created_at.isoformat(),
+                            "data": {
+                                "requestId": str(req_id),
+                                "description": description,
+                                "submittedBy": submitter_email,
+                            },
+                        })
+
+                    # -------------------------------------------------
+                    # 4. Overdue evidence (attention items)
+                    # -------------------------------------------------
+                    cur.execute(
+                        """
+                        SELECT
+                            id,
+                            description,
+                            due_at
+                        FROM evidence_requests
+                        WHERE tenant_id = %s
+                        AND due_at < now()
+                        AND status NOT IN ('COMPLETED', 'WAIVED')
+                        ORDER BY due_at ASC
+                        """,
+                        (tenant_id,),
+                    )
+
+                    for req_id, description, due_at in cur.fetchall():
+                        inbox.append({
+                            "type": "OVERDUE_EVIDENCE",
+                            "priority": "HIGH",
+                            "requiresAction": False,
+                            "createdAt": due_at.isoformat(),
+                            "data": {
+                                "requestId": str(req_id),
+                                "description": description,
+                            },
+                        })
+
+            # newest first (ISO strings sort safely)
+            inbox.sort(key=lambda x: x["createdAt"], reverse=True)
+
+            return {
+                "count": len(inbox),
+                "items": inbox,
+                "generatedAt": datetime.now(timezone.utc).isoformat(),
+            }
 
     @staticmethod
     def _assert_admin(session):
@@ -420,6 +733,26 @@ This report reflects the current compliance posture across the organization.
                     "recentActivity": recent_activity,
                 }
 
+    @staticmethod
+    def fetch_departments_for_tenant(tenant_id):
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        d.id,
+                        d.name,
+                        COUNT(ud.user_id) AS user_count
+                    FROM departments d
+                    LEFT JOIN user_departments ud
+                    ON ud.department_id = d.id
+                    WHERE d.tenant_id = %s
+                    GROUP BY d.id
+                    ORDER BY d.name
+                    """,
+                    (tenant_id,),
+                )
+                return cur.fetchall()
     @staticmethod
     def set_framework_status(session, framework_id: int, status: str):
         ComplianceOwnerService._assert_admin(session)

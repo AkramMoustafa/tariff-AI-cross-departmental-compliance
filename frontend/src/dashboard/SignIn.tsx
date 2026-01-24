@@ -11,13 +11,25 @@ import {
 } from "@mui/material";
 import { useNavigate, Link } from "react-router-dom";
 
+import { useSession } from "@/api/SessionProvider";
+
+const rawEnvBase = import.meta.env.VITE_API_BASE_URL;
+
+console.log("[SignIn] raw VITE_API_BASE_URL:", rawEnvBase);
+console.log("[SignIn] window.location.hostname:", window.location.hostname);
+
 const BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ||
-  (window.location.hostname.includes("localhost")
+  rawEnvBase && rawEnvBase.trim() !== ""
+    ? rawEnvBase.trim()
+    : window.location.hostname.includes("localhost")
     ? "http://localhost:8000"
-    : "https://api.nomioc.com");
+    : "https://api.nomioc.com";
+
+console.log("[SignIn] RESOLVED BASE_URL:", BASE_URL);
 
 export default function SignIn() {
+  const { refreshSession } = useSession(); // ✅ correct API
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,38 +39,50 @@ export default function SignIn() {
   const navigate = useNavigate();
 
   const handleLogin = async () => {
+    console.log("[SignIn] handleLogin clicked");
+    console.log("[SignIn] email:", email);
+
     setLoading(true);
     setError("");
     setSuccess("");
 
     try {
+      console.log("[SignIn] Sending POST /api/auth/login");
+
       const response = await fetch(`${BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
+        body: JSON.stringify({ email, password }),
       });
 
+      console.log("[SignIn] Login response status:", response.status);
+
       const data = await response.json();
+      console.log("[SignIn] Login response body:", data);
 
       if (!response.ok) {
         throw new Error(data.detail || "Login failed");
       }
 
       if (!data.access_token) {
-        throw new Error("Invalid login response");
+        throw new Error("Invalid login response (missing access_token)");
       }
+
+      console.log("[SignIn] Storing access_token in localStorage");
 
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("token_type", data.token_type || "bearer");
 
       setSuccess("Login successful");
+
+      await refreshSession();
+
       navigate("/redirect", { replace: true });
+
     } catch (err: any) {
+      console.error("[SignIn] Login error:", err);
       setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
