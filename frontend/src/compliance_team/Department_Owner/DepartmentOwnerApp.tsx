@@ -1,16 +1,19 @@
+// src/department_owner/DepartmentOwnerApp.tsx
 import { Routes, Route } from "react-router-dom";
-import { ComplianceLayout } from "../Compliance_owner/ComplianceLayout";
-import { ComplianceDashboard } from "../Compliance_owner/ComplianceDashboard";
-import { ExecutiveCompliancePanel } from "../Compliance_owner/AuditLog";
+import DepartmentOwnerLayout from "./DepartmentOwnerLayout";
+import DepartmentOwnerDashboard from "./DepartmentOwnerDashboard";
+import DepartmentUsersPage from "./DepartmentUsersPage";
+import DepartmentEvidencePage from "./DepartmentEvidencePage";
 
 
 export default function DepartmentOwnerApp() {
-  return (
-    <Routes>
-      <Route element={<ComplianceLayout readOnly />}>
-        <Route index element={<ComplianceDashboard />} />
-        <Route path="audit-log" element={<ExecutiveCompliancePanel />} />
-      </Route>
-    </Routes>
-  );
+return (
+<Routes>
+<Route element={<DepartmentOwnerLayout />}>
+<Route index element={<DepartmentOwnerDashboard />} />
+<Route path="users" element={<DepartmentUsersPage />} />
+<Route path="evidence" element={<DepartmentEvidencePage />} />
+</Route>
+</Routes>
+);
 }

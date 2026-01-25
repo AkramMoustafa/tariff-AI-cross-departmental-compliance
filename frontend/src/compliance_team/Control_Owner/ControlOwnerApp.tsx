@@ -1,15 +1,22 @@
 import { Routes, Route } from "react-router-dom";
-import { ComplianceLayout } from "../Compliance_owner/ComplianceLayout";
-import { ComplianceDashboard } from "../Compliance_owner/ComplianceDashboard";
-import { ExecutiveCompliancePanel } from "../Compliance_owner/AuditLog";
 
+import ControlOwnerLayout from "./ControlOwnerLayout";
+import ControlOwnerDashboard from "./ControlOwnerDashboard";
+import EvidenceTasksPage from "./EvidenceTasksPage";
+import ControlExecutionsPage from "./ControlExecutionsPage";
 
 export default function ControlOwnerApp() {
   return (
     <Routes>
-      <Route element={<ComplianceLayout readOnly />}>
-        <Route index element={<ComplianceDashboard />} />
-        <Route path="audit-log" element={<ExecutiveCompliancePanel />} />
+      <Route element={<ControlOwnerLayout />}>
+        {/* /control_owner */}
+        <Route index element={<ControlOwnerDashboard />} />
+
+        {/* /control_owner/evidence */}
+        <Route path="evidence" element={<EvidenceTasksPage />} />
+
+        {/* /control_owner/executions */}
+        <Route path="executions" element={<ControlExecutionsPage />} />
       </Route>
     </Routes>
   );

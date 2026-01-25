@@ -1,15 +1,14 @@
 import { Routes, Route } from "react-router-dom";
-import { ComplianceLayout } from "../Compliance_owner/ComplianceLayout";
-import { ComplianceDashboard } from "../Compliance_owner/ComplianceDashboard";
-import { ExecutiveCompliancePanel } from "../Compliance_owner/AuditLog";
-
+import AuditorLayout from "./AuditorLayout";
+import AuditorDashboard from "./AuditorDashboard";
+import EvidenceRequestsPage from "./EvidenceRequestsPage";
 
 export default function AuditorApp() {
   return (
     <Routes>
-      <Route element={<ComplianceLayout readOnly />}>
-        <Route index element={<ComplianceDashboard />} />
-        <Route path="audit-log" element={<ExecutiveCompliancePanel />} />
+      <Route element={<AuditorLayout />}>
+        <Route index element={<AuditorDashboard />} />
+        <Route path="evidence" element={<EvidenceRequestsPage />} />
       </Route>
     </Routes>
   );

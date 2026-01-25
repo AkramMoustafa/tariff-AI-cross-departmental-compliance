@@ -21,7 +21,46 @@ def get_compliance_owner_context(
         return ComplianceOwnerService.get_user_context(session)
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e))
-    
+@router.post("/controls")
+def create_control(
+    payload: Dict[str, Any],
+    session: Dict[str, Any] = Depends(get_session),
+):
+    required = {
+        "framework_id",
+        "department_id",
+        "name",
+        "frequency",
+    }
+    missing = required - payload.keys()
+    if missing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Missing fields: {', '.join(missing)}",
+        )
+
+    try:
+        return ComplianceOwnerService.create_control(
+            session=session,
+            framework_id=payload["framework_id"],
+            department_id=payload["department_id"],
+            name=payload["name"],
+            frequency=payload["frequency"],
+            description=payload.get("description"),
+            severity=payload.get("severity", "MEDIUM"),
+        )
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
+@router.get("/controls")
+def fetch_all_controls(
+    session: Dict[str, Any] = Depends(get_session),
+):
+    try:
+        return ComplianceOwnerService.fetch_all_controls(session)
+    except PermissionError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
 @router.get("/frameworks")
 def fetch_frameworks(
     session: Dict[str, Any] = Depends(get_session),

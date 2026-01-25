@@ -15,7 +15,7 @@ export function RootRedirect() {
     if (session.roles.length === 1) {
       return <Navigate to="/compliance/auto-role" replace />;
     }
-    return <Navigate to="/select-role" replace />;
+    return <Navigate to="/compliance/select-role" replace />;
   }
 
   // ✅ ROLE-BASED LANDING

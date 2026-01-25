@@ -396,22 +396,77 @@ def run():
         UNIQUE (name, created_by_tenant)
     );
     """)
-    cursor.execute("""CREATE TABLE IF NOT EXISTS control_executions (
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS departments (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (tenant_id, name)
+    );
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS user_departments (
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        department_id UUID REFERENCES departments(id) ON DELETE CASCADE,
+        PRIMARY KEY (user_id, department_id)
+    );
+    """)
+    
+    cursor.execute("""CREATE TABLE controls (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-    control_id UUID NOT NULL,
-    control_owner_id UUID NOT NULL REFERENCES users(id),
-    period_start DATE NOT NULL,
-    created_by UUID,
-    period_end DATE NOT NULL,
-    due_at TIMESTAMPTZ NOT NULL,
-    completed_at TIMESTAMPTZ,
-    status TEXT NOT NULL CHECK (
-        status IN ('PENDING', 'IN_PROGRESS', 'COMPLETED', 'OVERDUE', 'EXCEPTION')
+    framework_id UUID NOT NULL REFERENCES frameworks(id) ON DELETE CASCADE,
+    department_id UUID NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+
+
+    name TEXT NOT NULL,
+    description TEXT,
+    frequency TEXT NOT NULL CHECK (
+    frequency IN ('MONTHLY', 'QUARTERLY', 'ANNUAL', 'AD_HOC')
     ),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+
+    severity TEXT DEFAULT 'MEDIUM',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    UNIQUE (tenant_id, framework_id, department_id, name)
     );""")
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS control_executions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+        tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+
+        -- 🔗 HARD LINK TO CONTROLS
+        control_id UUID NOT NULL
+            REFERENCES controls(id)
+            ON DELETE CASCADE,
+
+        control_owner_id UUID NOT NULL REFERENCES users(id),
+        period_start DATE NOT NULL,
+        created_by UUID REFERENCES users(id),
+        period_end DATE NOT NULL,
+        due_at TIMESTAMPTZ NOT NULL,
+        completed_at TIMESTAMPTZ,
+
+        status TEXT NOT NULL CHECK (
+            status IN ('PENDING', 'IN_PROGRESS', 'COMPLETED', 'OVERDUE', 'EXCEPTION')
+        ),
+
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    """)
+    cursor.execute("""ALTER TABLE controls
+    ADD COLUMN IF NOT EXISTS start_date DATE NOT NULL DEFAULT CURRENT_DATE;""")
+    cursor.execute("""CREATE UNIQUE INDEX IF NOT EXISTS ux_control_exec_control_due
+    ON control_executions(control_id, due_at);""")
+    
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS evidence_requests (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -429,33 +484,37 @@ def run():
     );
     """)
 
-    cursor.execute("""CREATE TABLE IF NOT EXISTS control_owner_nominations (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS control_owner_nominations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-        tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
 
-        control_id UUID NOT NULL,
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
 
-        nominated_user_id UUID NOT NULL REFERENCES users(id),
 
-        nominated_by UUID NOT NULL REFERENCES users(id),
+    control_id UUID NOT NULL
+    REFERENCES controls(id)
+    ON DELETE CASCADE,
 
-        department_id UUID REFERENCES departments(id),
 
-        status TEXT NOT NULL CHECK (
-            status IN ('PENDING', 'APPROVED', 'REJECTED')
-        ),
-        status TEXT NOT NULL CHECK (
-            status IN ('PENDING', 'APPROVED', 'REJECTED')
-        ),
+    nominated_user_id UUID NOT NULL REFERENCES users(id),
+    nominated_by UUID NOT NULL REFERENCES users(id),
 
-        rejection_reason TEXT,
 
-        reviewed_by UUID REFERENCES users(id),
-        reviewed_at TIMESTAMPTZ,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    );"""
-)
+    department_id UUID REFERENCES departments(id),
+
+
+    status TEXT NOT NULL CHECK (
+    status IN ('PENDING', 'APPROVED', 'REJECTED')
+    ),
+
+
+    rejection_reason TEXT,
+    reviewed_by UUID REFERENCES users(id),
+    reviewed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    """)
 
     cursor.execute("""CREATE TABLE IF NOT EXISTS auditor_evidence_access (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -550,24 +609,7 @@ def run():
     ON CONFLICT (name) DO NOTHING;
     """)
 
-    # DEPARTMENTS
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS departments (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-        name TEXT NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        UNIQUE (tenant_id, name)
-    );
-    """)
 
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS user_departments (
-        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-        department_id UUID REFERENCES departments(id) ON DELETE CASCADE,
-        PRIMARY KEY (user_id, department_id)
-    );
-    """)
 
     cursor.close()
     conn.close()

@@ -35,37 +35,37 @@ export default function App() {
           }
 
         /><Route
-  path="/executive/*"
-  element={
-    <ProtectedRoute>
-      <ExecutiveApp />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="/Auditor/*"
-  element={
-    <ProtectedRoute>
-      <AuditorApp />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="/department_owner/*"
-  element={
-    <ProtectedRoute>
-      <DepartmentOwnerApp />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="/control_owner/*"
-  element={
-    <ProtectedRoute>
-      <ControlOwnerApp />
-    </ProtectedRoute>
-  }
-/>
+          path="/executive/*"
+          element={
+            <ProtectedRoute>
+              <ExecutiveApp />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/Auditor/*"
+          element={
+            <ProtectedRoute>
+              <AuditorApp />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/department_owner/*"
+          element={
+            <ProtectedRoute>
+              <DepartmentOwnerApp />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/control_owner/*"
+          element={
+            <ProtectedRoute>
+              <ControlOwnerApp />
+            </ProtectedRoute>
+          }
+        />
 
 
         <Route path="*" element={<NotFoundPage />} />

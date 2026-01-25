@@ -829,6 +829,51 @@ export const getAuditLog = async (
     createdAt: row.created_at,
   }))
 }
+export type ControlFrequency = "MONTHLY" | "QUARTERLY" | "ANNUAL" | "AD_HOC"
+
+
+export interface Control {
+controlId: string
+name: string
+description?: string | null
+frequency: ControlFrequency
+severity: "LOW" | "MEDIUM" | "HIGH"
+isActive: boolean
+framework: {
+id: string
+name: string
+}
+department: {
+id: string
+name: string
+}
+createdAt: string
+}
+
+
+export interface CreateControlPayload {
+framework_id: string
+department_id: string
+name: string
+frequency: ControlFrequency
+description?: string
+severity?: "LOW" | "MEDIUM" | "HIGH"
+}
+
+export const getAllControls = async (): Promise<Control[]> => {
+const { data } = await apiClient.get("/compliance-owner/controls")
+return data
+}
+
+export const createControl = async (
+payload: CreateControlPayload
+): Promise<{ control_id: string; status: string }> => {
+const { data } = await apiClient.post(
+"/compliance-owner/controls",
+payload
+)
+return data
+}
 
 export interface Framework {
   id: number

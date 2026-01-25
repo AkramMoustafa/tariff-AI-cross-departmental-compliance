@@ -19,7 +19,6 @@ class ComplianceOwnerService:
     def set_active_role(session, role: str):
         user_id = session["user_id"]
 
-        # 🔒 validate role belongs to user
         if role not in session["roles"]:
             raise PermissionError("Role not assigned to user")
 
@@ -37,63 +36,308 @@ class ComplianceOwnerService:
         return {
             "active_role": role
         }
-    """
-    Backend service for COMPLIANCE_OWNER (Tenant Admin).
-    No CLI. No input(). No print().
-    """
-    @staticmethod
-    def get_user_context(session):
-        """
-        Returns the authenticated user's context:
-        - user_id
-        - tenant_id
-        - roles
-        - active_role
+   @staticmethod
+    def create_control(
+        session,
+        framework_id: str,
+        department_id: str,
+        name: str,
+        frequency: str,
+        description: str | None = None,
+        severity: str = "MEDIUM",
+    ):
+        ComplianceOwnerService._assert_admin(session)
 
-        This is READ-ONLY and safe to call during auth/session hydration.
-        """
-        user_id = session["user_id"]
-        tenant_id = session["tenant_id"]
+        VALID_FREQUENCIES = {"MONTHLY", "QUARTERLY", "ANNUAL", "AD_HOC"}
+        VALID_SEVERITIES = {"LOW", "MEDIUM", "HIGH"}
+
+        if frequency not in VALID_FREQUENCIES:
+            raise ValueError(f"Invalid frequency: {frequency}")
+
+        if severity not in VALID_SEVERITIES:
+            raise ValueError(f"Invalid severity: {severity}")
+
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+
+                # 🔒 Ensure framework belongs to tenant
+                cur.execute(
+                    """
+                    SELECT 1 FROM frameworks
+                    WHERE id = %s
+                    AND (created_by_tenant = %s OR created_by_tenant IS NULL)
+                    """,
+                    (framework_id, session["tenant_id"]),
+                )
+                if not cur.fetchone():
+                    raise PermissionError("Framework not accessible for tenant")
+
+                # 🔒 Ensure department belongs to tenant
+                cur.execute(
+                    """
+                    SELECT 1 FROM departments
+                    WHERE id = %s AND tenant_id = %s
+                    """,
+                    (department_id, session["tenant_id"]),
+                )
+                if not cur.fetchone():
+                    raise PermissionError("Department not accessible for tenant")
+
+                # ✅ Create control
+                cur.execute(
+                    """
+                    INSERT INTO controls (
+                        tenant_id,
+                        framework_id,
+                        department_id,
+                        name,
+                        description,
+                        frequency,
+                        severity
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (
+                        session["tenant_id"],
+                        framework_id,
+                        department_id,
+                        name,
+                        description,
+                        frequency,
+                        severity,
+                    ),
+                )
+
+                control_id = cur.fetchone()[0]
+
+                # 🧾 Audit log
+                cur.execute(
+                    """
+                    INSERT INTO audit_log (
+                        tenant_id,
+                        actor_user_id,
+                        action,
+                        target_type,
+                        target_id
+                    )
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (
+                        session["tenant_id"],
+                        session["user_id"],
+                        "CONTROL_CREATED",
+                        "CONTROL",
+                        control_id,
+                    ),
+                )
+
+                conn.commit()
+
+        return {
+            "control_id": str(control_id),
+            "status": "created",
+        }
+        
+    @staticmethod
+    def fetch_all_controls(session) -> list[dict]:
+        ComplianceOwnerService._assert_admin(session)
 
         with get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     """
                     SELECT
-                        u.id,
-                        u.email,
-                        u.full_name,
-                        u.active_role,
-                        ARRAY_AGG(r.name ORDER BY r.name) AS roles
-                    FROM users u
-                    JOIN user_roles ur ON ur.user_id = u.id
-                    JOIN roles r ON r.id = ur.role_id
-                    WHERE u.id = %s
-                    GROUP BY u.id
+                        c.id,
+                        c.name,
+                        c.description,
+                        c.frequency,
+                        c.severity,
+                        c.is_active,
+                        c.created_at,
+
+                        f.id AS framework_id,
+                        f.name AS framework_name,
+
+                        d.id AS department_id,
+                        d.name AS department_name
+                    FROM controls c
+                    JOIN frameworks f
+                    ON f.id = c.framework_id
+                    JOIN departments d
+                    ON d.id = c.department_id
+                    WHERE c.tenant_id = %s
+                    ORDER BY
+                        f.name,
+                        d.name,
+                        c.name
                     """,
-                    (user_id,),
+                    (session["tenant_id"],),
                 )
 
-                row = cur.fetchone()
-                if not row:
-                    raise PermissionError("User not found")
+                rows = cur.fetchall()
 
-                (
-                    uid,
-                    email,
-                    full_name,
-                    active_role,
-                    roles,
-                ) = row
+        return [
+            {
+                "controlId": str(cid),
+                "name": name,
+                "description": desc,
+                "frequency": freq,
+                "severity": severity,
+                "isActive": is_active,
+                "framework": {
+                    "id": str(fid),
+                    "name": framework_name,
+                },
+                "department": {
+                    "id": str(did),
+                    "name": department_name,
+                },
+                "createdAt": created_at.isoformat(),
+            }
+            for (
+                cid,
+                name,
+                desc,
+                freq,
+                severity,
+                is_active,
+                created_at,
+                fid,
+                framework_name,
+                did,
+                department_name,
+            ) in rows
+        ]
 
-        return {
-            "user_id": str(uid),
-            "tenant_id": str(tenant_id),
-            "email": email,
-            "full_name": full_name,
-            "roles": roles or [],
-            "active_role": active_role,
-        }
+    @staticmethod
+    def _create_initial_control_execution(
+        tenant_id: str,
+        control_id: str,
+        frequency: str,
+    ):
+        # basic due-date logic (can evolve later)
+        now = datetime.now(timezone.utc)
+
+        if frequency == "MONTHLY":
+            due_at = now.replace(month=now.month + 1)
+        elif frequency == "QUARTERLY":
+            due_at = now.replace(month=now.month + 3)
+        elif frequency == "ANNUAL":
+            due_at = now.replace(year=now.year + 1)
+        else:  # AD_HOC
+            due_at = now
+
+        with get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO control_executions (
+                        tenant_id,
+                        control_id,
+                        status,
+                        due_at,
+                        created_at
+                    )
+                    VALUES (%s, %s, 'PENDING', %s, %s)
+                    """,
+                    (
+                        tenant_id,
+                        control_id,
+                        due_at,
+                        now,
+                    ),
+                )
+                conn.commit()
+
+
+        @staticmethod
+        def fetch_control_executions(session, control_id: str):
+            ComplianceOwnerService._assert_admin(session)
+
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT
+                            id,
+                            status,
+                            due_at,
+                            completed_at,
+                            created_at
+                        FROM control_executions
+                        WHERE tenant_id = %s
+                        AND control_id = %s
+                        ORDER BY created_at DESC
+                        """,
+                        (session["tenant_id"], control_id),
+                    )
+
+                    return [
+                        {
+                            "executionId": str(row[0]),
+                            "status": row[1],
+                            "dueAt": row[2].isoformat(),
+                            "completedAt": (
+                                row[3].isoformat() if row[3] else None
+                            ),
+                            "createdAt": row[4].isoformat(),
+                        }
+                        for row in cur.fetchall()
+                    ]
+        @staticmethod
+        def get_user_context(session):
+            """
+            Returns the authenticated user's context:
+            - user_id
+            - tenant_id
+            - roles
+            - active_role
+
+            This is READ-ONLY and safe to call during auth/session hydration.
+            """
+            user_id = session["user_id"]
+            tenant_id = session["tenant_id"]
+
+            with get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT
+                            u.id,
+                            u.email,
+                            u.full_name,
+                            u.active_role,
+                            ARRAY_AGG(r.name ORDER BY r.name) AS roles
+                        FROM users u
+                        JOIN user_roles ur ON ur.user_id = u.id
+                        JOIN roles r ON r.id = ur.role_id
+                        WHERE u.id = %s
+                        GROUP BY u.id
+                        """,
+                        (user_id,),
+                    )
+
+                    row = cur.fetchone()
+                    if not row:
+                        raise PermissionError("User not found")
+
+                    (
+                        uid,
+                        email,
+                        full_name,
+                        active_role,
+                        roles,
+                    ) = row
+
+            return {
+                "user_id": str(uid),
+                "tenant_id": str(tenant_id),
+                "email": email,
+                "full_name": full_name,
+                "roles": roles or [],
+                "active_role": active_role,
+            }
 
     @staticmethod
     def get_controls_overview(session):
