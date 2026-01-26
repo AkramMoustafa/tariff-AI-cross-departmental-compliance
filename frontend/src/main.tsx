@@ -1,6 +1,7 @@
 // src/main.tsx
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { SessionProvider } from "@/api/SessionProvider";
 import App from "./App";
 import { BrowserRouter } from "react-router-dom";
 import "./index.css";
@@ -92,10 +93,12 @@ ReactDOM.createRoot(
 ).render(
   <React.StrictMode>
     <BrowserRouter>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <SessionProvider>
         <App />
-      </ThemeProvider>
+      </SessionProvider>
+    </ThemeProvider>
     </BrowserRouter>
   </React.StrictMode>
 );

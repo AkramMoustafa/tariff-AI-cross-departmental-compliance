@@ -13,6 +13,8 @@ from fastapi import (
     APIRouter,
     Query,
 )
+from src.api.db import get_db, engine, SessionLocal
+
 from src.api.sanctions import (
     load_sanctions,
     get_sanctions,
@@ -38,7 +40,8 @@ from src.api.models import WorkspaceRegulation
 from src.core.regulations.state_regulations.state_engine  import normalize_regulation
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
+from typing import Optional
 from src.core.store_file_data import save_extraction
 from src.core.regulations.state_regulations.state_engine import search_state_regulations,normalize_regulation
 from src.api.models import FileExtraction
@@ -92,7 +95,6 @@ from src.api.models import (
     Base,
 )
 from PyPDF2 import PdfReader
-from src.api.db import get_db, engine, SessionLocal
 
 from src.core.LLM import (
     generate_market_insight,
@@ -123,8 +125,6 @@ from google.oauth2 import service_account
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from google.auth.exceptions import RefreshError
 
-import firebase_admin
-from firebase_admin import auth as firebase_auth, credentials
 from fastapi import HTTPException
 from src.api.obligations_ingest import router as obligations_router
 
@@ -155,7 +155,7 @@ from contextlib import asynccontextmanager
 from src.api.order_routes import router as order_router
 import threading
 import time
-from src.api.auth_backend import router as auth_router, get_current_user
+from src.api.auth_backend import router as auth_router, get_current_user, get_me
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -170,6 +170,14 @@ from src.api.models import Regulation
 from fastapi.responses import StreamingResponse
 from src.api.tariff_routes import router as tariff_router
 
+
+from src.api.auth_backend import router as auth_router
+
+from src.api.cli.team_routes.control_owner_route import router as control_owner_router
+from src.api.cli.team_routes.auditor_route import router as auditor_router
+from src.api.cli.team_routes.department_owner_route import router as department_owner_router
+from src.api.cli.team_routes.executive_route import router as executive_router
+from src.api.cli.team_routes.tenant_admin_route import router as compliance_owner_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -222,6 +230,7 @@ else:
     load_dotenv(".env", override=True)
     print("Loaded environment from local .env")
 
+
 # SECURITY IMPROVEMENT: Load CORS origins from environment
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",")
 if not ALLOWED_ORIGINS or ALLOWED_ORIGINS == [""]:
@@ -246,6 +255,38 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
     max_age=3600,
 )
+app.include_router(auth_router)
+
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
+app.state.limiter = limiter
+
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.include_router(control_owner_router)
+# app.include_router(auditor_router)
+app.include_router(department_owner_router)
+app.include_router(executive_router)
+app.include_router(compliance_owner_router)
+
+@app.get("/api/sanctions/search")
+def sanctions_search(
+    q: str | None = None,
+    entity_type: str | None = None,
+    country: str | None = None,
+):
+    return search_sanctions(q, entity_type, country)
+
+@app.get("/api/internal/sanctions/health")
+def sanctions_health_check():
+    return sanctions_health()
+# Check if Render secret file exists, else fallback to local
+if os.path.exists("/etc/secrets/.env"):
+    load_dotenv("/etc/secrets/.env", override=True)
+    print("Loaded environment from /etc/secrets/.env (Render)")
+else:
+    load_dotenv(".env", override=True)
+    print("Loaded environment from local .env")
+
+
 # SECURITY ENHANCEMENT: Global exception handlers
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
@@ -318,21 +359,6 @@ G_SCOPES = [
     "https://www.googleapis.com/auth/drive.readonly",
     "https://www.googleapis.com/auth/drive.metadata.readonly",
 ]
-
-firebase_key_path = (
-    "/etc/secrets/firebase-adminsdk.json"
-    if os.path.exists("/etc/secrets/firebase-adminsdk.json")
-    else "firebase-adminsdk.json"
-)
-if not firebase_admin._apps:
-    cred = credentials.Certificate(firebase_key_path)
-    firebase_admin.initialize_app(cred)
-    print("\n🔥 BACKEND FIREBASE PROJECT:", cred.project_id)
-    print("📄 Using Firebase key file:", firebase_key_path)
-
-# SECURITY IMPROVEMENT: Remove in-memory sessions (now handled by auth_backend.py)
-# SESSIONS = {}  # REMOVED
-
 # Folder where files will be stored
 FILEHUB_DIR = os.path.abspath("filehub_storage")
 os.makedirs(FILEHUB_DIR, exist_ok=True)
@@ -429,10 +455,35 @@ def import_regulations(
         "count": len(created_ids)
     }
 
-from pydantic import BaseModel
-from typing import Optional
+from fastapi import Query
+from src.api.sanctions import get_sanctions_entities, search_sanctions
 
-from pydantic import BaseModel, EmailStr
+@app.get("/api/sanctions")
+def list_sanctions(
+    q: str | None = None,
+    entity_type: str | None = None,
+    country: str | None = None,
+    offset: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+):
+    # If filters are provided, reuse search logic
+    if q or entity_type or country:
+        results = search_sanctions(
+            q=q,
+            entity_type=entity_type,
+            country=country,
+        )
+    else:
+        results = get_sanctions_entities()
+
+    total = len(results)
+
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "results": results[offset : offset + limit],
+    }
 
 class DemoRequestCreate(BaseModel):
     company_name: str
@@ -1217,7 +1268,6 @@ class UserAccessRequest(BaseModel):
 
 # Local imports for DB
 from src.api.models import ObligationInstance, RemediationTask, EvidenceArtifact, AuditLog, TaskState, Base
-from src.api.db import get_db, engine, SessionLocal
 
 
 # Constants
@@ -2113,16 +2163,16 @@ async def get_dashboard_summary(
         "overdue": overdue_tasks
     }
 
-@app.get("/api/audit_log")
-async def get_audit_log(
-    limit: int = 100, 
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    logs = db.query(AuditLog).filter(
-        AuditLog.user == current_user.uid
-    ).order_by(AuditLog.timestamp.desc()).limit(limit).all()
-    return logs
+# @app.get("/api/audit_log")
+# async def get_audit_log(
+#     limit: int = 100, 
+#     current_user: User = Depends(get_current_user),
+#     db: Session = Depends(get_db)
+# ):
+#     logs = db.query(AuditLog).filter(
+#         AuditLog.user == current_user.id
+#     ).order_by(AuditLog.timestamp.desc()).limit(limit).all()
+#     return logs
 
 # Automation
 @app.post("/api/auto_generate_compliance")

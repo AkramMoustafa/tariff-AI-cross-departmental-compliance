@@ -23,6 +23,7 @@ import FileExtractPage from "./Extraction/FileExtractPage";
 import AuditResultsPage from "./Audit/Results/AuditResults";
 import AuditLogPage from "./Audit/Results/AuditLogPage";
 import SanctionsSearchStatic from "./Sanctions/sanctions_page";
+import SupplierIdentityStep from "./Sanctions/screening";
 export default function DashboardApp() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -82,6 +83,8 @@ const handleCollapseChange = (value: boolean) => {
         <Route path="AuditLogPage" element={<AuditLogPage />} />
         <Route path="results" element={<AuditResultsTab />} />
         <Route path= "sanctions" element={<SanctionsSearchStatic />} />
+          <Route path= "screening" element={<SupplierIdentityStep />} />
+        
       </Routes>
     </Box>
 
