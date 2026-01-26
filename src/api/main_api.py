@@ -125,8 +125,6 @@ from google.oauth2 import service_account
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from google.auth.exceptions import RefreshError
 
-import firebase_admin
-from firebase_admin import auth as firebase_auth, credentials
 from fastapi import HTTPException
 from src.api.obligations_ingest import router as obligations_router
 
@@ -337,18 +335,6 @@ G_SCOPES = [
     "https://www.googleapis.com/auth/drive.readonly",
     "https://www.googleapis.com/auth/drive.metadata.readonly",
 ]
-
-firebase_key_path = (
-    "/etc/secrets/firebase-adminsdk.json"
-    if os.path.exists("/etc/secrets/firebase-adminsdk.json")
-    else "firebase-adminsdk.json"
-)
-if not firebase_admin._apps:
-    cred = credentials.Certificate(firebase_key_path)
-    firebase_admin.initialize_app(cred)
-    print("\n🔥 BACKEND FIREBASE PROJECT:", cred.project_id)
-    print("📄 Using Firebase key file:", firebase_key_path)
-
 # Folder where files will be stored
 FILEHUB_DIR = os.path.abspath("filehub_storage")
 os.makedirs(FILEHUB_DIR, exist_ok=True)
