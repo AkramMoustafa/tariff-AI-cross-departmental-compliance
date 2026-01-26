@@ -28,7 +28,10 @@ files_metadata.json
 compliance-*.json
 complianceai.db
 dow_regulatory_intelligence_*.json
+__pycache__/
+*.pyc
 
+*.pyo
 *.db
 *.sqlite
 *.json

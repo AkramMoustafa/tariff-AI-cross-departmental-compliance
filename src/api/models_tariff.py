@@ -20,7 +20,7 @@ class TariffSchedule(Base):
 
     id = Column(Integer, primary_key=True)
     country = Column(String, index=True)           
-    name = Column(String)                          # "US MFN Tariff Schedule"
+    name = Column(String)                         
     effective_from = Column(DateTime)
     effective_to = Column(DateTime, nullable=True)
     source_url = Column(String)
