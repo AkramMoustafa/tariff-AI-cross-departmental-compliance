@@ -47,7 +47,50 @@ class ObligationInstance(Base):
     regulation = Column(String)
     due_date = Column(DateTime)
     remediation_tasks = relationship("RemediationTask", back_populates="obligation")
+class ApiClient(Base):
+    __tablename__ = "api_clients"
 
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    # 👇 OWNER (human)
+    owner_client_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("client_users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    client_id = Column(String, unique=True, nullable=False, index=True)
+    client_secret_hash = Column(String, nullable=False)
+
+    name = Column(String)
+    description = Column(Text)
+
+    scopes = Column(JSON, default=list)  # or ARRAY(Text) if you prefer
+    is_active = Column(Boolean, default=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_used_at = Column(DateTime, nullable=True)
+
+    # relationship back to human
+    owner = relationship("ClientUser", back_populates="api_clients")
+
+class ClientUser(Base):
+    __tablename__ = "client_users"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email = Column(String, nullable=False)
+    password_hash = Column(String, nullable=False)
+
+    is_active = Column(Boolean, default=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_login_at = Column(DateTime, nullable=True)
+
+    api_clients = relationship(
+        "ApiClient",
+        back_populates="owner",
+        cascade="all, delete-orphan",
+    )
 class RemediationTask(Base):
     __tablename__ = "remediation_tasks"
     id = Column(Integer, primary_key=True)

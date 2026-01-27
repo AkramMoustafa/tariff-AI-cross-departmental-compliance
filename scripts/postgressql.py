@@ -231,10 +231,10 @@ def run():
     );
     """)
 
-    cursor.execute("DROP TABLE IF EXISTS auth_tokens CASCADE;")
+
 
     cursor.execute("""
-    CREATE TABLE auth_tokens (
+        CREATE TABLE IF NOT EXISTS auth_tokens (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         token TEXT UNIQUE NOT NULL,
         user_uid UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -245,12 +245,77 @@ def run():
     """)
 
     cursor.execute("""
-    CREATE INDEX idx_auth_tokens_token
+    CREATE TABLE client_users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+        email TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        last_login_at TIMESTAMPTZ
+    );
+    """)
+
+    cursor.execute("""
+    CREATE TABLE api_clients (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+        owner_client_user_id UUID
+            REFERENCES client_users(id)
+            ON DELETE SET NULL,
+
+        client_id TEXT NOT NULL UNIQUE,
+        client_secret_hash TEXT NOT NULL,
+
+        name TEXT,
+        description TEXT,
+
+        scopes TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        last_used_at TIMESTAMPTZ
+    );
+    """)
+    cursor.execute("""
+    CREATE TABLE client_user_tokens (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+        client_user_id UUID NOT NULL
+            REFERENCES client_users(id)
+            ON DELETE CASCADE,
+
+        token TEXT UNIQUE NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        revoked BOOLEAN NOT NULL DEFAULT FALSE,
+
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    """)
+    cursor.execute("""
+    CREATE TABLE api_client_tokens (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+        api_client_id UUID NOT NULL
+            REFERENCES api_clients(id)
+            ON DELETE CASCADE,
+
+        token TEXT UNIQUE NOT NULL,
+        expires_at TIMESTAMPTZ NOT NULL,
+        revoked BOOLEAN NOT NULL DEFAULT FALSE,
+
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        last_used_at TIMESTAMPTZ
+    );
+    """)
+    cursor.execute("""
+    CREATE INDEX IF NOT EXISTS  idx_auth_tokens_token
         ON auth_tokens(token);
     """)
 
     cursor.execute("""
-    CREATE INDEX idx_auth_tokens_user_uid
+    CREATE INDEX IF NOT EXISTS  idx_auth_tokens_user_uid
         ON auth_tokens(user_uid);
     """)
     cursor.execute("""
@@ -415,7 +480,7 @@ def run():
     );
     """)
     
-    cursor.execute("""CREATE TABLE controls (
+    cursor.execute("""CREATE TABLE IF NOT EXISTS controls (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
 

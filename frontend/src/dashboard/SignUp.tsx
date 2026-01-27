@@ -12,14 +12,18 @@ import {
 import { Google } from "@mui/icons-material";
 import { Link, useNavigate } from "react-router-dom";
 
+import { signupClientUser } from "@/api/apiClientAuth";
+
 export default function SignUp() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
 
-  const handleEmailSignUp = () => {
+  const handleEmailSignUp = async () => {
     setError("");
 
     if (!email || !password || !confirmPassword) {
@@ -37,15 +41,21 @@ export default function SignUp() {
       return;
     }
 
-    // ✅ Static success flow
-    alert("✅ Account created (static mode).");
-    navigate("/signin");
-  };
+    try {
+      setLoading(true);
 
-  const handleGoogleSignUp = () => {
-    // ✅ Static placeholder
-    alert("✅ Google sign-up (static mode).");
-    navigate("/signin");
+      await signupClientUser({
+        email,
+        password,
+      });
+
+      // ✅ client_user_token is stored internally
+      navigate("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Failed to create account");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -75,10 +85,7 @@ export default function SignUp() {
           }}
         >
           <Box textAlign="center" px={4}>
-            <Typography
-              variant="h3"
-              sx={{ color: "white", fontWeight: 800 }}
-            >
+            <Typography variant="h3" sx={{ color: "white", fontWeight: 800 }}>
               Join NomiAI
             </Typography>
             <Typography variant="h6" sx={{ color: "rgba(255,255,255,0.7)" }}>
@@ -111,15 +118,6 @@ export default function SignUp() {
             sx={{ mb: 2 }}
           >
             Create Account
-          </Typography>
-
-          <Typography
-            variant="body2"
-            textAlign="center"
-            color="text.secondary"
-            sx={{ mb: 4 }}
-          >
-            This is a temporary static signup screen
           </Typography>
 
           <Stack spacing={2}>
@@ -155,41 +153,34 @@ export default function SignUp() {
             <Button
               variant="contained"
               fullWidth
+              disabled={loading}
               sx={{
                 py: 1.4,
-                background:
-                  "linear-gradient(90deg, #7F2458, #F15BB5)",
+                background: "linear-gradient(90deg, #7F2458, #F15BB5)",
                 fontWeight: 600,
                 borderRadius: "8px",
               }}
               onClick={handleEmailSignUp}
             >
-              Sign Up
+              {loading ? "Creating account..." : "Sign Up"}
             </Button>
 
-            <Divider sx={{ my: 3 }}>or</Divider>
+            <Divider sx={{ my: 2 }}>or</Divider>
 
             <Button
               variant="outlined"
               startIcon={<Google />}
               fullWidth
-              onClick={handleGoogleSignUp}
+              disabled
             >
-              Sign up with Google
+              Google signup (coming soon)
             </Button>
 
-            <Typography
-              variant="body2"
-              textAlign="center"
-              sx={{ mt: 3 }}
-            >
+            <Typography variant="body2" textAlign="center" mt={2}>
               Already have an account?{" "}
               <Link
                 to="/signin"
-                style={{
-                  textDecoration: "none",
-                  fontWeight: 600,
-                }}
+                style={{ textDecoration: "none", fontWeight: 600 }}
               >
                 Sign in
               </Link>

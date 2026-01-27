@@ -10,13 +10,9 @@ import {
   Alert,
 } from "@mui/material";
 import { useNavigate, Link } from "react-router-dom";
-
 import { useSession } from "@/api/SessionProvider";
 
 const rawEnvBase = import.meta.env.VITE_API_BASE_URL;
-
-console.log("[SignIn] raw VITE_API_BASE_URL:", rawEnvBase);
-console.log("[SignIn] window.location.hostname:", window.location.hostname);
 
 const BASE_URL =
   rawEnvBase && rawEnvBase.trim() !== ""
@@ -25,31 +21,30 @@ const BASE_URL =
     ? "http://localhost:8000"
     : "https://api.nomioc.com";
 
-console.log("[SignIn] RESOLVED BASE_URL:", BASE_URL);
-
 export default function SignIn() {
-  const { refreshSession } = useSession(); // ✅ correct API
+  const { refreshSession } = useSession();
+  const navigate = useNavigate();
+  const [loginType, setLoginType] = useState<"cdc" | "user">("cdc");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const navigate = useNavigate();
-
   const handleLogin = async () => {
-    console.log("[SignIn] handleLogin clicked");
-    console.log("[SignIn] email:", email);
-
     setLoading(true);
     setError("");
     setSuccess("");
 
-    try {
-      console.log("[SignIn] Sending POST /api/auth/login");
+    const endpoint =
+      loginType === "cdc"
+        ? "/api/auth/login"
+        : "/api/client-users/login-user"; 
 
-      const response = await fetch(`${BASE_URL}/api/auth/login`, {
+    try {
+      const response = await fetch(`${BASE_URL}${endpoint}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -57,37 +52,41 @@ export default function SignIn() {
         body: JSON.stringify({ email, password }),
       });
 
-      console.log("[SignIn] Login response status:", response.status);
-
       const data = await response.json();
-      console.log("[SignIn] Login response body:", data);
 
       if (!response.ok) {
         throw new Error(data.detail || "Login failed");
       }
 
       if (!data.access_token) {
-        throw new Error("Invalid login response (missing access_token)");
+        throw new Error("Invalid login response");
       }
 
-      console.log("[SignIn] Storing access_token in localStorage");
-
+      // ✅ Persist identity context
       localStorage.setItem("access_token", data.access_token);
       localStorage.setItem("token_type", data.token_type || "bearer");
+      localStorage.setItem("login_type", loginType);
 
       setSuccess("Login successful");
 
+      // ⚠️ refreshSession MUST now be multi-actor aware
       await refreshSession();
 
+
+      if (loginType === "user") {
+      navigate("/dashboard", { replace: true });
+      } else {
       navigate("/redirect", { replace: true });
+      }
 
     } catch (err: any) {
-      console.error("[SignIn] Login error:", err);
       setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
+
+  /* ---------------- UI ---------------- */
 
   return (
     <Grid container sx={{ minHeight: "100vh", backgroundColor: "#f8fafc" }}>
@@ -112,7 +111,7 @@ export default function SignIn() {
             Compliance made simple.
           </Typography>
           <Typography sx={{ color: "#cbd5e1", mt: 2 }}>
-            Secure access to your compliance workspace.
+            Secure access to your workspace.
           </Typography>
         </Box>
       </Grid>
@@ -136,10 +135,30 @@ export default function SignIn() {
             Sign in
           </Typography>
 
-          <Typography color="text.secondary" mb={4}>
-            Enter your email and password
+          <Typography color="text.secondary" mb={3}>
+            Choose your account type and continue
           </Typography>
 
+          {/* ACCOUNT TYPE SELECTOR */}
+          <Stack direction="row" spacing={2} mb={4}>
+            <Button
+              fullWidth
+              variant={loginType === "cdc" ? "contained" : "outlined"}
+              onClick={() => setLoginType("cdc")}
+            >
+              Compliance (CDC)
+            </Button>
+
+            <Button
+              fullWidth
+              variant={loginType === "user" ? "contained" : "outlined"}
+              onClick={() => setLoginType("user")}
+            >
+              Standard User
+            </Button>
+          </Stack>
+
+          {/* FORM */}
           <Stack spacing={2}>
             <TextField
               label="Email"

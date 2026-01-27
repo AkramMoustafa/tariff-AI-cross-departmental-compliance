@@ -178,6 +178,9 @@ from src.api.cli.team_routes.auditor_route import router as auditor_router
 from src.api.cli.team_routes.department_owner_route import router as department_owner_router
 from src.api.cli.team_routes.executive_route import router as executive_router
 from src.api.cli.team_routes.tenant_admin_route import router as compliance_owner_router
+from src.api.API_CLIENT.api_client_router import router as api_client_router
+from src.api.API_USER.client_users import router as client_user_routes
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -266,6 +269,8 @@ app.include_router(control_owner_router)
 app.include_router(department_owner_router)
 app.include_router(executive_router)
 app.include_router(compliance_owner_router)
+app.include_router(api_client_router)
+app.include_router(client_user_routes)
 
 @app.get("/api/sanctions/search")
 def sanctions_search(

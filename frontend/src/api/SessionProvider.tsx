@@ -27,19 +27,28 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     console.log("[SessionProvider] refreshSession() called");
 
     const token = localStorage.getItem("access_token");
+    const loginType = localStorage.getItem("login_type");
 
-    if (!token) {
-      console.log("[SessionProvider] No token found");
+    if (!token || !loginType) {
+      console.log("[SessionProvider] No token or login type");
       setSession(null);
       setLoading(false);
       return;
     }
 
+    const meEndpoint =
+      loginType === "cdc"
+        ? "/api/auth/me"
+        : "/api/client-users/me";
+
     try {
-      console.log("[SessionProvider] Calling GET /api/auth/me");
-      const res = await axios.get("/api/auth/me");
-      console.log("[SessionProvider] /me success:", res.data);
-      setSession(res.data);
+      console.log(`[SessionProvider] Calling GET ${meEndpoint}`);
+      const res = await axios.get(meEndpoint);
+
+      setSession({
+        actorType: loginType,
+        ...res.data,
+      });
     } catch (err) {
       console.error("[SessionProvider] /me failed", err);
       setSession(null);
@@ -53,13 +62,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = () => {
-    console.log("[SessionProvider] logout()");
     localStorage.removeItem("access_token");
     localStorage.removeItem("token_type");
+    localStorage.removeItem("login_type");
     setSession(null);
     window.location.href = "/signin";
   };
-
   const setActiveRole = async (role: string) => {
     console.log("[SessionProvider] setActiveRole:", role);
     await axios.post("/api/auth/set-active-role", { role });

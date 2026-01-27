@@ -42,15 +42,7 @@ class ComplianceOwnerService:
     """
     @staticmethod
     def get_user_context(session):
-        """
-        Returns the authenticated user's context:
-        - user_id
-        - tenant_id
-        - roles
-        - active_role
 
-            This is READ-ONLY and safe to call during auth/session hydration.
-            """
             user_id = session["user_id"]
             tenant_id = session["tenant_id"]
 
