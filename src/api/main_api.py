@@ -35,7 +35,7 @@ from src.api.obligations_ingest import (
     extract_obligations_from_text,
     upsert_obligations_neo4j,
 )
-
+from  src.api.stripe.stripe_route import router as stripe_router
 from src.api.models import WorkspaceRegulation
 from src.core.regulations.state_regulations.state_engine  import normalize_regulation
 from fastapi.responses import JSONResponse, FileResponse
@@ -259,6 +259,7 @@ app.add_middleware(
     max_age=3600,
 )
 app.include_router(auth_router)
+app.include_router(stripe_router)
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 app.state.limiter = limiter

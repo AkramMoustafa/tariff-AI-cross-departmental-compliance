@@ -38,6 +38,17 @@ def run():
     );
     """)
 
+    cursor.execute("""
+    CREATE TABLE user_payments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL,
+        stripe_session_id TEXT NOT NULL,
+        stripe_customer_id TEXT,
+        amount_cents INTEGER NOT NULL,
+        currency TEXT NOT NULL,
+        status TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );""")
 
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS file_extractions (

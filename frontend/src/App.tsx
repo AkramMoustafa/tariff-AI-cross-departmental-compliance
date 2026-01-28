@@ -12,7 +12,11 @@ import ComplianceApp from "./compliance_team/ComplianceApp";
 import DepartmentOwnerApp from "./compliance_team/Department_Owner/DepartmentOwnerApp"
 import ControlOwnerApp from "./compliance_team/Control_Owner/ControlOwnerApp";
 import AuditorApp from "./compliance_team/Auditor/AuditorApp";
-
+import TariffCalculatorPage from "./tariffs_engine/tariffs";
+import TariffCalculator from "./tariffs_engine/calculate_tariff"
+import DashboardAppLayout from "./tariffs_engine/AppLayout"
+import Payment from "./tariffs_engine/payment"
+import PaymentSuccess from "./tariffs_engine/payment_success"
 export default function App() {
   return (
     <Box>
@@ -65,8 +69,18 @@ export default function App() {
               <ControlOwnerApp />
             </ProtectedRoute>
           }
-        />
+        /><Route
+path="/tariff"
+element={
+<DashboardAppLayout>
+<TariffCalculatorPage />
+</DashboardAppLayout>
+}
 
+/>
+<Route
+      path="/payment"element={<Payment />} />
+      {/* <Route path="/tariff" element={<TariffCalculator />} /> */}
 
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

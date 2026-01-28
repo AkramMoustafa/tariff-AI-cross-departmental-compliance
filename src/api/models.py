@@ -247,6 +247,26 @@ class Supplier(Base):
         backref="backups"
     )
 
+class UserPayment(Base):
+    __tablename__ = "user_payments"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    stripe_session_id = Column(String, unique=True, nullable=False, index=True)
+    stripe_customer_id = Column(String, nullable=True)
+
+    amount_cents = Column(Integer, nullable=False)
+    currency = Column(String(10), nullable=False, default="usd")
+    status = Column(String, nullable=False)  # "paid", "failed", "refunded"
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    user = relationship("User", backref="payments")
+
 class SupplierPerformanceLog(Base):
     __tablename__ = "supplier_performance_logs"
     

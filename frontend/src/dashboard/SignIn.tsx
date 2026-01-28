@@ -62,19 +62,23 @@ export default function SignIn() {
         throw new Error("Invalid login response");
       }
 
-      // ✅ Persist identity context
-      localStorage.setItem("access_token", data.access_token);
-      localStorage.setItem("token_type", data.token_type || "bearer");
+      if (loginType === "user") {
+      // 🔑 CLIENT USER (Stripe, paid features)
+      localStorage.setItem("client_user_token", data.access_token);
+      } else {
+      // 🔑 CDC / platform user
+      localStorage.setItem("user_token", data.access_token);
+      }
+
+
       localStorage.setItem("login_type", loginType);
 
       setSuccess("Login successful");
-
-      // ⚠️ refreshSession MUST now be multi-actor aware
       await refreshSession();
 
 
       if (loginType === "user") {
-      navigate("/dashboard", { replace: true });
+      navigate("/tariffs", { replace: true });
       } else {
       navigate("/redirect", { replace: true });
       }
@@ -85,8 +89,6 @@ export default function SignIn() {
       setLoading(false);
     }
   };
-
-  /* ---------------- UI ---------------- */
 
   return (
     <Grid container sx={{ minHeight: "100vh", backgroundColor: "#f8fafc" }}>
