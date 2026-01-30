@@ -7,21 +7,14 @@ type SessionContextType = {
   refreshSession: () => Promise<void>;
   logout: () => void;
   setActiveRole: (role: string) => Promise<void>;
-  clearActiveRole: () => Promise<void>; // ✅ ADD THIS
+  clearActiveRole: () => Promise<void>;
 };
 
 const SessionContext = createContext<SessionContextType | null>(null);
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  // undefined = not loaded yet
-  // null = unauthenticated
   const [session, setSession] = useState<any | undefined>(undefined);
   const [loading, setLoading] = useState(true);
-  const clearActiveRole = async () => {
-    console.log("[SessionProvider] clearActiveRole()");
-    await axios.post("/api/auth/clear-active-role");
-    await refreshSession();
-  };
 
   const refreshSession = async () => {
     console.log("[SessionProvider] refreshSession() called");
@@ -29,37 +22,41 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const token = localStorage.getItem("access_token");
     const loginType = localStorage.getItem("login_type");
 
-    if (!token || !loginType) {
-      console.log("[SessionProvider] No token or login type");
+    // 🚫 Only CDC users are allowed here
+    if (loginType !== "cdc" || !token) {
       setSession(null);
       setLoading(false);
       return;
     }
 
-    const meEndpoint =
-      loginType === "cdc"
-        ? "/api/auth/me"
-        : "/api/client-users/me";
-
     try {
-      console.log(`[SessionProvider] Calling GET ${meEndpoint}`);
-      const res = await axios.get(meEndpoint);
-
+      const res = await axios.get("/api/auth/me");
       setSession({
-        actorType: loginType,
+        actorType: "cdc",
         ...res.data,
       });
     } catch (err) {
-      console.error("[SessionProvider] /me failed", err);
+      console.error("[SessionProvider] /api/auth/me failed", err);
       setSession(null);
     } finally {
       setLoading(false);
     }
   };
 
+  // ✅ useEffect is OUTSIDE refreshSession
   useEffect(() => {
     refreshSession();
   }, []);
+
+  const clearActiveRole = async () => {
+    await axios.post("/api/auth/clear-active-role");
+    await refreshSession();
+  };
+
+  const setActiveRole = async (role: string) => {
+    await axios.post("/api/auth/set-active-role", { role });
+    await refreshSession();
+  };
 
   const logout = () => {
     localStorage.removeItem("access_token");
@@ -67,11 +64,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("login_type");
     setSession(null);
     window.location.href = "/signin";
-  };
-  const setActiveRole = async (role: string) => {
-    console.log("[SessionProvider] setActiveRole:", role);
-    await axios.post("/api/auth/set-active-role", { role });
-    await refreshSession();
   };
 
   return (
@@ -82,7 +74,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         refreshSession,
         logout,
         setActiveRole,
-        clearActiveRole, 
+        clearActiveRole,
       }}
     >
       {children}

@@ -1,5 +1,6 @@
 // src/pages/LandingPage/sections/Navbar.tsx
 import { Box, Container, Typography } from "@mui/material";
+import { Button } from "@mui/material";
 
 type Props = {
     scrolled: boolean;
@@ -62,10 +63,60 @@ export default function Navbar({ scrolled }: Props) {
                         >
                             NOMIAI
                         </Typography>
+                        
                     </Box>
+ {/* RIGHT: Navigation */}
+<Box sx={{ display: "flex", alignItems: "center", gap: 5 }}>
+  {/* Explore API */}
+  <Typography
+    component="a"
+    href="/api"
+    sx={{
+      fontSize: "0.875rem",
+      fontWeight: 500,
+      color: "#475569", // slate-600
+      textDecoration: "none",
+      "&:hover": {
+        color: "#0f172a",
+      },
+    }}
+  >
+    Explore API
+  </Typography>
 
-                    {/* If you had buttons/links in navbar, paste them here */}
-                </Box>
+  {/* Pricing */}
+  <Typography
+    component="a"
+    href="/pricing"
+    sx={{
+      fontSize: "0.875rem",
+      fontWeight: 600,
+      color: "#334155", // slate-700
+      textDecoration: "none",
+      position: "relative",
+      "&::after": {
+        content: '""',
+        position: "absolute",
+        left: 0,
+        bottom: -4,
+        width: "0%",
+        height: "2px",
+        backgroundColor: "#0f172a",
+        transition: "width 0.2s ease",
+      },
+      "&:hover": {
+        color: "#0f172a",
+      },
+      "&:hover::after": {
+        width: "100%",
+      },
+    }}
+  >
+    Pricing
+  </Typography>
+</Box>
+
+</Box>
             </Container>
         </Box>
     );

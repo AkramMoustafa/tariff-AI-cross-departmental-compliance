@@ -1,3 +1,4 @@
+stripe
 acres==0.5.0
 spacy==3.8.0
 annotated-doc==0.0.4

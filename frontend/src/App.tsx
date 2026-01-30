@@ -13,20 +13,19 @@ import DepartmentOwnerApp from "./compliance_team/Department_Owner/DepartmentOwn
 import ControlOwnerApp from "./compliance_team/Control_Owner/ControlOwnerApp";
 import AuditorApp from "./compliance_team/Auditor/AuditorApp";
 import TariffCalculatorPage from "./tariffs_engine/tariffs";
-import TariffCalculator from "./tariffs_engine/calculate_tariff"
 import DashboardAppLayout from "./tariffs_engine/AppLayout"
-import Payment from "./tariffs_engine/payment"
-import PaymentSuccess from "./tariffs_engine/payment_success"
+import Payment from "./Payments/CheckoutSection"
+import PaymentSuccess from "./Payments/payment_success"
+import { ClientSessionProvider } from "@/api/ClientSessionProvider";
+import BillingPage from "./Payments/billing";
+import PricingPage from "./pages/PricingPage";
 export default function App() {
   return (
     <Box>
       <Routes>
-        {/* Public */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
-
-        {/* Role-based redirect */}
         <Route path="/redirect" element={<RootRedirect />} />
 
         {/* NEW Compliance App */}
@@ -69,17 +68,53 @@ export default function App() {
               <ControlOwnerApp />
             </ProtectedRoute>
           }
-        /><Route
-path="/tariff"
-element={
-<DashboardAppLayout>
-<TariffCalculatorPage />
-</DashboardAppLayout>
-}
+        />
+        
+        <Route
+  path="/tariff"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+        <TariffCalculatorPage />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+  }
+/>
 
+<Route
+  path="/payment"
+  element={
+    <ClientSessionProvider>
+      <Payment />
+    </ClientSessionProvider>
+  }
+/>
+
+<Route
+  path="/payment/success"
+  element={
+    <ClientSessionProvider>
+      <PaymentSuccess />
+    </ClientSessionProvider>
+  }
+/>
+
+<Route
+  path="/billing"
+  element={
+    <ClientSessionProvider>
+      <BillingPage />
+    </ClientSessionProvider>
+  }
 />
 <Route
-      path="/payment"element={<Payment />} />
+  path="/pricing"
+  element={
+   
+      <PricingPage />
+
+  }
+/>
       {/* <Route path="/tariff" element={<TariffCalculator />} /> */}
 
         <Route path="*" element={<NotFoundPage />} />

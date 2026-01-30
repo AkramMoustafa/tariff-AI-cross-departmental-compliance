@@ -11,10 +11,52 @@ import {
   InputAdornment,
   Divider,
 } from "@mui/material";
+import { useState } from "react";
+import { calculateTariff } from "@/api/tariffClient";
 import SearchIcon from "@mui/icons-material/Search";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import NextActionsPanel from "./NextActionsPanel"
+
 export default function TariffCalculator() {
+  
+
+
+  const [hsCode, setHsCode] = useState("");
+  const [origin, setOrigin] = useState("CN");
+  const [destination, setDestination] = useState("US");
+  const [currency, setCurrency] = useState("USD");
+  const [customsValue, setCustomsValue] = useState<number | "">("");
+  const [freight, setFreight] = useState(500);
+  const [insurance, setInsurance] = useState(50);
+
+  const [result, setResult] = useState<any>(null);
+  const mfnLine = result?.lines?.find((l: any) => l.duty_type === "MFN");
+  const mpfLine = result?.lines?.find((l: any) => l.duty_type === "MPF");
+  const tariffLines = result?.lines ?? [];
+  const [loading, setLoading] = useState(false);
+const handleCalculate = async () => {
+  if (customsValue === "" || customsValue <= 0) {
+    alert("Customs value must be greater than 0");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const data = await calculateTariff({
+      hs_code: hsCode,
+      origin_country: origin,
+      destination_country: destination,
+      customs_value: customsValue,
+      freight,
+      insurance,
+      currency,
+    });
+    setResult(data);
+  } finally {
+    setLoading(false);
+  }
+};
+
   return (
     <Box
       sx={{
@@ -65,6 +107,7 @@ export default function TariffCalculator() {
         {/* 👇 ALL YOUR REAL UI GOES HERE */}
 
       {/* HEADER META */}
+      
 <Box sx={{ mb: 2 }}>
   {/* BADGE + VERSION */}
   <Stack direction="row" spacing={1} alignItems="center" mb={1}>
@@ -109,7 +152,7 @@ export default function TariffCalculator() {
     minHeight: "50vh",
     width: "70vh",
     position: "relative",   
-    overflow: "hidden",    
+    overflow: "visible",    
      bgcolor: "#ffffff",
   }}
 >
@@ -183,13 +226,17 @@ export default function TariffCalculator() {
   justifyContent: "flex-end",
   alignItems: "center",
   px: 3,
+  zIndex:10,
   }}
 >
 
 
 <Button
   variant="contained"
+  onClick={handleCalculate}
+  disabled={loading}
   startIcon={
+    
     <Box
       sx={{
         width: 22,
@@ -204,6 +251,7 @@ export default function TariffCalculator() {
       <PlayArrowRoundedIcon sx={{ fontSize: 14 }} />
     </Box>
   }
+  
   sx={{
     bgcolor: "#0f172a",         
     color: "#ffffff",
@@ -219,7 +267,7 @@ export default function TariffCalculator() {
     },
   }}
 >
-  Calculate
+  {loading ? "Calculating…" : "Calculate"}
 </Button>
 </Box>
 
@@ -228,7 +276,7 @@ sx={{
 fontFamily: "inter",
 position: "relative",
 pt: "40px",
-pb: "50px",
+pb: "80px",
 display: "flex",
 flexDirection: "column",
 gap: 3, // 👈 ADD THIS
@@ -241,42 +289,45 @@ gap: 3, // 👈 ADD THIS
     HS Code
   </Typography>
 
-  <TextField
-    fullWidth
-    size="small"
-    placeholder="Search HS Code (e.g. 850440)"
-    InputProps={{
-      startAdornment: (
-        <InputAdornment position="start">
-          <SearchIcon sx={{ fontSize: 18, color: "text.secondary" }} />
-        </InputAdornment>
-      ),
-    }}
-    sx={{
-      bgcolor: "#ffffff",
+<TextField
+  fullWidth
+  size="small"
+  placeholder="Search HS Code (e.g. 850440)"
+  value={hsCode}
+  onChange={(e) => setHsCode(e.target.value)}
+  
+  InputProps={{
+    startAdornment: (
+      <InputAdornment position="start">
+        <SearchIcon sx={{ fontSize: 18, color: "text.secondary" }} />
+      </InputAdornment>
+    ),
+  }}
+  sx={{
+    bgcolor: "#ffffff",
 
-      "& .MuiOutlinedInput-root": {
-        borderRadius: 0.75,
-        fontSize: "14px",
-        height: 40,
-      },
+    "& .MuiOutlinedInput-root": {
+      borderRadius: 0.75,
+      fontSize: "14px",
+      height: 40,
+    },
 
-      "& .MuiOutlinedInput-input": {
-        py: 1,
-      },
+    "& .MuiOutlinedInput-input": {
+      py: 1,
+    },
 
-      /* 👇 BORDER STATES GO HERE */
-      "& .MuiOutlinedInput-notchedOutline": {
-        borderColor: "#e5e7eb",
-      },
-      "&:hover .MuiOutlinedInput-notchedOutline": {
-        borderColor: "#c7cdd4",
-      },
-      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-        borderColor: "#2563eb",
-      },
-    }}
-  />
+    "& .MuiOutlinedInput-notchedOutline": {
+      borderColor: "#e5e7eb",
+    },
+    "&:hover .MuiOutlinedInput-notchedOutline": {
+      borderColor: "#c7cdd4",
+    },
+    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+      borderColor: "#2563eb",
+    },
+  }}
+/>
+
 </Box>
 
   {/* SEARCH RESULT */}
@@ -364,14 +415,15 @@ Origin Country
 
 
 <TextField
-select
-fullWidth
-size="small"
-value="CN"
+  select
+  fullWidth
+  size="small"
+  value={origin}
+  onChange={(e) => setOrigin(e.target.value)}
+
 sx={{
 "& .MuiOutlinedInput-root": {
-height: 34, // slightly tighter than 40
-fontSize: 14,
+height: 34, 
 borderRadius: 1.25,
 backgroundColor: "#fff",
 },
@@ -414,10 +466,8 @@ Destination
 
 
 <TextField
-select
-fullWidth
-size="small"
-value="US"
+value={destination}
+onChange={(e) => setDestination(e.target.value)}
 sx={{
 "& .MuiOutlinedInput-root": {
 height: 34,
@@ -447,7 +497,7 @@ color: "#94a3b8",
 </TextField>
 </Box>
 </Box>
-{/* CURRENCY / VALUES */}
+
 <Box
   sx={{
     display: "grid",
@@ -457,6 +507,7 @@ color: "#94a3b8",
 >
   {/* CURRENCY */}
   <Box>
+    
     <Typography
       sx={{
         fontSize: 12,
@@ -469,10 +520,8 @@ color: "#94a3b8",
     </Typography>
 
     <TextField
-      select
-      fullWidth
-      size="small"
-      value="USD"
+value={currency}
+onChange={(e) => setCurrency(e.target.value)}
       sx={{
         "& .MuiOutlinedInput-root": {
           height: 30,
@@ -515,15 +564,16 @@ color: "#94a3b8",
       Customs Value
     </Typography>
 
-    <TextField
-      type="number"
-      fullWidth
-      size="small"
-      value={10000}
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">$</InputAdornment>
-        ),
+<TextField
+  value={customsValue}
+  onChange={(e) => {
+    const v = e.target.value;
+    setCustomsValue(v === "" ? "" : Number(v));
+  }}
+  InputProps={{
+    startAdornment: (
+      <InputAdornment position="start">$</InputAdornment>
+    ),
       }}
       sx={{
         "& .MuiOutlinedInput-root": {
@@ -562,10 +612,8 @@ color: "#94a3b8",
     </Typography>
 
     <TextField
-      type="number"
-      fullWidth
-      size="small"
-      value={500}
+value={freight}
+onChange={(e) => setFreight(Number(e.target.value))}
       InputProps={{
         startAdornment: (
           <InputAdornment position="start">$</InputAdornment>
@@ -608,10 +656,8 @@ color: "#94a3b8",
     </Typography>
 
     <TextField
-      type="number"
-      fullWidth
-      size="small"
-      value={50}
+value={insurance}
+onChange={(e) => setInsurance(Number(e.target.value))}
       InputProps={{
         startAdornment: (
           <InputAdornment position="start">$</InputAdornment>
@@ -658,7 +704,7 @@ color: "#94a3b8",
       </Typography>
 
       <Typography fontSize={22} fontWeight={700} mt={0.5}>
-        $260.00
+{result ? `$${result.total_duty.toFixed(2)}` : "--"}
       </Typography>
 
       <Stack direction="row" spacing={1} mt={1} alignItems="center">
@@ -689,7 +735,7 @@ color: "#94a3b8",
       </Typography>
 
       <Typography fontSize={22} fontWeight={700} mt={0.5}>
-        2.60%
+{result ? `${result.effective_rate}%` : "--"}
       </Typography>
 
       <Chip
@@ -738,20 +784,23 @@ color: "#94a3b8",
       <Chip label="Ad Valorem" size="small" />
     </Grid>
 
-    <Grid item xs={2.4}>2.6%</Grid>
-
+<Grid item xs={2.4}>
+  {mfnLine ? `${mfnLine.rate}%` : "--"}
+</Grid>
     <Grid item xs={2.4}>
       <Typography
         fontSize={12}
         color="primary"
         sx={{ cursor: "pointer" }}
       >
-        HTSUS 8504.40.00
+       {mfnLine?.reference ?? "—"}
       </Typography>
     </Grid>
 
     <Grid item xs={2.4} textAlign="right">
-      <Typography fontWeight={600}>$260.00</Typography>
+     <Typography fontWeight={600}>
+  {mfnLine ? `$${mfnLine.amount.toFixed(2)}` : "--"}
+</Typography>
     </Grid>
 
     <Divider sx={{ my: 1, width: "100%" }} />
@@ -765,15 +814,17 @@ color: "#94a3b8",
       <Chip label="Fixed / %" size="small" variant="outlined" />
     </Grid>
 
-    <Grid item xs={2.4}>0.3464%</Grid>
+<Grid item xs={2.4}>
+  {mpfLine ? `${mpfLine.rate}%` : "--"}
+</Grid>
 
     <Grid item xs={2.4}>
       <Typography fontSize={12}>19 CFR 24.23</Typography>
     </Grid>
 
-    <Grid item xs={2.4} textAlign="right">
-      $0.00
-    </Grid>
+<Grid item xs={2.4} textAlign="right">
+  {mpfLine ? `$${mpfLine.amount.toFixed(2)}` : "--"}
+</Grid>
 
     <Divider sx={{ my: 2, width: "100%" }} />
 
@@ -783,7 +834,9 @@ color: "#94a3b8",
     </Grid>
 
     <Grid item xs={2.4} textAlign="right">
-      <Typography fontWeight={700}>$260.00</Typography>
+      <Typography fontWeight={700}>
+  {result ? `$${result.total_duty.toFixed(2)}` : "--"}
+</Typography>
     </Grid>
   </Grid>
 </Paper>

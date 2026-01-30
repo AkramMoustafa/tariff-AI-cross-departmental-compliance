@@ -9,18 +9,9 @@ from sqlalchemy.orm import Session
 from src.api.API_USER.client_user_tokens import get_client_user_session
 from src.api.db import get_db
 from src.api.models import UserPayment
-
-# --------------------------------
-# Stripe config
-# --------------------------------
 stripe.api_key = os.environ["STRIPE_SECRET_KEY"]
 
 router = APIRouter(prefix="/api/stripe", tags=["stripe"])
-
-
-# --------------------------------
-# Pricing (SERVER CONTROLLED)
-# --------------------------------
 PRICE_TABLE = {
     "tariff_basic": {
         "name": "Tariff Calculator Pro",
@@ -28,23 +19,14 @@ PRICE_TABLE = {
     }
 }
 
-
-# --------------------------------
-# Request Models
-# --------------------------------
 class CreateCheckoutRequest(BaseModel):
     product_key: str
 
-
-# --------------------------------
-# Checkout
-# --------------------------------
 @router.post("/checkout")
 def create_checkout(
     payload: CreateCheckoutRequest,
     session=Depends(get_client_user_session),
 ):
-    # 🔑 IMPORTANT: this is the correct key
     client_user_id = session.get("client_user_id")
     if not client_user_id:
         raise HTTPException(status_code=401, detail="Invalid session")
@@ -69,7 +51,6 @@ def create_checkout(
             }
         ],
         metadata={
-            # store client-user id explicitly
             "client_user_id": str(client_user_id),
             "product_key": payload.product_key,
         },
@@ -78,13 +59,9 @@ def create_checkout(
     )
 
     return {"url": stripe_session.url}
-
-
-# --------------------------------
-# Payment Status (USED BY FRONTEND)
-# --------------------------------
+    
 @router.get("/status")
-def stripe_payment_status(
+def stripe_status(
     session=Depends(get_client_user_session),
     db: Session = Depends(get_db),
 ):
@@ -95,7 +72,7 @@ def stripe_payment_status(
     paid = (
         db.query(UserPayment)
         .filter(
-            UserPayment.user_id == client_user_id,
+            UserPayment.client_user_id == client_user_id,
             UserPayment.status == "paid",
         )
         .first()
@@ -103,11 +80,7 @@ def stripe_payment_status(
     )
 
     return {"paid": paid}
-
-
-# --------------------------------
-# Webhook (SOURCE OF TRUTH)
-# --------------------------------
+ 
 @router.post("/webhook")
 async def stripe_webhook(
     request: Request,
@@ -126,10 +99,10 @@ async def stripe_webhook(
         raise HTTPException(status_code=400, detail="Invalid Stripe signature")
 
     if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
+        session_obj = event["data"]["object"]
 
-        client_user_id = session["metadata"].get("client_user_id")
-        stripe_session_id = session["id"]
+        client_user_id = session_obj["metadata"].get("client_user_id")
+        stripe_session_id = session_obj["id"]
 
         if not client_user_id:
             return {"status": "missing_client_user"}
@@ -143,11 +116,11 @@ async def stripe_webhook(
             return {"status": "duplicate"}
 
         payment = UserPayment(
-            user_id=client_user_id,
+            client_user_id=client_user_id,
             stripe_session_id=stripe_session_id,
-            stripe_customer_id=session.get("customer"),
-            amount_cents=session["amount_total"],
-            currency=session["currency"],
+            stripe_customer_id=session_obj.get("customer"),
+            amount_cents=session_obj["amount_total"],
+            currency=session_obj["currency"],
             status="paid",
         )
 

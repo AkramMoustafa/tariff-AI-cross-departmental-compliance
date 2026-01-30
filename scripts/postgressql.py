@@ -38,17 +38,6 @@ def run():
     );
     """)
 
-    cursor.execute("""
-    CREATE TABLE user_payments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id TEXT NOT NULL,
-        stripe_session_id TEXT NOT NULL,
-        stripe_customer_id TEXT,
-        amount_cents INTEGER NOT NULL,
-        currency TEXT NOT NULL,
-        status TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    );""")
 
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS file_extractions (
@@ -256,7 +245,7 @@ def run():
     """)
 
     cursor.execute("""
-    CREATE TABLE client_users (
+    CREATE TABLE IF NOT EXISTS client_users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
         email TEXT NOT NULL UNIQUE,
@@ -269,7 +258,28 @@ def run():
     """)
 
     cursor.execute("""
-    CREATE TABLE api_clients (
+    CREATE TABLE IF NOT EXISTS user_payments (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+        client_user_id UUID NOT NULL
+            REFERENCES client_users(id)
+            ON DELETE CASCADE,
+
+        stripe_session_id TEXT NOT NULL UNIQUE,
+        stripe_customer_id TEXT,
+
+        amount_cents INTEGER NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'usd',
+
+        status TEXT NOT NULL CHECK (
+            status IN ('pending', 'paid', 'failed')
+        ),
+
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );""")
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS api_clients (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
         owner_client_user_id UUID
@@ -289,8 +299,10 @@ def run():
         last_used_at TIMESTAMPTZ
     );
     """)
+
+
     cursor.execute("""
-    CREATE TABLE client_user_tokens (
+    CREATE TABLE IF NOT EXISTS client_user_tokens (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
         client_user_id UUID NOT NULL
@@ -305,7 +317,7 @@ def run():
     );
     """)
     cursor.execute("""
-    CREATE TABLE api_client_tokens (
+    CREATE TABLE IF NOT EXISTS api_client_tokens (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
         api_client_id UUID NOT NULL

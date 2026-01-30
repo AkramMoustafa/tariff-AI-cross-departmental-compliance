@@ -181,6 +181,11 @@ from src.api.cli.team_routes.tenant_admin_route import router as compliance_owne
 from src.api.API_CLIENT.api_client_router import router as api_client_router
 from src.api.API_USER.client_users import router as client_user_routes
 
+def cache_refresher():
+    while True:
+        time.sleep(60 * 60 * 24)  # 24 hours
+        print("[CacheRefresher] Refreshing Federal Register package cache...")
+        refresh_package_cache()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -213,14 +218,8 @@ app = FastAPI(lifespan=lifespan)
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-app.include_router(tariff_router)
-@app.get("/api/sanctions/search")
-def sanctions_search(
-    q: str | None = None,
-    entity_type: str | None = None,
-    country: str | None = None,
-):
-    return search_sanctions(q, entity_type, country)
+
+
 
 @app.get("/api/internal/sanctions/health")
 def sanctions_health_check():
@@ -260,11 +259,6 @@ app.add_middleware(
 )
 app.include_router(auth_router)
 app.include_router(stripe_router)
-
-limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
-app.state.limiter = limiter
-
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(control_owner_router)
 # app.include_router(auditor_router)
 app.include_router(department_owner_router)
@@ -272,6 +266,18 @@ app.include_router(executive_router)
 app.include_router(compliance_owner_router)
 app.include_router(api_client_router)
 app.include_router(client_user_routes)
+app.include_router(tariff_router)
+
+@app.get("/api/sanctions/search")
+def sanctions_search(
+    q: str | None = None,
+    entity_type: str | None = None,
+    country: str | None = None,
+):
+    return search_sanctions(q, entity_type, country)
+
+
+
 
 @app.get("/api/sanctions/search")
 def sanctions_search(
@@ -353,6 +359,7 @@ app.include_router(audit_router)
 app.include_router(cfr_router)
 app.include_router(supplier_router)
 app.include_router(order_router)
+
 
 router = APIRouter()
 
@@ -892,11 +899,6 @@ def get_all_obligations():
         "obligations": obligations
     }
 
-def cache_refresher():
-    while True:
-        time.sleep(60 * 60 * 24)  # 24 hours
-        print("[CacheRefresher] Refreshing Federal Register package cache...")
-        refresh_package_cache()
 
 
 @app.post("/api/workspace/{user_uid}/toggle/{regulation_id}")

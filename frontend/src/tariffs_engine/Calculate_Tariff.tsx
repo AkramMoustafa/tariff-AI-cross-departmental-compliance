@@ -1,5 +1,5 @@
 import { calculateTariff } from "@/api/tariffClient";
-
+import { usePaymentStatus } from "@/api/payment";
 import { useState } from "react";
 import {
   Box,
@@ -10,6 +10,10 @@ import {
 import Sidebar from "./sidebar"
 
 export default function TariffCalculatorPage() {
+  const paid = usePaymentStatus();
+  if (paid === null) {
+  return <Typography>Checking access…</Typography>;
+}
   const [hsCode, setHsCode] = useState("");
   const [customsValue, setCustomsValue] = useState<number>(0);
   const [result, setResult] = useState<any>(null);
@@ -17,6 +21,7 @@ export default function TariffCalculatorPage() {
   const [error, setError] = useState("");
 
   const handleCalculate = async () => {
+
     try {
       setLoading(true);
       setError("");

@@ -2,7 +2,7 @@ import { BASE_URL } from "./client";
 // src/api/apiClinetAuth.ts
 
 export interface ClientUserSignupPayload {
-  tenant_id: string;
+
   email: string;
   password: string;
 }

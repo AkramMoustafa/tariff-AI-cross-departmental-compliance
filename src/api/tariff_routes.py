@@ -53,7 +53,6 @@ def calculate_tariff_api(
             detail="No tariff schedule found for destination country",
         )
 
-
     hs = (
         db.query(HSCode)
         .filter(HSCode.code == hs_code_str)

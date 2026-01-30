@@ -63,18 +63,22 @@ export default function SignIn() {
       }
 
       if (loginType === "user") {
-      // 🔑 CLIENT USER (Stripe, paid features)
-      localStorage.setItem("client_user_token", data.access_token);
+        // 🔑 CLIENT USER
+        localStorage.setItem("client_user_token", data.access_token);
+        localStorage.removeItem("access_token"); // prevent leakage
       } else {
-      // 🔑 CDC / platform user
-      localStorage.setItem("user_token", data.access_token);
+        // 🔑 CDC USER
+        localStorage.setItem("access_token", data.access_token);
+        localStorage.removeItem("client_user_token"); // 🔥 VERY IMPORTANT
       }
 
 
       localStorage.setItem("login_type", loginType);
 
       setSuccess("Login successful");
-      await refreshSession();
+      if (loginType === "cdc") {
+        await refreshSession();
+      }
 
 
       if (loginType === "user") {

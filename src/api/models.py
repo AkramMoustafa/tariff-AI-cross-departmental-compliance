@@ -5,7 +5,6 @@ import enum
 from src.api.db import Base
 import uuid
 from sqlalchemy.dialects.postgresql import UUID
-
 class User(Base):
     __tablename__ = "users"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -247,25 +246,49 @@ class Supplier(Base):
         backref="backups"
     )
 
+
+
 class UserPayment(Base):
     __tablename__ = "user_payments"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-
-    user_id = Column(
+    id = Column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+        default=uuid.uuid4,
+    )
+
+    client_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("client_users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    stripe_session_id = Column(String, unique=True, nullable=False, index=True)
+
+    stripe_session_id = Column(
+        String,
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
     stripe_customer_id = Column(String, nullable=True)
 
     amount_cents = Column(Integer, nullable=False)
     currency = Column(String(10), nullable=False, default="usd")
-    status = Column(String, nullable=False)  # "paid", "failed", "refunded"
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    user = relationship("User", backref="payments")
+
+    status = Column(
+        String,
+        nullable=False,
+    )  # 'pending' | 'paid' | 'failed'
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False,
+    )
+
+    # relationship to client_users (optional but correct)
+    client_user = relationship("ClientUser", backref="payments")
 
 class SupplierPerformanceLog(Base):
     __tablename__ = "supplier_performance_logs"
