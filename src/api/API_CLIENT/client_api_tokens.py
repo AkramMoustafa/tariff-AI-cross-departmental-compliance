@@ -76,6 +76,7 @@ def get_api_client_session(
 ) -> Dict[str, Any]:
     """
     Resolve the HTTP request into an API CLIENT session using Bearer token.
+    Enforces Quotas and Rate Limits.
     """
 
     auth_header = request.headers.get("Authorization")
@@ -88,21 +89,24 @@ def get_api_client_session(
 
     token = auth_header.split(" ", 1)[1].strip()
 
-    # 🔐 Enforce machine token namespace
+    #  Enforce machine token namespace
     if not token.startswith(API_CLIENT_TOKEN_PREFIX):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid API client token",
         )
 
+    # 1. Fetch Client + Quota Data
     row = db.execute(
         text("""
             SELECT
                 ac.id,
-             
                 ac.name,
                 ac.scopes,
-                ac.is_active
+                ac.is_active,
+                ac.monthly_quota,
+                ac.current_period_usage,
+                ac.tier
             FROM api_client_tokens t
             JOIN api_clients ac
               ON ac.id = t.api_client_id
@@ -113,6 +117,7 @@ def get_api_client_session(
         {"token": token},
     ).fetchone()
 
+    # 2. Basic Validation
     if not row:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -125,22 +130,43 @@ def get_api_client_session(
             detail="API client is disabled",
         )
 
-    # Optional: track token usage
+    # 3.  QUOTA CHECK (The Billing Gate)
+    # Check if usage has met or exceeded the quota
+    if row.monthly_quota is not None and row.current_period_usage >= row.monthly_quota:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Monthly quota of {row.monthly_quota} requests exceeded. Upgrade your plan to continue."
+        )
+
+    # 4. INCREMENT USAGE (The Meter)
+    # Atomic update to prevent race conditions in basic deployments
     db.execute(
         text("""
-            UPDATE api_client_tokens
-            SET last_used_at = NOW()
+            UPDATE api_clients 
+            SET current_period_usage = current_period_usage + 1, 
+                last_used_at = NOW() 
+            WHERE id = :id
+        """),
+        {"id": row.id}
+    )
+    
+    # Update the token last_used_at as well
+    db.execute(
+        text("""
+            UPDATE api_client_tokens 
+            SET last_used_at = NOW() 
             WHERE token = :token
         """),
         {"token": token},
     )
+    
     db.commit()
 
     return {
         "api_client_id": row.id,
-
         "name": row.name,
         "scopes": row.scopes,
+        "tier": row.tier,
     }
 
 def revoke_api_client_token(

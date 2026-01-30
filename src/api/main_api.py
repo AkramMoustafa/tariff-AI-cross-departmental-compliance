@@ -142,7 +142,7 @@ from uuid import uuid4
 from fastapi import Request, Response
 from fastapi import Query
 from fastapi import FastAPI
-from .graph_api import router as graph_router
+# from .graph_api import router as graph_router
 import sys, subprocess, os
 from typing import Dict, Any
 from fastapi import FastAPI
@@ -180,6 +180,7 @@ from src.api.cli.team_routes.executive_route import router as executive_router
 from src.api.cli.team_routes.tenant_admin_route import router as compliance_owner_router
 from src.api.API_CLIENT.api_client_router import router as api_client_router
 from src.api.API_USER.client_users import router as client_user_routes
+from src.api.public.v1 import router as public_v1_router
 
 def cache_refresher():
     while True:
@@ -218,8 +219,15 @@ app = FastAPI(lifespan=lifespan)
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-
+app.include_router(public_v1_router)
+app.include_router(tariff_router, prefix="/api/v1/tariff", tags=["Tariff"])
+@app.get("/api/sanctions/search")
+def sanctions_search(
+    q: str | None = None,
+    entity_type: str | None = None,
+    country: str | None = None,
+):
+    return search_sanctions(q, entity_type, country)
 
 @app.get("/api/internal/sanctions/health")
 def sanctions_health_check():
@@ -353,7 +361,7 @@ async def cors_preflight_handler(rest_of_path: str):
 
 # Include routers
 app.include_router(auth_router)
-app.include_router(graph_router)
+#app.include_router(graph_router)
 app.include_router(obligations_router)
 app.include_router(audit_router)
 app.include_router(cfr_router)

@@ -1,441 +1,137 @@
-
-
-from dotenv import load_dotenv
-load_dotenv()
-
-import os
 import json
-import hashlib
 import traceback
 from datetime import datetime
-from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, HTTPException, Query
+from typing import List, Dict, Any, Optional, Union
+from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import JSONResponse
-from neo4j import GraphDatabase, basic_auth
-from neo4j.exceptions import ServiceUnavailable, TransientError
+from sqlalchemy.orm import Session
+from sqlalchemy import desc
+
+# Import Database and Models
+from src.api.db import get_db, SessionLocal
+from src.api.models import ComplianceAudit, AuditFinding
 
 router = APIRouter()
 
+# PostgreSQL Ingestion Logic 
 
-def get_neo4j_driver():
-    """Get Neo4j driver instance."""
-    uri = os.getenv("NEO4J_URI")
-    user = os.getenv("NEO4J_USER")
-    pwd = os.getenv("NEO4J_PASSWORD")
-    
-    if not uri or not user or not pwd:
-        raise RuntimeError("NEO4J_URI / NEO4J_USER / NEO4J_PASSWORD must be set")
-    
-    return GraphDatabase.driver(
-        uri, 
-        auth=basic_auth(user, pwd), 
-        max_connection_lifetime=60*60,
-        max_connection_pool_size=50
-    )
-
-
-def generate_audit_id(user_uid: str, file_id: str, timestamp: str) -> str:
-    """Generate unique audit_id from user, file, and timestamp."""
-    payload = f"{user_uid}||{file_id}||{timestamp}"
-    return "audit_" + hashlib.sha256(payload.encode("utf-8")).hexdigest()[:24]
-
-
-def calculate_compliance_score(results: List[Dict[str, Any]]) -> float:
-    """
-    Calculate overall compliance score from results.
-    Returns percentage (0-100).
-    """
-    if not results:
-        return 0.0
-    
-    compliant_count = sum(1 for r in results if r.get("Is_Compliant", False))
-    return round((compliant_count / len(results)) * 100, 2)
-
-
-def extract_flagged_departments(results: List[Dict[str, Any]]) -> List[str]:
-    """Extract unique departments from non-compliant results."""
-    departments = set()
-    
-    for r in results:
-        if not r.get("Is_Compliant", True):
-            target_area = r.get("Target_Area", "")
-            if target_area:
-                for area in target_area.split(","):
-                    clean_area = area.strip()
-                    if clean_area:
-                        departments.add(clean_area)
-    
-    return sorted(list(departments))
-
-
-def upsert_audit_to_neo4j(
+def upsert_audit_to_postgres(
     user_uid: str,
     file_id: str,
-    supplier_id: Optional[str],
+    supplier_id: Optional[Union[str, int]], 
     results: List[Dict[str, Any]],
     summary: Dict[str, Any],
     metadata: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
-    Save audit run and its findings to Neo4j as a graph.
-    
-    ✅ FIXED:
-    - Uses transactions (all-or-nothing)
-    - Better error handling
-    - Fixed OPTIONAL MATCH logic
-    - Added retries for transient errors
-    - Updated for Neo4j 5.x API (execute_write)
+    Save audit run and its findings to PostgreSQL.
+    Replaces the old Neo4j implementation.
     """
-    if not results:
-        raise ValueError("Cannot save audit with no results")
-    
-    metadata = metadata or {}
-    
-    # Generate unique audit ID
-    timestamp = datetime.utcnow().isoformat()
-    audit_id = generate_audit_id(user_uid, file_id, timestamp)
-    
-    print("=== RESULTS SAMPLE ===")
-    print(json.dumps(results[:5], indent=2))
-    print("======================")
-
-    # Calculate metrics
-    compliance_score = calculate_compliance_score(results)
-    flagged_departments = extract_flagged_departments(results)
-    gap_count = sum(1 for r in results if not r.get("Is_Compliant", False))
-    high_risk_count = summary.get("high_risk_gaps", 0)
-    
-    # Prepare audit node properties
-    audit_props = {
-        "audit_id": audit_id,
-        "user_uid": user_uid,
-        "file_id": file_id,
-        "supplier_id": supplier_id or "unknown",
-        "timestamp": timestamp,
-        "compliance_score": compliance_score,
-        "total_requirements": len(results),
-        "gap_count": gap_count,
-        "high_risk_count": high_risk_count,
-        "status": "completed",
-        "results_json": json.dumps(results),
-        "summary_json": json.dumps(summary),
-        "metadata_json": json.dumps(metadata)
-    }
-    
-    cypher_audit = """
-    // Create or merge User
-    MERGE (u:User {uid: $user_uid})
-    ON CREATE SET u.created_at = timestamp()
-    
-    // Create or merge Supplier (if provided)
-    MERGE (s:Supplier {supplier_id: $supplier_id})
-    ON CREATE SET s.created_at = timestamp()
-    
-    // Create or merge File
-    MERGE (f:File {file_id: $file_id})
-    ON CREATE SET f.created_at = timestamp()
-    
-    // Create AuditRun node
-    CREATE (a:AuditRun)
-    SET a = $audit_props
-    
-    // Create relationships
-    MERGE (u)-[:INITIATED_AUDIT]->(a)
-    MERGE (s)-[:HAS_AUDIT]->(a)
-    MERGE (a)-[:ANALYZED_FILE]->(f)
-    
-    RETURN a.audit_id AS audit_id
-    """
-    
-    cypher_gaps = """
-    UNWIND $gaps AS gap
-    MATCH (a:AuditRun {audit_id: $audit_id})
-
-    // Find regulation by regulation_id
-    OPTIONAL MATCH (reg:Regulation {regulation_id: gap.reg_id})
-
-    // Create gap relationship directly to regulation (not obligation)
-    WITH a, gap, reg
-    WHERE reg IS NOT NULL
-    MERGE (a)-[r:FOUND_GAP]->(reg)
-    SET r.compliance_score = gap.score,
-        r.risk_rating = gap.risk,
-        r.narrative = gap.narrative,
-        r.evidence_chunk = gap.evidence,
-        r.created_at = timestamp()
-
-    RETURN count(reg) AS gap_links
-    """
-    
-    cypher_depts = """
-    UNWIND $departments AS dept_name
-    MATCH (a:AuditRun {audit_id: $audit_id})
-    MERGE (d:Department {name: dept_name})
-    ON CREATE SET d.created_at = timestamp()
-    MERGE (a)-[:FLAGGED_DEPT]->(d)
-    RETURN count(d) AS dept_count
-    """
-    
-    driver = get_neo4j_driver()
-    max_retries = 3
-    
-    for attempt in range(max_retries):
-        try:
-            with driver.session() as session:
-                # ✅ Neo4j 5.x: execute_write (replaces write_transaction)
-                result = session.execute_write(
-                    _create_audit_tx,
-                    cypher_audit,
-                    audit_props,
-                    cypher_gaps,
-                    cypher_depts,
-                    audit_id,
-                    results,
-                    flagged_departments
-                )
-                
-                driver.close()
-                return result
-                
-        except TransientError as e:
-            if attempt < max_retries - 1:
-                print(f"⚠️ Transient error, retrying ({attempt + 1}/{max_retries}): {e}")
-                continue
-            else:
-                traceback.print_exc()
-                driver.close()
-                return {"ok": False, "error": f"Transient error after {max_retries} retries: {str(e)}"}
-                
-        except ServiceUnavailable as e:
-            traceback.print_exc()
-            driver.close()
-            return {"ok": False, "error": f"Neo4j unavailable: {str(e)}"}
-            
-        except Exception as e:
-            traceback.print_exc()
-            driver.close()
-            return {"ok": False, "error": str(e)}
-    
-    driver.close()
-    return {"ok": False, "error": "Max retries exceeded"}
-
-
-def _create_audit_tx(tx, cypher_audit, audit_props, cypher_gaps, cypher_depts, 
-                     audit_id, results, flagged_departments):
-    """
-    Transaction function - all operations succeed or all fail
-    """
-    # 1. Create audit node and core relationships
-    result = tx.run(cypher_audit, audit_props=audit_props, **audit_props)
-    record = result.single()
-    created_audit_id = record["audit_id"] if record else audit_id
-    
-    # 2. Link non-compliant findings to obligations
-    gaps = []
-    for r in results:
-        if not r.get("Is_Compliant", True):
-            gaps.append({
-                "reg_id": r.get("Reg_ID"),
-                "score": r.get("Compliance_Score", 0.0),
-                "risk": r.get("Risk_Rating", ""),
-                "narrative": r.get("Narrative_Gap", ""),
-                "evidence": (r.get("Evidence_Chunk", "") or "")[:500]
-            })
-    
-    gap_count_created = 0
-    if gaps:
-        result = tx.run(cypher_gaps, audit_id=audit_id, gaps=gaps)
-        record = result.single()
-        gap_count_created = record["gap_links"] if record else 0
-    
-    # 3. Link to flagged departments
-    dept_count = 0
-    if flagged_departments:
-        result = tx.run(cypher_depts, audit_id=audit_id, departments=flagged_departments)
-        record = result.single()
-        dept_count = record["dept_count"] if record else 0
-    
-    return {
-        "ok": True,
-        "audit_id": created_audit_id,
-        "compliance_score": audit_props["compliance_score"],
-        "gap_count": audit_props["gap_count"],
-        "high_risk_count": audit_props["high_risk_count"],
-        "gap_links_created": gap_count_created,
-        "departments_flagged": dept_count
-    }
-
-
-def get_audits_for_user(user_uid: str, limit: int = 50, skip: int = 0) -> List[Dict[str, Any]]:
-    """Get all audit runs for a user."""
-    driver = get_neo4j_driver()
-    
-    cypher = """
-    MATCH (u:User {uid: $user_uid})-[:INITIATED_AUDIT]->(a:AuditRun)
-    OPTIONAL MATCH (a)-[:ANALYZED_FILE]->(f:File)
-    OPTIONAL MATCH (s:Supplier)-[:HAS_AUDIT]->(a)
-    RETURN a AS audit,
-           f.file_id AS file_id,
-           s.supplier_id AS supplier_id
-    ORDER BY a.timestamp DESC
-    SKIP $skip LIMIT $limit
-    """
-    
+    db = SessionLocal()
     try:
-        with driver.session() as session:
-            # ✅ Neo4j 5.x: execute_read (replaces read_transaction)
-            result = session.execute_read(
-                lambda tx: list(tx.run(cypher, user_uid=user_uid, skip=skip, limit=limit))
+        # Handle supplier_id parsing
+        supp_id_int = None
+        if supplier_id:
+            if isinstance(supplier_id, int):
+                supp_id_int = supplier_id
+            elif isinstance(supplier_id, str) and supplier_id.isdigit():
+                supp_id_int = int(supplier_id)
+
+        # 1. Create Audit Record
+        audit = ComplianceAudit(
+            user_uid=user_uid,
+            file_id=file_id,
+            supplier_id=supp_id_int,
+            compliance_score=float(summary.get("compliance_score", 0.0)),
+            total_requirements=len(results),
+            high_risk_gaps=int(summary.get("high_risk_gaps", 0)),
+            summary_json=summary
+        )
+        db.add(audit)
+        db.commit()
+        db.refresh(audit)
+
+        # 2. Create Findings
+        findings = []
+        for r in results:
+            # Ensure evidence is a string
+            evidence_text = r.get("Evidence_Chunk", "")
+            if not isinstance(evidence_text, str):
+                evidence_text = str(evidence_text)
+
+            finding = AuditFinding(
+                audit_id=audit.id,
+                regulation_id=r.get("Reg_ID"),
+                status="Compliant" if r.get("Is_Compliant") else "Non-Compliant",
+                score=float(r.get("Compliance_Score", 0.0)),
+                risk_rating=r.get("Risk_Rating"),
+                narrative=r.get("Narrative_Gap"),
+                evidence_chunk=evidence_text[:5000] if evidence_text else None
             )
-            
-            audits = []
-            for record in result:
-                audit_node = record["audit"]
-                props = dict(audit_node)
-                try:
-                    props["results"] = json.loads(props.get("results_json", "[]"))
-                except:
-                    props["results"] = []
-                try:
-                    props["summary"] = json.loads(props.get("summary_json", "{}"))
-                except:
-                    props["summary"] = {}
-                
-                try:
-                    props["metadata"] = json.loads(props.get("metadata_json", "{}"))
-                except:
-                    props["metadata"] = {}
-                
-                props["file_id"] = record.get("file_id")
-                props["supplier_id"] = record.get("supplier_id")
-                props.pop("summary_json", None)
-                props.pop("metadata_json", None)
-                props.pop("results_json", None)
-                audits.append(props)
-            
-            return audits
-            
+            findings.append(finding)
+        
+        if findings:
+            db.bulk_save_objects(findings)
+            db.commit()
+        
+        return {"ok": True, "audit_id": str(audit.id)}
+        
+    except Exception as e:
+        db.rollback()
+        traceback.print_exc()
+        return {"ok": False, "error": str(e)}
     finally:
-        driver.close()
+        db.close()
+
+# Alias for backward compatibility with main_api.py
+upsert_audit_to_neo4j = upsert_audit_to_postgres
 
 
-def get_audits_for_supplier(supplier_id: str, limit: int = 50) -> List[Dict[str, Any]]:
-    """Get all audit runs for a specific supplier."""
-    driver = get_neo4j_driver()
-    
-    cypher = """
-    MATCH (s:Supplier {supplier_id: $supplier_id})-[:HAS_AUDIT]->(a:AuditRun)
-    OPTIONAL MATCH (a)-[:ANALYZED_FILE]->(f:File)
-    RETURN a AS audit, f.file_id AS file_id
-    ORDER BY a.timestamp DESC
-    LIMIT $limit
-    """
-    
-    try:
-        with driver.session() as session:
-            # ✅ Neo4j 5.x: execute_read
-            result = session.execute_read(
-                lambda tx: list(tx.run(cypher, supplier_id=supplier_id, limit=limit))
-            )
-            
-            audits = []
-            for record in result:
-                audit_node = record["audit"]
-                props = dict(audit_node)
-                try:
-                    props["results"] = json.loads(props.get("results_json", "[]"))
-                except:
-                    props["results"] = []
-                try:
-                    props["summary"] = json.loads(props.get("summary_json", "{}"))
-                except:
-                    props["summary"] = {}
-                
-                props["file_id"] = record.get("file_id")
-                props.pop("summary_json", None)
-                props.pop("metadata_json", None)
-                # 2. Remove the raw storage field
-                props.pop("results_json", None)
-                audits.append(props)
-            
-            return audits
-            
-    finally:
-        driver.close()
+def ensure_audit_indexes():
+    """No-op for Postgres migration (Indexes handled by SQLAlchemy models)."""
+    # This keeps the startup script from crashing if it calls this function
+    print("✅ Audit Postgres indexes are managed by SQLAlchemy models.")
+    return
 
 
-def get_audit_detail(audit_id: str) -> Optional[Dict[str, Any]]:
-    """Get detailed audit with all gaps and flagged obligations."""
-    driver = get_neo4j_driver()
-    
-    cypher = """
-    MATCH (a:AuditRun {audit_id: $audit_id})
-    
-    // Get gaps with obligations
-    OPTIONAL MATCH (a)-[gap:FOUND_GAP]->(o:Obligation)
-    OPTIONAL MATCH (reg:Regulation)-[:HAS_OBLIGATION]->(o)
-    
-    // Get flagged departments
-    OPTIONAL MATCH (a)-[:FLAGGED_DEPT]->(d:Department)
-    
-    RETURN a AS audit,
-           collect(DISTINCT {
-               obligation_id: o.obligation_id,
-               text: o.text,
-               regulation_id: reg.regulation_id,
-               compliance_score: gap.compliance_score,
-               risk_rating: gap.risk_rating,
-               narrative: gap.narrative,
-               evidence_chunk: gap.evidence_chunk
-           }) AS gaps,
-           collect(DISTINCT d.name) AS departments
-    """
-    
-    try:
-        with driver.session() as session:
-            # ✅ Neo4j 5.x: execute_read
-            result = session.execute_read(
-                lambda tx: tx.run(cypher, audit_id=audit_id).single()
-            )
-            
-            if not result:
-                return None
-            
-            audit_node = result["audit"]
-            props = dict(audit_node)
-            try:
-                props["results"] = json.loads(props.get("results_json", "[]"))
-            except:
-                props["results"] = []
-            try:
-                props["summary"] = json.loads(props.get("summary_json", "{}"))
-            except:
-                props["summary"] = {}
-            # 2. Remove the raw storage field
-            props.pop("results_json", None)
-            props["gaps"] = [g for g in result["gaps"] if g.get("obligation_id")]
-            props["flagged_departments"] = [d for d in result["departments"] if d]
-            props.pop("summary_json", None)
-            props.pop("metadata_json", None)
-            
-            return props
-            
-    finally:
-        driver.close()
+# --- API Routes (Updated for Postgres) ---
 
 @router.get("/api/v1/audit/user/{user_uid}")
 async def get_user_audits(
     user_uid: str,
     limit: int = Query(50, gt=0, le=100),
-    skip: int = Query(0, ge=0)
+    skip: int = Query(0, ge=0),
+    db: Session = Depends(get_db)
 ):
-    """Get all audits initiated by a user."""
+    """Get all audits initiated by a user (Postgres version)."""
     try:
-        audits = get_audits_for_user(user_uid, limit=limit, skip=skip)
+        audits = (
+            db.query(ComplianceAudit)
+            .filter(ComplianceAudit.user_uid == user_uid)
+            .order_by(desc(ComplianceAudit.timestamp))
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+        
+        # Serialize results to match old Neo4j format
+        result_list = []
+        for a in audits:
+            result_list.append({
+                "audit_id": str(a.id),
+                "timestamp": a.timestamp.isoformat(),
+                "compliance_score": a.compliance_score,
+                "high_risk_count": a.high_risk_gaps,
+                "file_id": a.file_id,
+                "supplier_id": a.supplier_id,
+                "summary": a.summary_json or {},
+                "results": [] # List empty for list view to save bandwidth
+            })
+
         return JSONResponse(content={
             "ok": True,
-            "count": len(audits),
-            "audits": audits
+            "count": len(result_list),
+            "audits": result_list
         })
     except Exception as e:
         traceback.print_exc()
@@ -448,16 +144,42 @@ async def get_user_audits(
 @router.get("/api/v1/audit/supplier/{supplier_id}")
 async def get_supplier_audits(
     supplier_id: str,
-    limit: int = Query(50, gt=0, le=100)
+    limit: int = Query(50, gt=0, le=100),
+    db: Session = Depends(get_db)
 ):
-    """Get all audits for a specific supplier."""
+    """Get all audits for a specific supplier (Postgres version)."""
     try:
-        audits = get_audits_for_supplier(supplier_id, limit=limit)
+        # Handle string vs int ID
+        if supplier_id.isdigit():
+            supp_id_int = int(supplier_id)
+        else:
+            # If supplier_id is not an int, return empty or handle error
+            return JSONResponse(content={"ok": True, "count": 0, "audits": []})
+
+        audits = (
+            db.query(ComplianceAudit)
+            .filter(ComplianceAudit.supplier_id == supp_id_int)
+            .order_by(desc(ComplianceAudit.timestamp))
+            .limit(limit)
+            .all()
+        )
+        
+        result_list = []
+        for a in audits:
+            result_list.append({
+                "audit_id": str(a.id),
+                "timestamp": a.timestamp.isoformat(),
+                "compliance_score": a.compliance_score,
+                "high_risk_count": a.high_risk_gaps,
+                "file_id": a.file_id,
+                "summary": a.summary_json or {}
+            })
+
         return JSONResponse(content={
             "ok": True,
-            "count": len(audits),
+            "count": len(result_list),
             "supplier_id": supplier_id,
-            "audits": audits
+            "audits": result_list
         })
     except Exception as e:
         traceback.print_exc()
@@ -468,56 +190,73 @@ async def get_supplier_audits(
 
 
 @router.get("/api/v1/audit/run/{audit_id}")
-async def get_audit_details(audit_id: str):
-    """Get detailed audit including all gaps and linked obligations."""
+async def get_audit_details(
+    audit_id: str,
+    db: Session = Depends(get_db)
+):
+    """Get detailed audit including all findings/gaps (Postgres version)."""
     try:
-        audit = get_audit_detail(audit_id)
+        # 1. Fetch Audit
+        audit = db.query(ComplianceAudit).filter(ComplianceAudit.id == audit_id).first()
         if not audit:
             raise HTTPException(status_code=404, detail="Audit not found")
+        
+        # 2. Fetch Findings
+        findings = db.query(AuditFinding).filter(AuditFinding.audit_id == audit_id).all()
+        
+        # 3. Format Gaps (for the 'gaps' tab in UI)
+        gaps = []
+        for f in findings:
+            if f.status == "Non-Compliant":
+                gaps.append({
+                    "obligation_id": f.regulation_id, # Mapping reg_id to obligation_id for UI compat
+                    "text": f.narrative, # Use narrative as text fallback
+                    "regulation_id": f.regulation_id,
+                    "compliance_score": f.score,
+                    "risk_rating": f.risk_rating,
+                    "narrative": f.narrative,
+                    "evidence_chunk": f.evidence_chunk
+                })
+        
+        # 4. Extract metadata & Flagged Departments
+        summary = audit.summary_json or {}
+        
+        # Reconstruct "flagged_departments" from findings or summary
+        # If not in summary, we can try to infer (though usually summary has it)
+        flagged_departments = summary.get("departments_flagged", [])
+
+        # 5. Reconstruct 'results' list for full table view
+        full_results = []
+        for f in findings:
+            full_results.append({
+                "Reg_ID": f.regulation_id,
+                "Is_Compliant": (f.status == "Compliant"),
+                "Compliance_Score": f.score,
+                "Risk_Rating": f.risk_rating,
+                "Narrative_Gap": f.narrative,
+                "Evidence_Chunk": f.evidence_chunk
+            })
+
+        audit_data = {
+            "audit_id": str(audit.id),
+            "timestamp": audit.timestamp.isoformat(),
+            "compliance_score": audit.compliance_score,
+            "high_risk_count": audit.high_risk_gaps,
+            "file_id": audit.file_id,
+            "supplier_id": audit.supplier_id,
+            "summary": summary,
+            "gaps": gaps,
+            "flagged_departments": flagged_departments,
+            "results": full_results
+        }
+
         return JSONResponse(content={
             "ok": True,
-            "audit": audit
+            "audit": audit_data
         })
-    except HTTPException:
-        raise
     except Exception as e:
         traceback.print_exc()
         return JSONResponse(content={
             "ok": False,
             "error": str(e)
         }, status_code=500)
-
-
-def ensure_audit_indexes():
-    """Create Neo4j indexes for audit queries."""
-    try:
-        driver = get_neo4j_driver()
-    except Exception as e:
-        print(f"⚠️ Skipping audit indexes: {e}")
-        return
-    
-    indexes = [
-        "CREATE INDEX IF NOT EXISTS FOR (a:AuditRun) ON (a.audit_id);",
-        "CREATE INDEX IF NOT EXISTS FOR (a:AuditRun) ON (a.user_uid);",
-        "CREATE INDEX IF NOT EXISTS FOR (a:AuditRun) ON (a.supplier_id);",
-        "CREATE INDEX IF NOT EXISTS FOR (a:AuditRun) ON (a.timestamp);",
-        "CREATE INDEX IF NOT EXISTS FOR (f:File) ON (f.file_id);",
-        "CREATE INDEX IF NOT EXISTS FOR (s:Supplier) ON (s.supplier_id);",
-        "CREATE INDEX IF NOT EXISTS FOR (u:User) ON (u.uid);",
-        "CREATE INDEX IF NOT EXISTS FOR (d:Department) ON (d.name);",
-        "CREATE INDEX IF NOT EXISTS FOR (r:Regulation) ON (r.regulation_id);",
-        "CREATE INDEX IF NOT EXISTS FOR (o:Obligation) ON (o.obligation_id);",
-    ]
-    
-    try:
-        with driver.session() as session:
-            for idx in indexes:
-                try:
-                    session.run(idx)
-                except Exception as e:
-                    print(f"⚠️ Index creation warning: {e}")
-        
-        print("✅ Audit Neo4j indexes ensured")
-        
-    finally:
-        driver.close()
