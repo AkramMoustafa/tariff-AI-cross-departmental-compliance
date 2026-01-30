@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+import uuid
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import (
@@ -8,26 +9,30 @@ from fastapi import (
 )
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.requests import Request
-
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from src.api.db import get_db, SessionLocal
-from src.api.models import User
+from src.api.models import User, AuthToken  # Combine these imports
 from src.api.cli.admin_cli import get_conn
 from src.api.cli.authentication import verify_password
 from src.api.cli.auth_service import generate_token, verify_token
 from src.api.cli.email_service import send_auth_token_email
-from src.api.cli.tokens import (
-    create_access_token,
-    get_user_by_token,
-    revoke_token,
-)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 security = HTTPBearer()
 
+# Pydantic Models for Requests
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+    otp: str | None = None
+
+class SetActiveRolePayload(BaseModel):
+    role: str
+
+# Helper Functions
 def fetch_user_roles(user_id: UUID) -> list[str]:
     with get_conn() as conn:
         with conn.cursor() as cur:
@@ -41,7 +46,6 @@ def fetch_user_roles(user_id: UUID) -> list[str]:
                 (user_id,),
             )
             return [row[0] for row in cur.fetchall()]
-
 
 def fetch_user_tenants(email: str):
     with get_conn() as conn:
@@ -58,17 +62,7 @@ def fetch_user_tenants(email: str):
             )
             return cur.fetchall()
 
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-    otp: str | None = None
-
-
-class SetActiveRolePayload(BaseModel):
-    role: str
-
-from fastapi import Request
-
+# Dependency to get current user
 def get_current_user(
     request: Request,
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -79,13 +73,21 @@ def get_current_user(
     if credentials is None:
         raise HTTPException(status_code=401, detail="Missing Authorization header") 
     
-    print("Authorization header:", credentials.credentials[:10], "...")
+    token_str = credentials.credentials
     
-    user = get_user_by_token(credentials.credentials, db)
-    if not user:
+    # Direct Postgres query using SQLAlchemy
+    token_record = db.query(AuthToken).filter(
+        AuthToken.token == token_str,
+        AuthToken.revoked == False,
+        AuthToken.expires_at > datetime.utcnow()
+    ).first()
+
+    if not token_record:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-    return user
+    return token_record.user
+
+# --- API ENDPOINTS ---
 
 @router.post("/login")
 def login_api(payload: LoginRequest, db: Session = Depends(get_db)):
@@ -107,28 +109,40 @@ def login_api(payload: LoginRequest, db: Session = Depends(get_db)):
             if not row or not verify_password(payload.password, row[0]):
                 raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    access_token = create_access_token(
-        user_uid=str(user_id),
-        db=db,
+    # 1. Generate a secure random token string
+    token_str = f"api_{uuid.uuid4().hex}_{uuid.uuid4().hex}"
+
+    # 2. Save the token to the PostgreSQL auth_tokens table
+    new_token = AuthToken(
+        user_uid=user_id,
+        token=token_str,
+        expires_at=datetime.utcnow() + timedelta(days=30),
+        revoked=False
     )
+    
+    try:
+        db.add(new_token)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to create session: {str(e)}")
 
     return {
-        "access_token": access_token,
+        "access_token": token_str,
         "token_type": "bearer",
     }
-
 
 @router.post("/logout")
 def logout(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db),
 ):
-    if not credentials:
-        raise HTTPException(status_code=401, detail="Missing token")
-
-    revoke_token(credentials.credentials, db)
+    token_record = db.query(AuthToken).filter(AuthToken.token == credentials.credentials).first()
+    if token_record:
+        token_record.revoked = True
+        db.commit()
+    
     return {"status": "logged_out"}
-
 
 @router.get("/me")
 def get_me(
@@ -163,15 +177,8 @@ def set_active_role(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    print("🔥 [set-active-role] CALLED")
-    print("   user_id:", user.id)
-    print("   requested role:", payload.role)
-
     roles = fetch_user_roles(user.id)
-    print("   roles from DB:", roles)
-
     if payload.role not in roles:
-        print("❌ role not assigned to user")
         raise HTTPException(status_code=403, detail="Role not assigned to user")
 
     db.execute(
@@ -183,18 +190,7 @@ def set_active_role(
         {"role": payload.role, "id": user.id},
     )
     db.commit()
-
-    # 🔍 Verify DB state immediately
-    row = db.execute(
-        text("SELECT active_role FROM users WHERE id = :id"),
-        {"id": user.id},
-    ).fetchone()
-
-    print("✅ DB active_role AFTER UPDATE:", row[0])
-
     return {"active_role": payload.role}
-
-
 
 @router.post("/clear-active-role")
 def clear_active_role(
@@ -202,69 +198,8 @@ def clear_active_role(
     db: Session = Depends(get_db),
 ):
     db.execute(
-        text(
-            """
-            UPDATE users
-            SET active_role = NULL
-            WHERE id = :id
-            """
-        ),
+        text("UPDATE users SET active_role = NULL WHERE id = :id"),
         {"id": user.id},
     )
     db.commit()
-
     return {"active_role": None}
-def login_user():
-    email = input("Email: ").strip().lower()
-    password = input("Password: ").strip()
-
-    tenants = fetch_user_tenants(email)
-    if not tenants:
-        print("Invalid credentials")
-        return None
-
-    user_id, tenant_id, tenant_name = tenants[0]
-
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT password_hash FROM users WHERE id = %s",
-                (user_id,),
-            )
-            if not verify_password(password, cur.fetchone()[0]):
-                print("Invalid credentials")
-                return None
-
-    token = generate_token(email)
-    send_auth_token_email(email, token)
-
-    otp = input("Enter email token: ").strip()
-    if not verify_token(email, otp):
-        print("Invalid or expired token")
-        return None
-
-    db = SessionLocal()
-    access_token = create_access_token(
-        user_uid=str(user_id),
-        db=db,
-    )
-    db.close()
-
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                "UPDATE users SET last_login_at = %s WHERE id = %s",
-                (datetime.now(timezone.utc), user_id),
-            )
-            conn.commit()
-
-    roles = fetch_user_roles(user_id)
-
-    return {
-        "user_id": user_id,
-        "tenant_id": tenant_id,
-        "tenant_name": tenant_name,
-        "email": email,
-        "roles": roles,
-        "access_token": access_token,
-    }
