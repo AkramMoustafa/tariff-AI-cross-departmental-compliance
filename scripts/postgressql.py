@@ -50,6 +50,7 @@ def run():
         updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     """)
+    cursor.execute("""TRUNCATE TABLE tariff_lines RESTART IDENTITY;""")
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS suppliers (
         id BIGSERIAL PRIMARY KEY,

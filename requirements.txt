@@ -184,6 +184,9 @@ transformers==4.57.3
 typer==0.20.0
 typer-slim==0.20.0
 typing-inspection==0.4.2
+pdfplumber 
+pandas 
+openpyxl
 typing_extensions==4.15.0
 tzdata==2025.2
 tzlocal==5.3.1

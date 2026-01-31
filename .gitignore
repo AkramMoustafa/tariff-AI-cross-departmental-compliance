@@ -30,7 +30,7 @@ complianceai.db
 dow_regulatory_intelligence_*.json
 __pycache__/
 *.pyc
-
+scripts/hts_2026_basic.csv
 *.pyo
 *.db
 *.sqlite

@@ -35,6 +35,17 @@ export default function TariffCalculator() {
   const tariffLines = result?.lines ?? [];
   const [loading, setLoading] = useState(false);
 const handleCalculate = async () => {
+  
+    console.log("Submitting tariff calculation:", {
+    hsCode,
+    origin,
+    destination,
+    customsValue,
+    freight,
+    insurance,
+    currency,
+  });
+  
   if (customsValue === "" || customsValue <= 0) {
     alert("Customs value must be greater than 0");
     return;

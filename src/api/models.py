@@ -226,7 +226,7 @@ class ControlStatus(str, enum.Enum):
 class Control(Base):
     __tablename__ = "controls"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id = Column(UUID(as_uuid=True), nullable=False)
 
     name = Column(String, nullable=False)
@@ -257,14 +257,13 @@ class ControlAssignmentStatus(str, enum.Enum):
     COMPLETED = "COMPLETED"
     OVERDUE = "OVERDUE"
 
-
 class ControlAssignment(Base):
     __tablename__ = "control_assignments"
 
     id = Column(Integer, primary_key=True)
     tenant_id = Column(UUID(as_uuid=True), nullable=False)
 
-    control_id = Column(Integer, ForeignKey("controls.id"))
+    control_id = Column(UUID(as_uuid=True), ForeignKey("controls.id"))
     assignee_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     escalated_to_user_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
@@ -286,11 +285,6 @@ class ControlAssignment(Base):
     escalated_to = relationship(
         "User", foreign_keys=[escalated_to_user_id], backref="escalated_controls"
     )
-
-
-# ======================
-# Audit Log
-# ======================
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"

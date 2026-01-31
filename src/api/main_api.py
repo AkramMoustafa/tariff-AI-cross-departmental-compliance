@@ -219,8 +219,8 @@ app = FastAPI(lifespan=lifespan)
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-app.include_router(public_v1_router)
 app.include_router(tariff_router, prefix="/api/v1/tariff", tags=["Tariff"])
+app.include_router(public_v1_router)
 @app.get("/api/sanctions/search")
 def sanctions_search(
     q: str | None = None,
@@ -274,7 +274,6 @@ app.include_router(executive_router)
 app.include_router(compliance_owner_router)
 app.include_router(api_client_router)
 app.include_router(client_user_routes)
-app.include_router(tariff_router)
 
 @app.get("/api/sanctions/search")
 def sanctions_search(
@@ -2595,19 +2594,30 @@ async def get_metrics(
         "total_tasks": total_tasks,
         "timestamp": datetime.utcnow().isoformat()
     }
-
-# Error handlers
 @app.exception_handler(404)
-async def not_found_handler(request: Request, exc: HTTPException):
-    """Handle 404 errors"""
+async def not_found_handler(request: Request, exc: Exception):
+    print("🔥🔥🔥 404 HANDLER TRIGGERED 🔥🔥🔥")
+    print("REQUEST METHOD:", request.method)
+    print("REQUEST URL:", request.url)
+    print("REQUEST HEADERS:", dict(request.headers))
+
+    # VERY IMPORTANT: log the exception
+    print("EXCEPTION TYPE:", type(exc))
+    print("EXCEPTION REPR:", repr(exc))
+
+    traceback.print_exc()
+
     return JSONResponse(
         status_code=404,
         content={
             "status": "error",
-            "message": "Resource not found",
-            "path": str(request.url.path)
-        }
+            "message": "Resource not found (debug)",
+            "path": str(request.url.path),
+            "method": request.method,
+            "exception": repr(exc),
+        },
     )
+    
 
 @app.exception_handler(500)
 async def internal_error_handler(request: Request, exc: Exception):
