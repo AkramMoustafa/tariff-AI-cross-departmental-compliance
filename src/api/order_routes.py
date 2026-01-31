@@ -171,7 +171,69 @@ def calculate_order_duty(db: Session, order: SupplierOrder, supplier: Supplier):
     order.estimated_duty = result["total_duty"]
     order.duty_effective_rate = result["effective_rate"]
     order.tariff_log_id = log.id
+# In src/api/order_routes.py
 
+@router.post("/v1/tariff/calculate")
+def calculate_duty(body: dict, db: Session = Depends(get_db)):
+    """
+    Calculates Total Landed Cost including Base Duty + Section 301 (China) + MPF
+    """
+    hs_code = body.get("hs_code")
+    value = float(body.get("customs_value", 0))
+    origin = body.get("origin_country", "US")  # Default to US if missing
+
+    # 1. FIND THE PRODUCT
+    tariff_item = db.query(TariffLine).filter(TariffLine.hs_code == hs_code).first()
+    
+    if not tariff_item:
+        return JSONResponse(
+            status_code=404, 
+            content={"status": "error", "message": f"HS Code {hs_code} not found in 2026 Tariff Schedule"}
+        )
+
+   
+    base_rate = tariff_item.base_rate  # e.g., 0.0 or 0.025
+    base_duty_amount = value * base_rate
+
+    
+    section_301_rate = 0.0
+    if origin == "CN":
+        section_301_rate = 0.25  # The 25% Penalty
+    
+    section_301_amount = value * section_301_rate
+
+   
+    mpf_rate = 0.003464
+    mpf_raw = value * mpf_rate
+    mpf_amount = max(31.67, min(614.35, mpf_raw))
+    if value < 2500: 
+        mpf_amount = 2.22 # Informal entry min
+
+    # 5. TOTALS
+    total_duties = base_duty_amount + section_301_amount + mpf_amount
+    landed_cost = value + total_duties
+
+    return {
+        "status": "success",
+        "product": {
+            "hs_code": hs_code,
+            "description": tariff_item.description,
+            "origin": origin
+        },
+        "rates": {
+            "base_rate": base_rate,
+            "section_301_rate": section_301_rate, 
+            "mpf_rate": mpf_rate
+        },
+        "costs": {
+            "customs_value": value,
+            "base_duty_cost": round(base_duty_amount, 2),
+            "section_301_cost": round(section_301_amount, 2), 
+            "mpf_fee": round(mpf_amount, 2),
+            "total_duties_and_fees": round(total_duties, 2)
+        },
+        "total_landed_cost": round(landed_cost, 2)
+    }
 
 @router.post("/")
 def create_order(
