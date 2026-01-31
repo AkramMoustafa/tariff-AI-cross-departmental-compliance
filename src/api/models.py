@@ -759,12 +759,24 @@ class SupplierFinancialHealth(Base):
     supplier = relationship("Supplier", backref="financial_records")
 
 
+class TariffLine(Base):
+    __tablename__ = "tariff_lines"
+
+    hs_code = Column(String, primary_key=True, index=True)
+    description = Column(String, nullable=True)
+    unit_of_measure = Column(String, nullable=True)
+    base_rate = Column(Float, default=0.0)  
+
+
+    
+
+
 class RatingRecalculationLog(Base):
     __tablename__ = "rating_recalculation_logs"
 
     id = Column(Integer, primary_key=True, index=True)
 
-    job_type = Column(String)  # "FULL_RECALCULATION", "INCREMENTAL_UPDATE", etc.
+    job_type = Column(String)  
     trigger_event = Column(String, nullable=True)
 
     suppliers_processed = Column(Integer, default=0)
