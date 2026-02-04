@@ -4,6 +4,8 @@ import { Routes, Route } from "react-router-dom";
 import LandingPage from "./landing page/landingpage";
 import SignIn from "./dashboard/SignIn";
 import SignUp from "./dashboard/SignUp";
+import SignIn1 from "./dashboard/SignIn1";
+import SignUp1 from "./dashboard/SignUp1";
 import NotFoundPage from "./landing page/NotFoundPage";
 import ExecutiveApp from "./compliance_team/C_suite/ExecutiveViewerApp"
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -18,14 +20,17 @@ import Payment from "./Payments/CheckoutSection"
 import PaymentSuccess from "./Payments/payment_success"
 import { ClientSessionProvider } from "@/api/ClientSessionProvider";
 import BillingPage from "./Payments/billing";
-import PricingPage from "./pages/PricingPage";
+import PricingPage from "./Payments/PricingPage";
 export default function App() {
   return (
     <Box>
+
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/signin1" element={<SignIn1 />} />
+        <Route path="/signup1" element={<SignUp1 />} />
         <Route path="/redirect" element={<RootRedirect />} />
 
         {/* NEW Compliance App */}
@@ -71,7 +76,7 @@ export default function App() {
         />
         
         <Route
-  path="/tariff"
+  path="/tariffs"
   element={
     <ClientSessionProvider>
       <DashboardAppLayout>
@@ -89,6 +94,7 @@ export default function App() {
     </ClientSessionProvider>
   }
 />
+
 
 <Route
   path="/payment/success"
@@ -110,8 +116,10 @@ export default function App() {
 <Route
   path="/pricing"
   element={
-   
-      <PricingPage />
+       <ClientSessionProvider>
+          <PricingPage />
+    </ClientSessionProvider>
+
 
   }
 />

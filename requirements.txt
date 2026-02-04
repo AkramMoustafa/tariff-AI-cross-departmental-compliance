@@ -19,6 +19,7 @@ CacheControl==0.14.4
 cachetools==6.2.2
 catalogue==2.0.10
 requests
+reportlab
 lxml
 certifi==2025.11.12
 cffi==2.0.0

@@ -4,7 +4,7 @@ import requests
 from io import BytesIO
 from sqlalchemy.orm import Session
 from src.api.db import SessionLocal, engine
-from src.api.models_tariff import TariffLine  
+from src.api.models import TariffLine  
 
 
 LOCAL_CSV_PATH = "scripts/hts_2026_basic.csv"

@@ -11,69 +11,105 @@ import {
   InputAdornment,
   Divider,
 } from "@mui/material";
+import { calculateDuty, type DutyCalculationResponse } from "@/api/tariffClient";
 import { useState } from "react";
-import { calculateTariff } from "@/api/tariffClient";
+import { usePaymentStatus } from "@/api/payment";
 import SearchIcon from "@mui/icons-material/Search";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import NextActionsPanel from "./NextActionsPanel"
-
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import { useNavigate } from "react-router-dom";
 export default function TariffCalculator() {
-  
-
-
+  const { paid, loading: paymentLoading } = usePaymentStatus();
+  const navigate = useNavigate();
   const [hsCode, setHsCode] = useState("");
   const [origin, setOrigin] = useState("CN");
   const [destination, setDestination] = useState("US");
-  const [currency, setCurrency] = useState("USD");
-  const [customsValue, setCustomsValue] = useState<number | "">("");
+  const [customsValue, setCustomsValue] = useState(10000);
   const [freight, setFreight] = useState(500);
   const [insurance, setInsurance] = useState(50);
-
-  const [result, setResult] = useState<any>(null);
-  const mfnLine = result?.lines?.find((l: any) => l.duty_type === "MFN");
-  const mpfLine = result?.lines?.find((l: any) => l.duty_type === "MPF");
-  const tariffLines = result?.lines ?? [];
   const [loading, setLoading] = useState(false);
-const handleCalculate = async () => {
-  
-    console.log("Submitting tariff calculation:", {
-    hsCode,
-    origin,
-    destination,
-    customsValue,
-    freight,
-    insurance,
-    currency,
-  });
-  
-  if (customsValue === "" || customsValue <= 0) {
-    alert("Customs value must be greater than 0");
-    return;
-  }
+  const [result, setResult] = useState<DutyCalculationResponse | null>(null);
+const downloadPDF = async () => {
+  if (!result || !paid) return;
 
-  setLoading(true);
-  try {
-    const data = await calculateTariff({
-      hs_code: hsCode,
-      origin_country: origin,
-      destination_country: destination,
-      customs_value: customsValue,
-      freight,
-      insurance,
-      currency,
-    });
-    setResult(data);
-  } finally {
-    setLoading(false);
-  }
+  const response = await fetch("/api/tariff/pdf", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      ...result,
+      applied_tariff_lines: tariffLines,
+    }),
+  });
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "tariff_calculation.pdf";
+  a.click();
+
+  window.URL.revokeObjectURL(url);
 };
 
+    const handleCalculate = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const data = await calculateDuty({
+          hs_code: hsCode,
+          origin_country: origin,
+          customs_value: customsValue,
+          freight,
+          insurance,
+        });
+        setResult(data);
+      } catch (err: any) {
+        setError(err?.response?.data?.detail ?? "Calculation failed");
+      } finally {
+        setLoading(false);
+      }
+    };
+  const [error, setError] = useState<string | null>(null);
+const tariffLines = result
+  ? [
+      // MFN
+      {
+        dutyType: "MFN Duty",
+        description: "Most Favored Nation",
+        rateType: "Ad Valorem",
+        rate: `${result.calculated_duties.base_rate_percent.toFixed(2)}%`,
+        reference: `HTSUS ${result.hs_code}`,
+        amount:
+          (result.calculated_duties.base_rate_percent / 100) *
+          result.duty_payable.dutiable_value,
+      },
+
+      // Section 301 (only if applies)
+      ...(result.section_301?.applies
+        ? [
+            {
+              dutyType: "Section 301",
+              description: "China Trade Remedy",
+              rateType: "Ad Valorem",
+              rate: `${result.calculated_duties.section301_rate_percent?.toFixed(2)}%`,
+              reference: result.section_301.chapter_99_code,
+              amount:
+                (result.calculated_duties.section301_rate_percent! / 100) *
+                result.duty_payable.dutiable_value,
+            },
+          ]
+        : []),
+    ]
+  : [];
   return (
     <Box
       sx={{
-        minHeight: "100vh",
+        // I removed minHeight: "100vh" and overflow: "hidden".
+        // Having 100vh here caused the sidebar to get pushed off screen.
         position: "relative",
-        overflow: "hidden",
         bgcolor: "#ffffff",
         p: 4,
       }}
@@ -93,7 +129,7 @@ const handleCalculate = async () => {
           zIndex: 0,
         }}
       />
-          
+
       <Box
         sx={{
           position: "absolute",
@@ -112,754 +148,874 @@ const handleCalculate = async () => {
         }}
       />
 
-      {/* 🔑 CONTENT LAYER (PUT EVERYTHING HERE) */}
+      {/* CONTENT LAYER */}
+      <Box sx={{
+        position: "relative",
+        zIndex: 1,
+        // center everything with a max width and horizontal padding
+        maxWidth: "1400px",
+        mx: "auto",
+        px: { xs: 2, sm: 3, md: 4 },
+        // had maxWidth: "900px" here before which was cutting off the NextActionsPanel
+        width: "100%",
+      }}>
 
-      <Box sx={{ position: "relative", zIndex: 1, marginLeft: "0", maxWidth: "900px"}}>
-        {/* 👇 ALL YOUR REAL UI GOES HERE */}
+        {/* HEADER META */}
+        <Box sx={{ mb: 2 }}>
+          <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+            <Chip
+              label="OFFICIAL DATA SOURCE"
+              size="small"
+              sx={{
+                bgcolor: "rgba(16, 52, 166, 0.08)",
+                color: "#1034A6",
+                fontWeight: 600,
+                fontSize: "11px",
+                borderRadius: 1,
+              }}
+            />
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ fontWeight: 500 }}
+            >
+              HTS 2026 v3
+            </Typography>
+          </Stack>
 
-      {/* HEADER META */}
+          <Typography variant="h4" fontWeight={600} mb={0.5}>
+            HS Code Tariff Calculator
+          </Typography>
+
+          <Typography variant="body2" fontSize={12} color="text.secondary">
+            Official tariff calculations based on Harmonized Tariff Schedule (HTS)
+            schedules.
+          </Typography>
+          <Typography
+            variant="body2"
+            fontSize={12}
+            color="text.secondary"
+            mb={3}
+          >
+            Enter shipment details below to receive an instant, auditable duty
+            estimate and compliance breakdown.
+          </Typography>
+        </Box>
+
+        {/* MAIN LAYOUT */}
+        {/* 
+          I Switched from Grid with wrap="nowrap" to flex.
+          Grid nowrap caused horizontal overflow on small screens.
+          Flex + responsive flexDirection lets us stack on mobile. -- Reddit Said So.
+        */}
+        <Box sx={{
+          display: "flex",
+          gap: 3,
+          alignItems: "flex-start",
+          flexDirection: { xs: "column", lg: "row" },
+        }}>
+
+          {/* LEFT: Shipment Parameters */}
+          <Box sx={{
+            flex: 1,
+            // Without minWidth: 0, wide content can overflow the container.
+            minWidth: 0,
+            width: { xs: "100%", lg: "auto" },
+          }}>
+            <Paper
+              sx={{
+                p: 3,
+                borderRadius: 2,
+                // Previously width was set using vh which ignores the container. -- vh can cause bugs on mobile browsers. 
+                minHeight: { xs: "auto", md: "480px" },
+                position: "relative",
+                overflow: "hidden",
+                bgcolor: "#ffffff",
+                border: "1px solid #e5e7eb",
+              }}
+            >
+              {/* TOP BAR */}
+              <Box
+                sx={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: "50px",
+                  bgcolor: "#f9f9f9",
+                  px: 3,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                {/* LEFT: TITLE */}
+                <Box>
+                  <Typography
+                    sx={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "#0f172a",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    Shipment Parameters
+                  </Typography>
+                  <Typography
+                    sx={{
+                      fontSize: 11,
+                      color: "#64748b",
+                    }}
+                  >
+                    Used for duty & tariff calculation
+                  </Typography>
+                </Box>
+
+                {/* RIGHT: CLEAR FORM (UI ONLY) */}
+                <Button
+                  variant="text"
+                  size="small"
+                  sx={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: "#64748b",
+                    textTransform: "none",
+                    px: 1,
+                    "&:hover": {
+                      color: "#0f172a",
+                      backgroundColor: "rgba(0,0,0,0.04)",
+                    },
+                  }}
+                >
+                  Clear form
+                </Button>
+              </Box>
+
+              {/* BOTTOM BAR */}
+              <Box
+                sx={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: "70px",
+                  bgcolor: "#fafafa",
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  alignItems: "center",
+                  px: 3,
+                }}
+              >
+
+
+                <Button
+                    
+                variant="contained"
+                onClick={handleCalculate}
+                disabled={loading || !hsCode}
+                  
+                  startIcon={
+                    <Box
+                      sx={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: "50%",
+                        bgcolor: "rgba(255,255,255,0.15)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <PlayArrowRoundedIcon sx={{ fontSize: 14 }} />
+                    </Box>
+                  }
+                  sx={{
+                    bgcolor: "#0f172a",
+                    color: "#ffffff",
+                    borderRadius: 0.75,
+                    height: 34,
+                    px: 2.5,
+                    textTransform: "none",
+                    fontWeight: 600,
+                    boxShadow: "none",
+                    "&:hover": {
+                      bgcolor: "#020617",
+                      boxShadow: "none",
+                    },
+                  }}
+                >
+                  {loading ? "Calculating..." : "Calculate"}
+                </Button>
+              </Box>
+
+              <Box
+                sx={{
+                  fontFamily: "inter",
+                  position: "relative",
+                  pt: "40px",
+                  pb: "50px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 3,
+                }}
+              >
+                {/* HS CODE */}
+                <Box>
+                  <Box>
+                    <Typography variant="subtitle2" mb={0.5}>
+                      HS Code
+                    </Typography>
+
+                    <TextField
+                      fullWidth
+                      size="small"
+                        placeholder="Search HS Code (e.g. 850440)"
+                        value={hsCode}
+                        onChange={(e) => setHsCode(e.target.value)}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchIcon sx={{ fontSize: 18, color: "text.secondary" }} />
+                          </InputAdornment>
+                        ),
+                      }}
+                      sx={{
+                        bgcolor: "#ffffff",
+
+                        "& .MuiOutlinedInput-root": {
+                          borderRadius: 0.75,
+                          fontSize: "14px",
+                          height: 40,
+                        },
+
+                        "& .MuiOutlinedInput-input": {
+                          py: 1,
+                        },
+
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#e5e7eb",
+                        },
+                        "&:hover .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#c7cdd4",
+                        },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#2563eb",
+                        },
+                      }}
+                    />
+                  </Box>
+
+                  {/* SEARCH RESULT */}
+                  <Box
+                    sx={{
+                      mt: 1.5,
+                      p: 1.5,
+                      borderRadius: 1,
+                      bgcolor: "rgba(37, 99, 235, 0.06)",
+                      border: "1px solid rgba(37, 99, 235, 0.15)",
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 1.25,
+                    }}
+                  >
+                    {/* LEFT ICON */}
+                    <Box
+                      sx={{
+                        mt: "2px",
+                        width: 18,
+                        height: 18,
+                        borderRadius: "50%",
+                        bgcolor: "rgba(37, 99, 235, 0.12)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          bgcolor: "#2563eb",
+                        }}
+                      />
+                    </Box>
+
+                    {/* TEXT */}
+                    <Box>
+                      <Typography
+                        sx={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "#1e40af",
+                          lineHeight: 1.3,
+                        }}
+                      >
+                        Static Converters; Adp Power Supplies
+                      </Typography>
+
+                      <Typography
+                        sx={{
+                          fontSize: 12,
+                          color: "#1e3a8a",
+                          opacity: 0.8,
+                        }}
+                      >
+                        Heading 8504 · Electrical machinery and equipment
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 2,
+                  }}
+                >
+                  {/* ORIGIN */}
+                  <Box>
+                    
+                    <Typography
+                      sx={{
+                        fontSize: 12,
+                        fontWeight: 500,
       
-<Box sx={{ mb: 2 }}>
-  {/* BADGE + VERSION */}
-  <Stack direction="row" spacing={1} alignItems="center" mb={1}>
-    <Chip
-      label="OFFICIAL DATA SOURCE"
-      size="small"
-      sx={{
-        bgcolor: "rgba(16, 52, 166, 0.08)",
-        color: "#1034A6",
-        fontWeight: 600,
-        fontSize: "11px",
-        borderRadius: 1,
-      }}
-    />
-    <Typography
-      variant="caption"
-      color="text.secondary"
-      sx={{ fontWeight: 500 }}
-    >
-      HTS 2026 v3
-    </Typography>
-  </Stack>
-
-  {/* TITLE */}
-  <Typography variant="h4" fontWeight={600} mb={0.5}>
-    HS Code Tariff Calculator
-  </Typography>
-
-  <Typography variant="body2" color="text.secondary" fontSize={12} >
-    Official tariff calculations based on Harmonized Tariff Schedule (HTS)
-    schedules. Enter </Typography>  <Typography variant="body2" fontSize={12} color="text.secondary" marginBottom={3} >
-     shipment details below to receive an instant, auditable
-    duty estimate and compliance breakdown.
-  </Typography>
-</Box>
-<Grid container spacing={3} alignItems="flex-start" wrap = "nowrap">
-  <Grid item xs={12} lg={8} wrap="nowrap">
-<Paper
-  sx={{
-    p: 3,
-    borderRadius: 1,
-    minHeight: "50vh",
-    width: "70vh",
-    position: "relative",   
-    overflow: "visible",    
-     bgcolor: "#ffffff",
-  }}
->
-  {/* TOP BAR */}
-<Box
-  sx={{
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: "50px",
-    bgcolor: "#f9f9f9",
-    px: 3,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  }}
->
-  {/* LEFT: TITLE */}
-  <Box>
-    <Typography
-      sx={{
-        fontSize: 14,
-        fontWeight: 600,
-        color: "#0f172a",
-        lineHeight: 1.2,
-      }}
-    >
-      Shipment Parameters
-    </Typography>
-    <Typography
-      sx={{
-        fontSize: 11,
-        color: "#64748b",
-      }}
-    >
-      Used for duty & tariff calculation
-    </Typography>
-  </Box>
-
-  {/* RIGHT: CLEAR FORM (UI ONLY) */}
-  <Button
-    variant="text"
-    size="small"
-    sx={{
-      fontSize: 12,
-      fontWeight: 500,
-      color: "#64748b",
-      textTransform: "none",
-      px: 1,
-      "&:hover": {
-        color: "#0f172a",
-        backgroundColor: "rgba(0,0,0,0.04)",
-      },
-    }}
-  >
-    Clear form
-  </Button>
-</Box>
-
-  {/* BOTTOM BAR */}
-<Box
-  sx={{
-  position: "absolute",
-  bottom: 0,
-  left: 0,
-  right: 0,
-  height: "70px",
-  bgcolor: "#fafafa",
-  display: "flex",
-  justifyContent: "flex-end",
-  alignItems: "center",
-  px: 3,
-  zIndex:10,
-  }}
->
+                        color: "#475569",
+                        mb: 0.5,
+                      }}
+                    >
+                      
+                      Origin Country
+                    </Typography>
 
 
-<Button
-  variant="contained"
-  onClick={handleCalculate}
-  disabled={loading}
-  startIcon={
-    
+                    <TextField
+                      select
+                      fullWidth
+                      size="small"
+                      value={origin}
+                      onChange={(e) => setOrigin(e.target.value)}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          height: 34,
+                          fontSize: 14,
+                          borderRadius: 1.25,
+                          backgroundColor: "#fff",
+                        },
+                        "& .MuiOutlinedInput-input": {
+                          py: 0.75,
+                        },
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#e2e8f0",
+                        },
+                        "&:hover .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#cbd5e1",
+                        },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#2563eb",
+                          borderWidth: 1,
+                        },
+                        "& .MuiSelect-icon": {
+                          color: "#94a3b8",
+                        },
+                      }}
+                    >
+                      <MenuItem value="CN">China (CN)</MenuItem>
+                      <MenuItem value="DE">Germany (DE)</MenuItem>
+                    </TextField>
+                  </Box>
+
+
+                  {/* DESTINATION */}
+                  <Box>
+                    <Typography
+                      sx={{
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: "#475569",
+                        mb: 0.5,
+                      }}
+                    >
+                      Destination
+                    </Typography>
+
+
+                    <TextField
+                      select
+                      fullWidth
+                      size="small"
+                      value="US"
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          height: 34,
+                          fontSize: 14,
+                          borderRadius: 1.25,
+                          backgroundColor: "#fff",
+                        },
+                        "& .MuiOutlinedInput-input": {
+                          py: 0.75,
+                        },
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#e2e8f0",
+                        },
+                        "&:hover .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#cbd5e1",
+                        },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#2563eb",
+                        },
+                        "& .MuiSelect-icon": {
+                          color: "#94a3b8",
+                        },
+                      }}
+                    >
+                      <MenuItem value="US">United States (US)</MenuItem>
+                      <MenuItem value="CA">Canada (CA)</MenuItem>
+                    </TextField>
+                  </Box>
+                </Box>
+                {/* CURRENCY / VALUES */}
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr 1fr",
+                    gap: 2,
+                  }}
+                >
+                  {/* CURRENCY */}
+                  <Box>
+                    <Typography
+                      sx={{
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: "#475569",
+                        mb: 0.5,
+                      }}
+                    >
+                      Currency
+                    </Typography>
+
+                    <TextField
+                      select
+                      fullWidth
+                      size="small"
+                      value="USD"
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          height: 30,
+                          fontSize: 14,
+                          borderRadius: 1.25,
+                          backgroundColor: "#fff",
+                        },
+                        "& .MuiOutlinedInput-input": {
+                          py: 0.75,
+                        },
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#e2e8f0",
+                        },
+                        "&:hover .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#cbd5e1",
+                        },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#2563eb",
+                        },
+                        "& .MuiSelect-icon": {
+                          color: "#94a3b8",
+                        },
+                      }}
+                    >
+                      <MenuItem value="USD">USD ($)</MenuItem>
+                      <MenuItem value="EUR">EUR (€)</MenuItem>
+                    </TextField>
+                  </Box>
+
+                  {/* CUSTOMS VALUE */}
+                  <Box>
+                    <Typography
+                      sx={{
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: "#475569",
+                        mb: 0.5,
+                      }}
+                    >
+                      Customs Value
+                    </Typography>
+
+                    <TextField
+                      type="number"
+                      fullWidth
+                      size="small"
+                        value={customsValue}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setCustomsValue(v === "" ? 0 : Number(v));
+                      }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">$</InputAdornment>
+                        ),
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          height: 30,
+                          fontSize: 14,
+                          borderRadius: 1.25,
+                          backgroundColor: "#fff",
+                        },
+                        "& .MuiOutlinedInput-input": {
+                          py: 0.75,
+                        },
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#e2e8f0",
+                        },
+                        "&:hover .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#cbd5e1",
+                        },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#2563eb",
+                        },
+                      }}
+                    />
+                  </Box>
+
+                  {/* FREIGHT */}
+                  <Box>
+                    <Typography
+                      sx={{
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: "#475569",
+                        mb: 0.5,
+                      }}
+                    >
+                      Freight
+                    </Typography>
+
+                    <TextField
+                      type="number"
+                      fullWidth
+                      size="small"
+                      value={freight}
+                      
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setFreight(v === "" ? 0 : Number(v));
+                      }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">$</InputAdornment>
+                        ),
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          height: 30,
+                          fontSize: 14,
+                          borderRadius: 1.25,
+                          backgroundColor: "#fff",
+                        },
+                        "& .MuiOutlinedInput-input": {
+                          py: 0.75,
+                        },
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#e2e8f0",
+                        },
+                        "&:hover .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#cbd5e1",
+                        },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#2563eb",
+                        },
+                      }}
+                    />
+                  </Box>
+
+                  {/* INSURANCE */}
+                  <Box>
+                    <Typography
+                      sx={{
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: "#475569",
+                        mb: 0.5,
+                      }}
+                    >
+                      Insurance
+                    </Typography>
+
+                    <TextField
+                      type="number"
+                      fullWidth
+                      size="small"
+
+                      value={insurance}
+                       onChange={(e) => {
+                        const v = e.target.value;
+                        setInsurance(v === "" ? 0 : Number(v));
+                      }}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">$</InputAdornment>
+                        ),
+                      }}
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          height: 30,
+                          fontSize: 14,
+                          borderRadius: 1.25,
+                          backgroundColor: "#fff",
+                        },
+                        "& .MuiOutlinedInput-input": {
+                          py: 0.75,
+                        },
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#e2e8f0",
+                        },
+                        "&:hover .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#cbd5e1",
+                        },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#2563eb",
+                        },
+                      }}
+                    />
+                  </Box>
+                </Box>
+              </Box>
+
+            </Paper>
+          </Box>
+
+          {/* RIGHT COLUMN */}
+          <Box
+            sx={{
+              // On mobile this becomes full width and stacks below. -- On desktop it becomes a fixed-width sidebar.
+              width: { xs: "100%", lg: 320 },
+              flexShrink: 0,
+              // Sticky only on desktop so it doesn't break mobile scrolling.
+              position: { xs: "relative", lg: "sticky" },
+              top: { lg: 32 },
+            }}
+          >
+            <NextActionsPanel
+                canExportPdf={paid && !!result}
+                onExportPdf={downloadPDF}
+                onFindSuppliers={() => navigate("/suppliers")}
+                onSaveCalculation={() => {
+                  console.log("Save calculation", result);
+                  // later → POST to /compliance/log
+                }}
+              />
+          </Box>
+        </Box>
+
+        <Grid container spacing={2} sx={{ mt: 4 }}>
+          {/* TOTAL DUTY */}
+          <Grid item xs={12} md={6}>
+            <Paper
+              sx={{
+                p: 2,
+                borderRadius: 1.5,
+                border: "1px solid #e5e7eb",
+              }}
+            >
+              <Typography fontSize={11} color="text.secondary">
+                TOTAL DUTY PAYABLE
+              </Typography>
+
+            <Typography fontSize={22} fontWeight={700}>
+              {result
+                ? `$${result.duty_payable.total_duty_payable.toFixed(2)}`
+                : "--"}
+            </Typography>
+
+              <Stack direction="row" spacing={1} mt={1} alignItems="center">
+                <Chip
+                  label="Calculated"
+                  size="small"
+                  color="success"
+                  variant="outlined"
+                />
+                <Typography fontSize={11} color="text.secondary">
+                  Updated 2 mins ago
+                </Typography>
+              </Stack>
+            </Paper>
+          </Grid>
+
+          {/* EFFECTIVE RATE */}
+          <Grid item xs={12} md={6}>
+            <Paper
+              sx={{
+                p: 2,
+                borderRadius: 1.5,
+                border: "1px solid #e5e7eb",
+              }}
+            >
+              <Typography fontSize={11} color="text.secondary">
+                EFFECTIVE RATE
+              </Typography>
+
+              <Typography fontSize={22} fontWeight={700}>
+                {result
+                  ? `${result.calculated_duties.total_rate_percent.toFixed(2)}%`
+                  : "--"}
+              </Typography>
+                  {result?.section_301?.applies && (
+              <Chip
+                label="Section 301 Applied"
+                size="small"
+                color="warning"
+                variant="outlined"
+                sx={{ mt: 1 }}
+              />
+            )}
+            </Paper>
+          </Grid>
+        </Grid>
+
+    <Box sx={{ position: "relative", mt: 3 }}>
+      {/* BLURRED CONTENT */}
+      <Box
+        sx={{
+          filter: paid ? "none" : "blur(6px)",
+          pointerEvents: paid ? "auto" : "none",
+          transition: "filter 0.25s ease",
+        }}
+      >
+    <Paper
+          sx={{
+            mt: 3,
+            p: 2,
+            borderRadius: 1.5,
+            border: "1px solid #e5e7eb",
+          }}
+        >
+          <Typography fontSize={14} fontWeight={600} mb={2}>
+            Applied Tariff Lines
+          </Typography>
+
+          {/* HEADER */}
+          <Grid container spacing={1} sx={{ fontSize: 13, mb: 1 }}>
+            {["Duty Type", "Rate Type", "Rate", "Reference", "Amount"].map((h) => (
+              <Grid item xs={2.4} key={h}>
+                <Typography fontSize={11} color="text.secondary">
+                  {h.toUpperCase()}
+                </Typography>
+              </Grid>
+            ))}
+          </Grid>
+
+          <Divider sx={{ mb: 1 }} />
+
+          {/* ROWS */}
+          {tariffLines.map((line, idx) => (
+            <Box key={idx}>
+              <Grid container spacing={1} alignItems="center">
+                <Grid item xs={2.4}>
+                  <Typography fontWeight={500}>{line.dutyType}</Typography>
+                  <Typography fontSize={11} color="text.secondary">
+                    {line.description}
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={2.4}>
+                  <Chip label={line.rateType} size="small" />
+                </Grid>
+
+                <Grid item xs={2.4}>{line.rate}</Grid>
+
+                <Grid item xs={2.4}>
+                  <Typography fontSize={12} color="primary">
+                    {line.reference}
+                  </Typography>
+                </Grid>
+
+                <Grid item xs={2.4} textAlign="right">
+                  <Typography fontWeight={600}>
+                    ${line.amount.toFixed(2)}
+                  </Typography>
+                </Grid>
+              </Grid>
+
+              <Divider sx={{ my: 1 }} />
+            </Box>
+          ))}
+
+          {/* TOTAL */}
+          <Grid container>
+            <Grid item xs={9.6} textAlign="right">
+              <Typography fontWeight={600}>Estimated Total</Typography>
+            </Grid>
+            <Grid item xs={2.4} textAlign="right">
+              <Typography fontWeight={700}>
+                ${result?.duty_payable.total_duty_payable.toFixed(2)}
+              </Typography>
+            </Grid>
+          </Grid>
+      </Paper>
+      </Box>
+        {/* 2️⃣ OVERLAY — THIS IS WHERE IT GOES */}
+  {!paid && (
     <Box
       sx={{
-        width: 22,
-        height: 22,
-        borderRadius: "50%",
-        bgcolor: "rgba(255,255,255,0.15)",
+        position: "absolute",
+        inset: 0,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        bgcolor: "rgba(255,255,255,0.6)",
+        backdropFilter: "blur(2px)",
+        zIndex: 2,
       }}
     >
-      <PlayArrowRoundedIcon sx={{ fontSize: 14 }} />
+      <UpgradeOverlay />
     </Box>
-  }
-  
-  sx={{
-    bgcolor: "#0f172a",         
-    color: "#ffffff",
-    borderRadius: 0.75,
-    height: 34,
-    px: 2.5,
-    textTransform: "none",
-    fontWeight: 600,
-    boxShadow: "none",
-    "&:hover": {
-      bgcolor: "#020617",
-      boxShadow: "none",
-    },
-  }}
->
-  {loading ? "Calculating…" : "Calculate"}
-</Button>
-</Box>
+  )}
+      </Box>
 
-<Box
-sx={{
-fontFamily: "inter",
-position: "relative",
-pt: "40px",
-pb: "80px",
-display: "flex",
-flexDirection: "column",
-gap: 3, // 👈 ADD THIS
-}}
->
-{/* HS CODE */}
-<Box>
-<Box>
-  <Typography variant="subtitle2" mb={0.5}>
-    HS Code
-  </Typography>
-
-<TextField
-  fullWidth
-  size="small"
-  placeholder="Search HS Code (e.g. 850440)"
-  value={hsCode}
-  onChange={(e) => setHsCode(e.target.value)}
-  
-  InputProps={{
-    startAdornment: (
-      <InputAdornment position="start">
-        <SearchIcon sx={{ fontSize: 18, color: "text.secondary" }} />
-      </InputAdornment>
-    ),
-  }}
-  sx={{
-    bgcolor: "#ffffff",
-
-    "& .MuiOutlinedInput-root": {
-      borderRadius: 0.75,
-      fontSize: "14px",
-      height: 40,
-    },
-
-    "& .MuiOutlinedInput-input": {
-      py: 1,
-    },
-
-    "& .MuiOutlinedInput-notchedOutline": {
-      borderColor: "#e5e7eb",
-    },
-    "&:hover .MuiOutlinedInput-notchedOutline": {
-      borderColor: "#c7cdd4",
-    },
-    "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-      borderColor: "#2563eb",
-    },
-  }}
-/>
-
-</Box>
-
-  {/* SEARCH RESULT */}
-<Box
-  sx={{
-    mt: 1.5,
-    p: 1.5,
-    borderRadius: 1,
-    bgcolor: "rgba(37, 99, 235, 0.06)", // soft blue
-    border: "1px solid rgba(37, 99, 235, 0.15)",
-    display: "flex",
-    alignItems: "flex-start",
-    gap: 1.25,
-  }}
->
-  {/* LEFT ICON */}
-  <Box
-    sx={{
-      mt: "2px",
-      width: 18,
-      height: 18,
-      borderRadius: "50%",
-      bgcolor: "rgba(37, 99, 235, 0.12)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      flexShrink: 0,
-    }}
-  >
-    <Box
-      sx={{
-        width: 8,
-        height: 8,
-        borderRadius: "50%",
-        bgcolor: "#2563eb",
-      }}
-    />
-  </Box>
-
-  {/* TEXT */}
-  <Box>
-    <Typography
-      sx={{
-        fontSize: 13,
-        fontWeight: 600,
-        color: "#1e40af",
-        lineHeight: 1.3,
-      }}
-    >
-      Static Converters; Adp Power Supplies
-    </Typography>
-
-    <Typography
-      sx={{
-        fontSize: 12,
-        color: "#1e3a8a",
-        opacity: 0.8,
-      }}
-    >
-      Heading 8504 · Electrical machinery and equipment
-    </Typography>
-  </Box>
-</Box>
-</Box>
-
-<Box
-sx={{
-display: "grid",
-gridTemplateColumns: "1fr 1fr",
-gap: 2,
-}}
->
-{/* ORIGIN */}
-<Box>
-<Typography
-sx={{
-fontSize: 12,
-fontWeight: 500,
-color: "#475569",
-mb: 0.5,
-}}
->
-Origin Country
-</Typography>
-
-
-<TextField
-  select
-  fullWidth
-  size="small"
-  value={origin}
-  onChange={(e) => setOrigin(e.target.value)}
-
-sx={{
-"& .MuiOutlinedInput-root": {
-height: 34, 
-borderRadius: 1.25,
-backgroundColor: "#fff",
-},
-"& .MuiOutlinedInput-input": {
-py: 0.75,
-},
-"& .MuiOutlinedInput-notchedOutline": {
-borderColor: "#e2e8f0",
-},
-"&:hover .MuiOutlinedInput-notchedOutline": {
-borderColor: "#cbd5e1",
-},
-"&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-borderColor: "#2563eb",
-borderWidth: 1,
-},
-"& .MuiSelect-icon": {
-color: "#94a3b8",
-},
-}}
->
-<MenuItem value="CN">China (CN)</MenuItem>
-<MenuItem value="DE">Germany (DE)</MenuItem>
-</TextField>
-</Box>
-
-
-{/* DESTINATION */}
-<Box>
-<Typography
-sx={{
-fontSize: 12,
-fontWeight: 500,
-color: "#475569",
-mb: 0.5,
-}}
->
-Destination
-</Typography>
-
-
-<TextField
-value={destination}
-onChange={(e) => setDestination(e.target.value)}
-sx={{
-"& .MuiOutlinedInput-root": {
-height: 34,
-fontSize: 14,
-borderRadius: 1.25,
-backgroundColor: "#fff",
-},
-"& .MuiOutlinedInput-input": {
-py: 0.75,
-},
-"& .MuiOutlinedInput-notchedOutline": {
-borderColor: "#e2e8f0",
-},
-"&:hover .MuiOutlinedInput-notchedOutline": {
-borderColor: "#cbd5e1",
-},
-"&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-borderColor: "#2563eb",
-},
-"& .MuiSelect-icon": {
-color: "#94a3b8",
-},
-}}
->
-<MenuItem value="US">United States (US)</MenuItem>
-<MenuItem value="CA">Canada (CA)</MenuItem>
-</TextField>
-</Box>
-</Box>
-
-<Box
-  sx={{
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr 1fr",
-    gap: 2,
-  }}
->
-  {/* CURRENCY */}
-  <Box>
-    
-    <Typography
-      sx={{
-        fontSize: 12,
-        fontWeight: 500,
-        color: "#475569",
-        mb: 0.5,
-      }}
-    >
-      Currency
-    </Typography>
-
-    <TextField
-value={currency}
-onChange={(e) => setCurrency(e.target.value)}
-      sx={{
-        "& .MuiOutlinedInput-root": {
-          height: 30,
-          fontSize: 14,
-          borderRadius: 1.25,
-          backgroundColor: "#fff",
-        },
-        "& .MuiOutlinedInput-input": {
-          py: 0.75,
-        },
-        "& .MuiOutlinedInput-notchedOutline": {
-          borderColor: "#e2e8f0",
-        },
-        "&:hover .MuiOutlinedInput-notchedOutline": {
-          borderColor: "#cbd5e1",
-        },
-        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-          borderColor: "#2563eb",
-        },
-        "& .MuiSelect-icon": {
-          color: "#94a3b8",
-        },
-      }}
-    >
-      <MenuItem value="USD">USD ($)</MenuItem>
-      <MenuItem value="EUR">EUR (€)</MenuItem>
-    </TextField>
-  </Box>
-
-  {/* CUSTOMS VALUE */}
-  <Box>
-    <Typography
-      sx={{
-        fontSize: 12,
-        fontWeight: 500,
-        color: "#475569",
-        mb: 0.5,
-      }}
-    >
-      Customs Value
-    </Typography>
-
-<TextField
-  value={customsValue}
-  onChange={(e) => {
-    const v = e.target.value;
-    setCustomsValue(v === "" ? "" : Number(v));
-  }}
-  InputProps={{
-    startAdornment: (
-      <InputAdornment position="start">$</InputAdornment>
-    ),
-      }}
-      sx={{
-        "& .MuiOutlinedInput-root": {
-          height: 30,
-          fontSize: 14,
-          borderRadius: 1.25,
-          backgroundColor: "#fff",
-        },
-        "& .MuiOutlinedInput-input": {
-          py: 0.75,
-        },
-        "& .MuiOutlinedInput-notchedOutline": {
-          borderColor: "#e2e8f0",
-        },
-        "&:hover .MuiOutlinedInput-notchedOutline": {
-          borderColor: "#cbd5e1",
-        },
-        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-          borderColor: "#2563eb",
-        },
-      }}
-    />
-  </Box>
-
-  {/* FREIGHT */}
-  <Box>
-    <Typography
-      sx={{
-        fontSize: 12,
-        fontWeight: 500,
-        color: "#475569",
-        mb: 0.5,
-      }}
-    >
-      Freight
-    </Typography>
-
-    <TextField
-value={freight}
-onChange={(e) => setFreight(Number(e.target.value))}
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">$</InputAdornment>
-        ),
-      }}
-      sx={{
-        "& .MuiOutlinedInput-root": {
-          height: 30,
-          fontSize: 14,
-          borderRadius: 1.25,
-          backgroundColor: "#fff",
-        },
-        "& .MuiOutlinedInput-input": {
-          py: 0.75,
-        },
-        "& .MuiOutlinedInput-notchedOutline": {
-          borderColor: "#e2e8f0",
-        },
-        "&:hover .MuiOutlinedInput-notchedOutline": {
-          borderColor: "#cbd5e1",
-        },
-        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-          borderColor: "#2563eb",
-        },
-      }}
-    />
-  </Box>
-
-  {/* INSURANCE */}
-  <Box>
-    <Typography
-      sx={{
-        fontSize: 12,
-        fontWeight: 500,
-        color: "#475569",
-        mb: 0.5,
-      }}
-    >
-      Insurance
-    </Typography>
-
-    <TextField
-value={insurance}
-onChange={(e) => setInsurance(Number(e.target.value))}
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">$</InputAdornment>
-        ),
-      }}
-      sx={{
-        "& .MuiOutlinedInput-root": {
-          height: 30,
-          fontSize: 14,
-          borderRadius: 1.25,
-          backgroundColor: "#fff",
-        },
-        "& .MuiOutlinedInput-input": {
-          py: 0.75,
-        },
-        "& .MuiOutlinedInput-notchedOutline": {
-          borderColor: "#e2e8f0",
-        },
-        "&:hover .MuiOutlinedInput-notchedOutline": {
-          borderColor: "#cbd5e1",
-        },
-        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-          borderColor: "#2563eb",
-        },
-      }}
-    />
-  </Box>
-    </Box>
-</Box>
-
-</Paper>
-<Grid container spacing={2} sx={{ mt: 4 }}>
-  {/* TOTAL DUTY */}
-  <Grid item xs={12} md={6}>
-    <Paper
-      sx={{
-        p: 2,
-        borderRadius: 1.5,
-        border: "1px solid #e5e7eb",
-      }}
-    >
-      <Typography fontSize={11} color="text.secondary">
-        TOTAL DUTY PAYABLE
-      </Typography>
-
-      <Typography fontSize={22} fontWeight={700} mt={0.5}>
-{result ? `$${result.total_duty.toFixed(2)}` : "--"}
-      </Typography>
-
-      <Stack direction="row" spacing={1} mt={1} alignItems="center">
-        <Chip
-          label="Calculated"
-          size="small"
-          color="success"
-          variant="outlined"
-        />
-        <Typography fontSize={11} color="text.secondary">
-          Updated 2 mins ago
-        </Typography>
-      </Stack>
-    </Paper>
-  </Grid>
-
-  {/* EFFECTIVE RATE */}
-  <Grid item xs={12} md={6}>
-    <Paper
-      sx={{
-        p: 2,
-        borderRadius: 1.5,
-        border: "1px solid #e5e7eb",
-      }}
-    >
-      <Typography fontSize={11} color="text.secondary">
-        EFFECTIVE RATE
-      </Typography>
-
-      <Typography fontSize={22} fontWeight={700} mt={0.5}>
-{result ? `${result.effective_rate}%` : "--"}
-      </Typography>
-
-      <Chip
-        label="Check Section 301"
-        size="small"
-        color="warning"
-        variant="outlined"
-        sx={{ mt: 1 }}
-      />
-    </Paper>
-  </Grid>
-</Grid>
-<Paper
-  sx={{
-    mt: 3,
-    p: 2,
-    borderRadius: 1.5,
-    border: "1px solid #e5e7eb",
-  }}
->
-  <Typography fontSize={14} fontWeight={600} mb={2}>
-    Applied Tariff Lines
-  </Typography>
-
-  <Grid container spacing={1} sx={{ fontSize: 13 }}>
-    {/* HEADER */}
-    {["Duty Type", "Rate Type", "Rate", "Reference", "Amount"].map((h) => (
-      <Grid item xs={2.4} key={h}>
-        <Typography fontSize={11} color="text.secondary">
-          {h.toUpperCase()}
-        </Typography>
-      </Grid>
-    ))}
-
-    <Divider sx={{ my: 1, width: "100%" }} />
-
-    {/* MFN DUTY */}
-    <Grid item xs={2.4}>
-      <Typography fontWeight={500}>MFN Duty</Typography>
-      <Typography fontSize={11} color="text.secondary">
-        Most Favored Nation
-      </Typography>
-    </Grid>
-
-    <Grid item xs={2.4}>
-      <Chip label="Ad Valorem" size="small" />
-    </Grid>
-
-<Grid item xs={2.4}>
-  {mfnLine ? `${mfnLine.rate}%` : "--"}
-</Grid>
-    <Grid item xs={2.4}>
-      <Typography
-        fontSize={12}
-        color="primary"
-        sx={{ cursor: "pointer" }}
-      >
-       {mfnLine?.reference ?? "—"}
-      </Typography>
-    </Grid>
-
-    <Grid item xs={2.4} textAlign="right">
-     <Typography fontWeight={600}>
-  {mfnLine ? `$${mfnLine.amount.toFixed(2)}` : "--"}
-</Typography>
-    </Grid>
-
-    <Divider sx={{ my: 1, width: "100%" }} />
-
-    {/* MPF */}
-    <Grid item xs={2.4}>
-      <Typography>Merchandise Processing Fee</Typography>
-    </Grid>
-
-    <Grid item xs={2.4}>
-      <Chip label="Fixed / %" size="small" variant="outlined" />
-    </Grid>
-
-<Grid item xs={2.4}>
-  {mpfLine ? `${mpfLine.rate}%` : "--"}
-</Grid>
-
-    <Grid item xs={2.4}>
-      <Typography fontSize={12}>19 CFR 24.23</Typography>
-    </Grid>
-
-<Grid item xs={2.4} textAlign="right">
-  {mpfLine ? `$${mpfLine.amount.toFixed(2)}` : "--"}
-</Grid>
-
-    <Divider sx={{ my: 2, width: "100%" }} />
-
-    {/* TOTAL */}
-    <Grid item xs={9.6} textAlign="right">
-      <Typography fontWeight={600}>Estimated Total</Typography>
-    </Grid>
-
-    <Grid item xs={2.4} textAlign="right">
-      <Typography fontWeight={700}>
-  {result ? `$${result.total_duty.toFixed(2)}` : "--"}
-</Typography>
-    </Grid>
-  </Grid>
-</Paper>
-
-          </Grid>
-
-{/* RIGHT COLUMN */}
-<Grid item xs={12} lg={5}>
-<NextActionsPanel />
-</Grid>
-        </Grid>
       </Box>
     </Box>
+  );
+}
+  function UpgradeOverlay() {
+const navigate = useNavigate();  
+
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        p: 3,
+        borderRadius: 2,
+        border: "1px dashed #cbd5e1",
+        textAlign: "center",
+        maxWidth: 300,
+        bgcolor: "#ffffff",
+      }}
+    >
+      <LockOutlinedIcon
+        sx={{ fontSize: 64, color: "#2563eb", mb: 1 }}
+      />
+
+      <Typography fontWeight={600} mb={0.5}>
+        Detailed Tariff Breakdown
+      </Typography>
+
+      <Typography fontSize={13} color="text.secondary" mb={2}>
+        Unlock Section 301 details and exports with the Perform plan.
+      </Typography>
+
+      <Button
+        variant="contained"
+        fullWidth
+        onClick={() => navigate("/pricing")}
+        sx={{ textTransform: "none", fontWeight: 600 }}
+      >
+        Upgrade Plan
+      </Button>
+    </Paper>
   );
 }

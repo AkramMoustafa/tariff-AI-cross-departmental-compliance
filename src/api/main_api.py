@@ -14,7 +14,7 @@ from fastapi import (
     Query,
 )
 from src.api.db import get_db, engine, SessionLocal
-
+from src.api.NewTariffEngine.tariff_route import router as tariff_new_engine_router
 from src.api.sanctions import (
     load_sanctions,
     get_sanctions,
@@ -181,6 +181,8 @@ from src.api.cli.team_routes.tenant_admin_route import router as compliance_owne
 from src.api.API_CLIENT.api_client_router import router as api_client_router
 from src.api.API_USER.client_users import router as client_user_routes
 from src.api.public.v1 import router as public_v1_router
+from src.api.NewTariffEngine.tariff_pdf import router as tariff_pdf_router
+
 
 def cache_refresher():
     while True:
@@ -216,11 +218,16 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+logging.basicConfig(level=logging.INFO)
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(tariff_router, prefix="/api/v1/tariff", tags=["Tariff"])
 app.include_router(public_v1_router)
+app.include_router(tariff_new_engine_router)
+app.include_router(tariff_pdf_router, prefix="/api")
+
 @app.get("/api/sanctions/search")
 def sanctions_search(
     q: str | None = None,

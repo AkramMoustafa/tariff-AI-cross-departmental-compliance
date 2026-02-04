@@ -8,34 +8,48 @@ import {
 } from "@mui/material";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { AlertTriangle, Truck, Download, Bookmark, CheckCircle2 } from "lucide-react";
-
+  interface NextActionsPanelProps {
+  canExportPdf: boolean;
+  onExportPdf: () => void;
+  onFindSuppliers?: () => void;
+  onSaveCalculation?: () => void;
+}
 function ActionRow({
-icon,
-title,
-subtitle,
-rightIcon,
-iconBg = "#f3f4f6",
-iconColor = "#374151",
+  icon,
+  title,
+  subtitle,
+  rightIcon,
+  onClick,
+  disabled = false,
+  iconBg = "#f3f4f6",
+  iconColor = "#374151",
 }: {
-icon: React.ReactNode;
-title: string;
-subtitle: string;
-rightIcon?: React.ReactNode;
-iconBg?: string;
-iconColor?: string;
+  icon: React.ReactNode;
+  title: string;
+  subtitle: string;
+  rightIcon?: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  iconBg?: string;
+  iconColor?: string;
 }) {
+
   return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        gap: 1.5,
-        p: 1.25,
-        borderRadius: 1,
-        cursor: "pointer",
-        "&:hover": { bgcolor: "#f9fafb" },
-      }}
-    >
+<Box
+  onClick={!disabled && onClick ? onClick : undefined}
+  sx={{
+    display: "flex",
+    alignItems: "center",
+    gap: 1.5,
+    p: 1.25,
+    borderRadius: 1,
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.5 : 1,
+    "&:hover": {
+      bgcolor: disabled ? "transparent" : "#f9fafb",
+    },
+  }}
+>
       {/* LEFT ICON */}
 <Box
   sx={{
@@ -73,7 +87,12 @@ iconColor?: string;
   );
 }
 
-export default function NextActionsPanel() {
+export default function NextActionsPanel({
+  canExportPdf,
+  onExportPdf,
+  onFindSuppliers,
+  onSaveCalculation,
+}: NextActionsPanelProps) {
   return (
     <Paper
       sx={{
@@ -93,31 +112,39 @@ export default function NextActionsPanel() {
           <Stack spacing={0.5}>
             <Box sx={{ border: "1px solid #e5e7eb", pt: 0.5, borderRadius: 1 }}>
 <ActionRow
-icon={<Truck size={18} strokeWidth={1.75} />}
-title="Find Suppliers"
-subtitle="Source this HS Code"
-rightIcon={<ChevronRightIcon sx={{ fontSize: 18 }} />}
-iconBg="rgba(37, 99, 235, 0.12)" // blue background
-iconColor="#2563eb" // blue icon
+  icon={<Truck size={18} strokeWidth={1.75} />}
+  title="Find Suppliers"
+  subtitle="Source this HS Code"
+  rightIcon={<ChevronRightIcon sx={{ fontSize: 18 }} />}
+  iconBg="rgba(37, 99, 235, 0.12)"
+  iconColor="#2563eb"
+  onClick={onFindSuppliers}
 />
             </Box>
 
             <Box sx={{ border: "1px solid #e5e7eb", pt: 0.5, borderRadius: 1 }}>
-              <ActionRow
-                icon={<Download size={18} strokeWidth={1.75} />}
-                title="Export Report"
-                subtitle="Download PDF summary"
-                rightIcon={<ChevronRightIcon sx={{ fontSize: 18 }} />}
-              />
+            <ActionRow
+              icon={<Download size={18} strokeWidth={1.75} />}
+              title="Export Report"
+              subtitle={
+                canExportPdf
+                  ? "Download PDF summary"
+                  : "Upgrade to Perform to enable PDF export"
+              }
+              rightIcon={<ChevronRightIcon sx={{ fontSize: 18 }} />}
+              onClick={onExportPdf}
+              disabled={!canExportPdf}
+            />
             </Box>
 
             <Box sx={{ border: "1px solid #e5e7eb", pt: 0.5, borderRadius: 1 }}>
-              <ActionRow
-                icon={<Bookmark size={18} strokeWidth={1.75} />}
-                title="Save Calculation"
-                subtitle="Add to compliance log"
-                rightIcon={<CheckCircle2 size={14} strokeWidth={2} />}
-              />
+            <ActionRow
+              icon={<Bookmark size={18} strokeWidth={1.75} />}
+              title="Save Calculation"
+              subtitle="Add to compliance log"
+              rightIcon={<CheckCircle2 size={14} strokeWidth={2} />}
+              onClick={onSaveCalculation}
+            />
             </Box>
           </Stack>
         </Box>

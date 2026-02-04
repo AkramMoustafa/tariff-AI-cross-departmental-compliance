@@ -7,8 +7,9 @@ export default function Sidebar() {
   return (
     <Box
       sx={{
-        width: 180,                 
-
+        width: 180,
+        // I added minHeight: "100vh" instead of "relative" because without it the sidebar height was only as tall as its content. -- This was the only Change I made.
+        minHeight: "100vh",
         position: "relative",
         bgcolor: "#ffffff",
         borderRight: "1px solid #e5e7eb",
@@ -87,8 +88,8 @@ function NavItem({
         color: disabled
           ? "#cbd5e1"
           : active
-          ? "#1d4ed8"
-          : "#334155",
+            ? "#1d4ed8"
+            : "#334155",
         bgcolor: active ? "rgba(29, 78, 216, 0.08)" : "transparent",
         borderLeft: active
           ? "2px solid #2563eb"

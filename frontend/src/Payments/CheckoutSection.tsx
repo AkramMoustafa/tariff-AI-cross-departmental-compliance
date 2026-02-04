@@ -8,6 +8,7 @@ import {
   Alert,
   Stack,
 } from "@mui/material";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { startCheckout, fetchPaymentStatus } from "@/api/payment";
 
@@ -15,26 +16,39 @@ export default function Payment() {
   const [paid, setPaid] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { state } = useLocation();
+  const navigate = useNavigate();
 
+  const productKey = state?.productKey;
+  const billingCycle = state?.billingCycle;
   useEffect(() => {
     fetchPaymentStatus()
       .then(setPaid)
       .catch(() => setPaid(false));
   }, []);
+  useEffect(() => {
+  if (!productKey) {
+    navigate("/pricing");
+  }
+}, [productKey, navigate]);
 
-  const handleUpgrade = async () => {
-    setLoading(true);
-    setError(null);
+const finalProductKey =
+  billingCycle === "yearly"
+    ? `${productKey}_yearly`
+    : `${productKey}_monthly`;
 
-    try {
-      await startCheckout("tariff_basic");
-      // browser redirects to Stripe, no code after this runs
-    } catch (err) {
-      setError("Failed to start checkout. Please try again.");
-      setLoading(false);
-    }
-  };
 
+const handleUpgrade = async () => {
+  setLoading(true);
+  setError(null);
+
+  try {
+    await startCheckout(finalProductKey);
+  } catch {
+    setError("Failed to start checkout. Please try again.");
+    setLoading(false);
+  }
+};
   // Still checking payment status
   if (paid === null) {
     return (

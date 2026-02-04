@@ -21,7 +21,6 @@ def main():
         tables=[
             models_tariff.HSCode.__table__,
             models_tariff.TariffSchedule.__table__,
-            models_tariff.TariffLine.__table__,
             models_tariff.TariffCalculationLog.__table__,
         ],
     )
