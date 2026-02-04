@@ -1,8 +1,5 @@
 import apiClient from "./client";
 
-/* ===============================
-   Types (match backend responses)
-================================ */
 
 export interface DepartmentUser {
   email: string;

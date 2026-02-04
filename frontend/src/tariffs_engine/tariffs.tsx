@@ -11,7 +11,7 @@ import {
   InputAdornment,
   Divider,
 } from "@mui/material";
-import { calculateDuty, type DutyCalculationResponse } from "@/api/tariffClient";
+import { calculateDuty,   exportTariffPdf,type DutyCalculationResponse } from "@/api/tariffClient";
 import { useState } from "react";
 import { usePaymentStatus } from "@/api/payment";
 import SearchIcon from "@mui/icons-material/Search";
@@ -30,27 +30,27 @@ export default function TariffCalculator() {
   const [insurance, setInsurance] = useState(50);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DutyCalculationResponse | null>(null);
-const downloadPDF = async () => {
+
+  const downloadPDF = async () => {
   if (!result || !paid) return;
 
-  const response = await fetch("/api/tariff/pdf", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  try {
+    const blob = await exportTariffPdf({
       ...result,
       applied_tariff_lines: tariffLines,
-    }),
-  });
+    });
 
-  const blob = await response.blob();
-  const url = window.URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "tariff_calculation.pdf";
-  a.click();
-
-  window.URL.revokeObjectURL(url);
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "tariff_calculation.pdf";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("PDF export failed:", err);
+  }
 };
 
     const handleCalculate = async () => {

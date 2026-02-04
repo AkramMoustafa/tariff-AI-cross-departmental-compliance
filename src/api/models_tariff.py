@@ -4,7 +4,7 @@ from sqlalchemy import (
 )
 from datetime import datetime
 from src.api.db import Base
-from src.api.models import TariffLine
+
 
 class HSCode(Base):
     __tablename__ = "hs_codes"
@@ -25,6 +25,26 @@ class TariffSchedule(Base):
     effective_to = Column(DateTime, nullable=True)
     source_url = Column(String)
 
+
+class TariffLine(Base):
+    __tablename__ = "tariff_lines"
+
+    id = Column(Integer, primary_key=True)
+    tariff_schedule_id = Column(Integer, ForeignKey("tariff_schedules.id"), index=True)
+    hs_code_id = Column(Integer, ForeignKey("hs_codes.id"), index=True)
+
+    duty_type = Column(String)      
+    rate_type = Column(String)      
+    rate_value = Column(Float)
+
+    specific_uom = Column(String, nullable=True)
+    applies_on = Column(String)     
+    priority = Column(Integer, default=100)
+
+    origin_country = Column(String, nullable=True)  
+
+
+Index("ix_tariff_lines_lookup", TariffLine.tariff_schedule_id, TariffLine.hs_code_id)
 
 
 class TariffCalculationLog(Base):

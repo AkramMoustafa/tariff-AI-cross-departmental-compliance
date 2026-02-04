@@ -23,7 +23,6 @@ def generate_tariff_pdf(payload: dict):
     styles = getSampleStyleSheet()
     elements = []
 
-    # ---- HEADER ----
     elements.append(Paragraph("<b>Tariff Calculation Report</b>", styles["Title"]))
     elements.append(Paragraph(f"HS Code: {payload['hs_code']}", styles["Normal"]))
     elements.append(Paragraph(f"Origin: {payload['origin_country']}", styles["Normal"]))
@@ -51,7 +50,7 @@ def generate_tariff_pdf(payload: dict):
 
     for line in payload["applied_tariff_lines"]:
         table_data.append([
-            line["duty_type"],
+            line["dutyType"],
             line["rate"],
             line["reference"],
             f"${line['amount']}",

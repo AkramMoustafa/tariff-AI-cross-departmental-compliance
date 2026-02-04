@@ -9,7 +9,12 @@ import { useRef } from "react";
 // Hero images
 import heroSectionImg from "../../assets/herosection.jpeg";
 import heroSectionImg2x from "../../assets/herosection@2x.jpg";
+import CalculateOutlinedIcon from "@mui/icons-material/CalculateOutlined";
+import RequestQuoteOutlinedIcon from "@mui/icons-material/RequestQuoteOutlined";
 
+import GavelOutlinedIcon from "@mui/icons-material/GavelOutlined";
+import PublicOutlinedIcon from "@mui/icons-material/PublicOutlined";
+import { useNavigate } from "react-router-dom";
 const MotionBox = motion(Box);
 const MotionLink = motion.a;
 
@@ -22,6 +27,10 @@ type Props = {
 export default function Hero({ onBookDemo, onWatchDemo, spotlightHref }: Props) {
     const heroRef = useRef(null);
     const heroInView = useInView(heroRef, { once: true });
+    const navigate = useNavigate();
+  const handleGoToSignup = () => {
+    navigate("/signin");
+  };
 
     return (
         <Box
@@ -182,7 +191,7 @@ export default function Hero({ onBookDemo, onWatchDemo, spotlightHref }: Props) 
                                 mx: "auto",
                             }}
                         >
-                            AI Compliance Intelligence for Enterprises &amp; Supply Chains
+                            AI-Powered Tariff & Duty Estimation for Global Trade
                         </Typography>
                     </MotionBox>
 
@@ -203,8 +212,7 @@ export default function Hero({ onBookDemo, onWatchDemo, spotlightHref }: Props) 
                                 mb: { xs: 5, md: 8 },
                             }}
                         >
-                            Unifies internal policies, supplier evidence, and regulatory and market data into one AI-powered compliance
-                            graph, act before risks become headlines.
+                            Calculate import duties, Section 232/301 tariffs, and landed costs instantly — with transparent, audit-ready compliance logic.
                         </Typography>
                     </MotionBox>
 
@@ -224,51 +232,28 @@ export default function Hero({ onBookDemo, onWatchDemo, spotlightHref }: Props) 
                                 mb: { xs: 6, md: 12 },
                             }}
                         >
-                            <Button
-                                onClick={onBookDemo}
-                                endIcon={<CalendarMonthIcon sx={{ fontSize: 18 }} />}
-                                fullWidth
-                                sx={{
-                                    width: { xs: "100%", sm: "auto" },
-                                    maxWidth: { xs: 420, sm: "none" },
-                                    textTransform: "none",
-                                    fontSize: { xs: "0.95rem", sm: "0.875rem" },
-                                    fontWeight: 700,
-                                    color: "#fff",
-                                    bgcolor: "#1034A6",
-                                    px: { xs: 3, sm: 5 },
-                                    py: { xs: 1.6, sm: 1.5 },
-                                    borderRadius: "10px",
-                                    boxShadow: "0 10px 25px rgba(16,52,166,0.25)",
-                                    border: "1px solid rgba(16,52,166,0.25)",
-                                    "&:hover": { bgcolor: "#003D82" },
-                                }}
-                            >
-                                Book Demo
-                            </Button>
 
-                            <Button
-                                onClick={onWatchDemo}
-                                startIcon={<PlayArrowRoundedIcon />}
-                                fullWidth
-                                sx={{
-                                    width: { xs: "100%", sm: "auto" },
-                                    maxWidth: { xs: 420, sm: "none" },
-                                    textTransform: "none",
-                                    fontSize: { xs: "0.95rem", sm: "0.875rem" },
-                                    fontWeight: 700,
-                                    color: "#334155",
-                                    bgcolor: "#fff",
-                                    px: { xs: 3, sm: 5 },
-                                    py: { xs: 1.6, sm: 1.5 },
-                                    borderRadius: "10px",
-                                    border: "1px solid #e2e8f0",
-                                    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                                    "&:hover": { bgcolor: "#f8fafc", borderColor: "#cbd5e1" },
-                                }}
-                            >
-                                Watch Demo
-                            </Button>
+<Button
+  onClick={handleGoToSignup}
+  endIcon={<CalculateOutlinedIcon sx={{ fontSize: 16 }} />}
+  sx={{
+    textTransform: "none",
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    color: "#ffffff",
+    bgcolor: "#1034A6",
+    px: 3,
+    py: 1,
+    borderRadius: "999px",
+    border: "1px solid #c7d2fe",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+    "&:hover": {
+      bgcolor: "#102a44",
+    },
+  }}
+>
+  Start Tariff Estimator
+</Button>
                         </Box>
                     </MotionBox>
 

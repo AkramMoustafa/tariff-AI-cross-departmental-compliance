@@ -26,7 +26,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <Box sx={{ bgcolor: "#ffffff", minHeight: "100vh", fontFamily: "Inter, sans-serif" }}>
+    <Box  id="home" sx={{ bgcolor: "#ffffff", minHeight: "100vh", fontFamily: "Inter, sans-serif" }}>
       <Navbar scrolled={scrolled} />
 
       <Hero onBookDemo={() => setOpenBookDemo(true)} onWatchDemo={() => setOpenWatchDemo(true)} />

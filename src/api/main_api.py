@@ -226,7 +226,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.include_router(tariff_router, prefix="/api/v1/tariff", tags=["Tariff"])
 app.include_router(public_v1_router)
 app.include_router(tariff_new_engine_router)
-app.include_router(tariff_pdf_router, prefix="/api")
+
 
 @app.get("/api/sanctions/search")
 def sanctions_search(
@@ -281,6 +281,7 @@ app.include_router(executive_router)
 app.include_router(compliance_owner_router)
 app.include_router(api_client_router)
 app.include_router(client_user_routes)
+app.include_router(tariff_pdf_router, prefix="/api")
 
 @app.get("/api/sanctions/search")
 def sanctions_search(

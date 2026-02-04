@@ -2,9 +2,6 @@ import pandas as pd
 from sqlalchemy import create_engine
 import os
 
-# -------------------------
-# Database connection
-# -------------------------
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
@@ -12,15 +9,9 @@ if not DATABASE_URL:
 
 engine = create_engine(DATABASE_URL)
 
-# -------------------------
-# CSV paths
-# -------------------------
 SCOPE_CSV_PATH = "china_section_301_only.csv"
 CH99_CSV_PATH  = "extracted_9903_88_only.csv"
 
-# ============================================================
-# Load Section 301 SCOPE (HS → Chapter 99 mapping)
-# ============================================================
 print("Loading Section 301 scope (HS-based)...")
 
 df_scope = pd.read_csv(SCOPE_CSV_PATH)
@@ -42,9 +33,6 @@ df_scope.to_sql(
 
 print(f"Loaded {len(df_scope)} rows into section301_scope")
 
-# ============================================================
-# Load Section 301 Chapter 99 DUTY table
-# ============================================================
 print("Loading Section 301 Chapter 99 mappings...")
 
 df_ch99 = pd.read_csv(CH99_CSV_PATH)

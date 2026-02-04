@@ -27,10 +27,10 @@ export default function App() {
 
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/signin" element={<SignIn />} />
-        <Route path="/signup" element={<SignUp />} />
-        <Route path="/signin1" element={<SignIn1 />} />
-        <Route path="/signup1" element={<SignUp1 />} />
+        <Route path="/signin1" element={<SignIn />} />
+        <Route path="/signup1" element={<SignUp />} />
+        <Route path="/signin" element={<SignIn1 />} />
+        <Route path="/signup" element={<SignUp1 />} />
         <Route path="/redirect" element={<RootRedirect />} />
 
         {/* NEW Compliance App */}

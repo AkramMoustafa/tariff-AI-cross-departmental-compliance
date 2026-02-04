@@ -57,3 +57,15 @@ export async function calculateDuty(
   const res = await apiClient.post("/tariffs/calculate_duty", payload);
   return res.data;
 }
+
+export async function exportTariffPdf(payload: any): Promise<Blob> {
+  const res = await apiClient.post(
+    "/api/tariff/pdf",   
+    payload,
+    {
+      responseType: "blob", 
+    }
+  );
+
+  return res.data;
+}
