@@ -69,7 +69,7 @@ const handleSignUp = async () => {
     });
 
     // client_user_token stored internally
-    navigate("/dashboard");
+    navigate("/tariffs");
   } catch (err: any) {
     setError(err.message || "Failed to create account");
   } finally {
