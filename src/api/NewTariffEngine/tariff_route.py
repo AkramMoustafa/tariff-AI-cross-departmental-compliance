@@ -29,7 +29,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 class DutyCalculationRequest(BaseModel):
-    hs_code: str = Field(..., min_length=2, max_length=12)
+    hs_code: str = Field(..., min_length=2, max_length=14)
     origin_country: str = Field(..., min_length=2, max_length=2)
     customs_value: Decimal = Field(..., gt=0)
     freight: Decimal = Field(0, ge=0)
