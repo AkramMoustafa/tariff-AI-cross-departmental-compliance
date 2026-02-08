@@ -21,6 +21,7 @@ import PaymentSuccess from "./Payments/payment_success"
 import { ClientSessionProvider } from "@/api/ClientSessionProvider";
 import BillingPage from "./Payments/billing";
 import PricingPage from "./Payments/PricingPage";
+import TariffImpactMaterials from "./tariffs_engine/TariffHistory"
 export default function App() {
   return (
     <Box>
@@ -81,6 +82,16 @@ export default function App() {
     <ClientSessionProvider>
       <DashboardAppLayout>
         <TariffCalculatorPage />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+  }
+/>
+<Route
+  path="/tariffs_history"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+        <TariffImpactMaterials />
       </DashboardAppLayout>
     </ClientSessionProvider>
   }

@@ -14,11 +14,13 @@ import {
 import { calculateDuty,   exportTariffPdf,type DutyCalculationResponse } from "@/api/tariffClient";
 import { useState } from "react";
 import { usePaymentStatus } from "@/api/payment";
+import { useEffect } from "react";
 import SearchIcon from "@mui/icons-material/Search";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import NextActionsPanel from "./NextActionsPanel"
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { useNavigate } from "react-router-dom";
+
 export default function TariffCalculator() {
   const { paid, loading: paymentLoading } = usePaymentStatus();
   const navigate = useNavigate();
@@ -30,6 +32,67 @@ export default function TariffCalculator() {
   const [insurance, setInsurance] = useState(50);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DutyCalculationResponse | null>(null);
+  const [hsTree, setHsTree] = useState<any | null>(null);
+  const [hsLoading, setHsLoading] = useState(false);
+  const [hsError, setHsError] = useState<string | null>(null);
+  const handleClearForm = () => {
+  setHsCode("");
+  setOrigin("CN");
+  setDestination("US");
+  setCustomsValue(0);
+  setFreight(0);
+  setInsurance(0);
+
+  setResult(null);
+  setError(null);
+  setHsTree(null);
+  setHsError(null);
+};
+
+useEffect(() => {
+  const normalizedHs = hsCode.replace(/\D/g, "");
+
+  console.log("RAW:", hsCode, "NORMALIZED:", normalizedHs);
+
+  if (normalizedHs.length < 2) {
+    setHsTree(null);
+    return;
+  }
+
+  const controller = new AbortController();
+
+  const fetchHsTree = async () => {
+    console.log("FETCH HS TREE CALLED");
+
+    setHsLoading(true);
+    setHsError(null);
+
+    try {
+      const res = await fetch(
+        `http://localhost:8000/tariffs/hs/tree?hs_code=${normalizedHs}`,
+        { signal: controller.signal }
+      );
+
+      if (!res.ok) throw new Error("HS lookup failed");
+
+      const data = await res.json();
+      console.log("HS TREE RESPONSE:", data.tree);
+
+      setHsTree(data.tree);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        console.error(err);
+        setHsTree(null);
+        setHsError("HS code not found");
+      }
+    } finally {
+      setHsLoading(false);
+    }
+  };
+
+  fetchHsTree();
+  return () => controller.abort();
+}, [hsCode]);
 
   const downloadPDF = async () => {
   if (!result || !paid) return;
@@ -54,6 +117,7 @@ export default function TariffCalculator() {
 };
 
     const handleCalculate = async () => {
+
       setLoading(true);
       setError(null);
 
@@ -104,6 +168,25 @@ const tariffLines = result
         : []),
     ]
   : [];
+  const landedCost =
+  result
+    ? result.duty_payable.dutiable_value +
+      result.duty_payable.total_duty_payable
+    : 0;
+
+  const normalizedHs = hsCode.replace(/\D/g, "");
+
+const effectiveHsNode = hsTree
+  ?.filter((n: any) => normalizedHs.startsWith(n.parent_code))
+  .sort((a: any, b: any) => b.parent_code.length - a.parent_code.length)[0];
+
+const headingNode = hsTree?.find((n: any) => n.parent_code.length === 4);
+const showHsInfo =
+  normalizedHs.length >= 4 &&
+  !hsLoading &&
+  !hsError &&
+  !!effectiveHsNode;
+
   return (
     <Box
       sx={{
@@ -247,6 +330,7 @@ const tariffLines = result
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
+                  zIndex: 2
                 }}
               >
                 {/* LEFT: TITLE */}
@@ -270,25 +354,24 @@ const tariffLines = result
                     Used for duty & tariff calculation
                   </Typography>
                 </Box>
-
-                {/* RIGHT: CLEAR FORM (UI ONLY) */}
-                <Button
-                  variant="text"
-                  size="small"
-                  sx={{
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: "#64748b",
-                    textTransform: "none",
-                    px: 1,
-                    "&:hover": {
-                      color: "#0f172a",
-                      backgroundColor: "rgba(0,0,0,0.04)",
-                    },
-                  }}
-                >
-                  Clear form
-                </Button>
+<Button
+  variant="text"
+  size="small"
+  onClick={handleClearForm}
+  sx={{
+    fontSize: 12,
+    fontWeight: 500,
+    color: "#64748b",
+    textTransform: "none",
+    px: 1,
+    "&:hover": {
+      color: "#0f172a",
+      backgroundColor: "rgba(0,0,0,0.04)",
+    },
+  }}
+>
+  Clear form
+</Button>
               </Box>
 
               {/* BOTTOM BAR */}
@@ -406,66 +489,72 @@ const tariffLines = result
                   </Box>
 
                   {/* SEARCH RESULT */}
-                  <Box
-                    sx={{
-                      mt: 1.5,
-                      p: 1.5,
-                      borderRadius: 1,
-                      bgcolor: "rgba(37, 99, 235, 0.06)",
-                      border: "1px solid rgba(37, 99, 235, 0.15)",
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 1.25,
-                    }}
-                  >
-                    {/* LEFT ICON */}
-                    <Box
-                      sx={{
-                        mt: "2px",
-                        width: 18,
-                        height: 18,
-                        borderRadius: "50%",
-                        bgcolor: "rgba(37, 99, 235, 0.12)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: "50%",
-                          bgcolor: "#2563eb",
-                        }}
-                      />
-                    </Box>
+                 {/* SEARCH RESULT */}
+{showHsInfo && (
+  <Box
+    sx={{
+      mt: 1.5,
+      p: 1.5,
+      borderRadius: 1,
+      bgcolor: "rgba(37, 99, 235, 0.06)",
+      border: "1px solid rgba(37, 99, 235, 0.15)",
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 1.25,
+    }}
+  >
+    {/* LEFT ICON */}
+    <Box
+      sx={{
+        mt: "2px",
+        width: 18,
+        height: 18,
+        borderRadius: "50%",
+        bgcolor: "rgba(37, 99, 235, 0.12)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
+    >
+      <Box
+        sx={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          bgcolor: "#2563eb",
+        }}
+      />
+    </Box>
 
-                    {/* TEXT */}
-                    <Box>
-                      <Typography
-                        sx={{
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: "#1e40af",
-                          lineHeight: 1.3,
-                        }}
-                      >
-                        Static Converters; Adp Power Supplies
-                      </Typography>
+    {/* TEXT */}
+    <Box>
+      <Typography
+        sx={{
+          fontSize: 13,
+          fontWeight: 600,
+          color: "#1e40af",
+          lineHeight: 1.3,
+        }}
+      >
+        {effectiveHsNode.description}
+      </Typography>
 
-                      <Typography
-                        sx={{
-                          fontSize: 12,
-                          color: "#1e3a8a",
-                          opacity: 0.8,
-                        }}
-                      >
-                        Heading 8504 · Electrical machinery and equipment
-                      </Typography>
-                    </Box>
-                  </Box>
+      {headingNode && (
+        <Typography
+          sx={{
+            fontSize: 12,
+            color: "#1e3a8a",
+            opacity: 0.8,
+          }}
+        >
+          {`Heading ${headingNode.parent_code} · ${headingNode.description}`}
+        </Typography>
+      )}
+    </Box>
+  </Box>
+)}
+
                 </Box>
 
                 <Box
@@ -811,8 +900,7 @@ const tariffLines = result
               />
           </Box>
         </Box>
-
-        <Grid container spacing={2} sx={{ mt: 4 }}>
+<Grid container spacing={2} sx={{ mt: 4, alignItems: "stretch" }}>
           {/* TOTAL DUTY */}
           <Grid item xs={12} md={6}>
             <Paper
@@ -852,6 +940,7 @@ const tariffLines = result
               sx={{
                 p: 2,
                 borderRadius: 1.5,
+                 height: "100%",
                 border: "1px solid #e5e7eb",
               }}
             >
@@ -890,6 +979,7 @@ const tariffLines = result
           sx={{
             mt: 3,
             p: 2,
+            height: "100%", 
             borderRadius: 1.5,
             border: "1px solid #e5e7eb",
           }}
@@ -899,63 +989,102 @@ const tariffLines = result
           </Typography>
 
           {/* HEADER */}
-          <Grid container spacing={1} sx={{ fontSize: 13, mb: 1 }}>
-            {["Duty Type", "Rate Type", "Rate", "Reference", "Amount"].map((h) => (
-              <Grid item xs={2.4} key={h}>
-                <Typography fontSize={11} color="text.secondary">
-                  {h.toUpperCase()}
-                </Typography>
-              </Grid>
-            ))}
+{!result ? (
+  // 🟦 STATE 1: No calculation yet
+  <Box
+    sx={{
+      py: 6,
+      textAlign: "center",
+      color: "#64748b",
+    }}
+  >
+    <Typography fontSize={14} fontWeight={500} mb={0.5}>
+      No duties calculated yet
+    </Typography>
+    <Typography fontSize={12}>
+      Enter shipment details and click <b>Calculate</b> to view applied tariff
+      lines.
+    </Typography>
+  </Box>
+) : tariffLines.length === 0 ? (
+  // 🟦 STATE 2: Calculated, but no extra tariffs
+  <Box
+    sx={{
+      py: 6,
+      textAlign: "center",
+      color: "#64748b",
+    }}
+  >
+    <Typography fontSize={14} fontWeight={500}>
+      No additional tariffs apply
+    </Typography>
+    <Typography fontSize={12}>
+      This shipment is subject only to the base MFN duty.
+    </Typography>
+  </Box>
+) : (
+  // 🟩 STATE 3: Normal table
+  <>
+    {/* HEADER */}
+    <Grid container spacing={1} sx={{ fontSize: 13, mb: 1 }}>
+      {["Duty Type", "Rate Type", "Rate", "Base", "Reference", "Amount"].map((h) => (
+        <Grid item xs={2} key={h}>
+          <Typography fontSize={11} color="text.secondary">
+            {h.toUpperCase()}
+          </Typography>
+        </Grid>
+      ))}
+    </Grid>
+
+    <Divider sx={{ mb: 1 }} />
+
+    {/* ROWS */}
+    {tariffLines.map((line, idx) => (
+      <Box key={idx}>
+        <Grid container spacing={1} alignItems="center">
+          <Grid item xs={2.4}>
+            <Typography fontWeight={500}>{line.dutyType}</Typography>
+            <Typography fontSize={11} color="text.secondary">
+              {line.description}
+            </Typography>
           </Grid>
 
-          <Divider sx={{ mb: 1 }} />
-
-          {/* ROWS */}
-          {tariffLines.map((line, idx) => (
-            <Box key={idx}>
-              <Grid container spacing={1} alignItems="center">
-                <Grid item xs={2.4}>
-                  <Typography fontWeight={500}>{line.dutyType}</Typography>
-                  <Typography fontSize={11} color="text.secondary">
-                    {line.description}
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={2.4}>
-                  <Chip label={line.rateType} size="small" />
-                </Grid>
-
-                <Grid item xs={2.4}>{line.rate}</Grid>
-
-                <Grid item xs={2.4}>
-                  <Typography fontSize={12} color="primary">
-                    {line.reference}
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={2.4} textAlign="right">
-                  <Typography fontWeight={600}>
-                    ${line.amount.toFixed(2)}
-                  </Typography>
-                </Grid>
-              </Grid>
-
-              <Divider sx={{ my: 1 }} />
-            </Box>
-          ))}
-
-          {/* TOTAL */}
-          <Grid container>
-            <Grid item xs={9.6} textAlign="right">
-              <Typography fontWeight={600}>Estimated Total</Typography>
-            </Grid>
-            <Grid item xs={2.4} textAlign="right">
-              <Typography fontWeight={700}>
-                ${result?.duty_payable.total_duty_payable.toFixed(2)}
-              </Typography>
-            </Grid>
+          <Grid item xs={2.4}>
+            <Chip label={line.rateType} size="small" />
           </Grid>
+
+          <Grid item xs={2.4}>{line.rate}</Grid>
+
+          <Grid item xs={2.4}>
+            <Typography fontSize={12} color="primary">
+              {line.reference}
+            </Typography>
+          </Grid>
+
+          <Grid item xs={2.4} textAlign="right">
+            <Typography fontWeight={600}>
+              ${line.amount.toFixed(2)}
+            </Typography>
+          </Grid>
+        </Grid>
+
+        <Divider sx={{ my: 1 }} />
+      </Box>
+    ))}
+
+    {/* TOTAL */}
+    <Grid container>
+      <Grid item xs={9.6} textAlign="right">
+        <Typography fontWeight={600}>Estimated Total</Typography>
+      </Grid>
+      <Grid item xs={2.4} textAlign="right">
+        <Typography fontWeight={700}>
+          ${result.duty_payable.total_duty_payable.toFixed(2)}
+        </Typography>
+      </Grid>
+    </Grid>
+  </>
+)}
       </Paper>
       </Box>
         {/* 2️⃣ OVERLAY — THIS IS WHERE IT GOES */}

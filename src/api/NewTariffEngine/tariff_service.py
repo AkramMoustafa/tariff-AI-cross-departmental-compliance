@@ -22,7 +22,7 @@ def load_agoa_countries(path: str) -> set:
 
 
 def load_cbi_countries(path: str) -> set:
-    countries = set()
+    countries = szcheet()
     with open(path, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -114,6 +114,29 @@ def determine_tariff(profile: dict, origin_country: str,
         "basis": "general",
         "applied_program": "MFN"
     }
+
+def get_hs_tree(hs_code: str) -> list[dict]:
+    hs = hs_code.replace(".", "").strip()
+
+    sql = text("""
+        SELECT parent_code, indent, description
+        FROM tariffs_basic_data
+        WHERE :hs LIKE parent_code || '%'
+        ORDER BY indent ASC
+    """)
+
+    with engine.connect() as conn:
+        rows = conn.execute(sql, {"hs": hs}).fetchall()
+
+    return [
+        {
+            "parent_code": r.parent_code,
+            "indent": r.indent,
+            "description": r.description
+        }
+        for r in rows
+    ]
+
 
 def parse_programs(programs_text: str) -> set:
     """

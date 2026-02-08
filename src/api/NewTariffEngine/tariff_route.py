@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, Query
-from src.api.NewTariffEngine.tariff_service import get_tariff_api
+from src.api.NewTariffEngine.tariff_service import get_tariff_api, get_hs_tree
 from src.api.NewTariffEngine.engine import get_section301_duty, calculate_total_ad_valorem, get_tariff_with_duty_payable
 from pydantic import BaseModel, Field
+
 from decimal import Decimal
 import logging
 
@@ -111,3 +112,13 @@ def calculate_tariff(req: TariffRequest):
 
         "calculated_duties": total
     }
+
+@router.get("/hs/tree")
+def get_hs_tree_api(hs_code: str = Query(..., min_length=2)):
+    try:
+        return {
+            "hs_code": hs_code,
+            "tree": get_hs_tree(hs_code)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -8,7 +8,6 @@ export default function Sidebar() {
     <Box
       sx={{
         width: 180,
-        // I added minHeight: "100vh" instead of "relative" because without it the sidebar height was only as tall as its content. -- This was the only Change I made.
         minHeight: "100vh",
         position: "relative",
         bgcolor: "#ffffff",
