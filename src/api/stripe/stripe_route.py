@@ -34,7 +34,7 @@ def create_checkout(
     product = PRICE_TABLE.get(payload.product_key)
     if not product:
         raise HTTPException(status_code=400, detail="Invalid product")
-
+    FRONTEND_URL = os.environ["FRONTEND_URL"]
     stripe_session = stripe.checkout.Session.create(
         mode="payment",
         payment_method_types=["card"],
@@ -54,8 +54,9 @@ def create_checkout(
             "client_user_id": str(client_user_id),
             "product_key": payload.product_key,
         },
-        success_url="http://localhost:5173/payment/success",
-        cancel_url="http://localhost:5173/payment/cancel",
+
+        success_url=f"{FRONTEND_URL}/payment/success",
+        cancel_url=f"{FRONTEND_URL}/payment/cancel",
     )
 
     return {"url": stripe_session.url}

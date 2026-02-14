@@ -22,6 +22,7 @@ import { ClientSessionProvider } from "@/api/ClientSessionProvider";
 import BillingPage from "./Payments/billing";
 import PricingPage from "./Payments/PricingPage";
 import TariffImpactMaterials from "./tariffs_engine/TariffHistory"
+import HsLookup from "./tariffs_engine/HsLookup"
 export default function App() {
   return (
     <Box>
@@ -96,7 +97,16 @@ export default function App() {
     </ClientSessionProvider>
   }
 />
-
+<Route
+  path="/hslookup"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+        <HsLookup />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+  }
+/>
 <Route
   path="/payment"
   element={

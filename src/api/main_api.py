@@ -22,6 +22,10 @@ from src.api.sanctions import (
     start_background_refresh,
 )
 
+from src.api.New.newRoute import router as hs_router
+from src.api.New.newRoute import router as hs_router
+from src.api.New.tariffmodel import init_hs
+
 from cfr_data.normalize import extract_cfr_references, is_definition_section
 from src.api.models import WorkspaceRegulation
 from src.core.regulations.gov_reg.local_search import (
@@ -192,6 +196,12 @@ def cache_refresher():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print("[Startup] Initializing HS Tree...")
+    try:
+        init_hs()
+        print("[Startup] HS Tree loaded successfully")
+    except Exception as e:
+        print(f"[ERROR] HS initialization failed: {e}")
     print("[Startup] Building Federal Register cache...")
     refresh_package_cache()
 
@@ -375,6 +385,7 @@ app.include_router(cfr_router)
 app.include_router(supplier_router)
 app.include_router(order_router)
 
+app.include_router(hs_router)
 
 router = APIRouter()
 

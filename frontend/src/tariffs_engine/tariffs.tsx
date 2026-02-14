@@ -452,7 +452,7 @@ const showHsInfo =
                     <TextField
                       fullWidth
                       size="small"
-                        placeholder="Search HS Code (e.g. 850440)"
+                        placeholder="Search by HS code or product description (e.g. 850440 or lithium battery)"
                         value={hsCode}
                         onChange={(e) => setHsCode(e.target.value)}
                       InputProps={{
