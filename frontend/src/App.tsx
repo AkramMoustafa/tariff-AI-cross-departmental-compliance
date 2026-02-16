@@ -1,12 +1,12 @@
 import { Box } from "@mui/material";
 import { Routes, Route } from "react-router-dom";
 
-import LandingPage from "./landing page/landingpage";
+import LandingPage from "./landingpage/landingpage";
 import SignIn from "./dashboard/SignIn";
 import SignUp from "./dashboard/SignUp";
 import SignIn1 from "./dashboard/SignIn1";
 import SignUp1 from "./dashboard/SignUp1";
-import NotFoundPage from "./landing page/NotFoundPage";
+import NotFoundPage from "./landingpage/NotFoundPage";
 import ExecutiveApp from "./compliance_team/C_suite/ExecutiveViewerApp"
 import ProtectedRoute from "./components/ProtectedRoute";
 import { RootRedirect } from "./compliance_team/routes";
@@ -97,16 +97,7 @@ export default function App() {
     </ClientSessionProvider>
   }
 />
-<Route
-  path="/hslookup"
-  element={
-    <ClientSessionProvider>
-      <DashboardAppLayout>
-        <HsLookup />
-      </DashboardAppLayout>
-    </ClientSessionProvider>
-  }
-/>
+
 <Route
   path="/payment"
   element={

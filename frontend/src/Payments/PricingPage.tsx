@@ -1,5 +1,5 @@
-import Footer from "../landing page/sections/Footer"
-import Navbar from "../landing page/sections/Navbar"
+import Footer from "../landingpage/sections/Footer"
+import Navbar from "../landingpage/sections/Navbar"
 import { useClientSession } from "@/api/ClientSessionProvider";
 import React, { useState, useEffect } from "react";
 import { usePaymentStatus } from "@/api/payment";
