@@ -2,11 +2,12 @@
 import { Box, Container, IconButton, Typography } from "@mui/material";
 import LinkedInIcon from "@mui/icons-material/LinkedIn";
 import TwitterIcon from "@mui/icons-material/Twitter";
-import LoginIcon from "@mui/icons-material/Login";
+import RedditIcon from "@mui/icons-material/Reddit";
 import { Link as RouterLink } from "react-router-dom";
 
 const LINKEDIN_URL = "https://www.linkedin.com/company/nomiai-compliance";
 const TWITTER_URL = "https://x.com/Nomi_Compliance?s=20";
+const REDDIT_URL = "https://www.reddit.com/r/NomiAI_Compliance/";
 
 // TODO: replace with your real GitHub org/repo link when ready
 // const GITHUB_URL = "#";
@@ -51,31 +52,38 @@ export default function Footer() {
                         </Box>
 
                         <Typography sx={{ fontSize: "0.95rem", lineHeight: 1.7, color: "#64748b", maxWidth: "32rem" }}>
-                            AI-powered compliance intelligence for enterprises and complex organizations.
+                            AI-powered tariff intelligence that helps enterprises cut duty costs and avoid overpayment.
                         </Typography>
 
                         <Typography sx={{ fontSize: "0.875rem", color: "#94a3b8" }}>
-                            © 2025 NomiAI LLC. All rights reserved.
+                            © 2026 NomiAI LLC. All rights reserved.
                         </Typography>
                     </Box>
 
                     {/* Social */}
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
                         <IconButton
-                            aria-label="Sign in"
-                            component={RouterLink}
-                            to="/signin"
+                            aria-label="Reddit"
+                            component="a"
+                            href={REDDIT_URL}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             sx={{
                                 width: 40,
                                 height: 40,
                                 borderRadius: "12px",
                                 border: "1px solid #e2e8f0",
-                                color: "#64748b",
-                                "&:hover": { color: "#2C3E50", bgcolor: "#f8fafc", borderColor: "#cbd5e1" },
+                                color: "#FF4500", // Reddit orange
+                                "&:hover": {
+                                    color: "#FF4500",
+                                    bgcolor: "#fff5f0",
+                                    borderColor: "#ffb199",
+                                },
                             }}
                         >
-                            <LoginIcon sx={{ fontSize: 22 }} />
+                            <RedditIcon sx={{ fontSize: 22 }} />
                         </IconButton>
+
 
                         <IconButton
                             aria-label="X (Twitter)"
@@ -88,8 +96,12 @@ export default function Footer() {
                                 height: 40,
                                 borderRadius: "12px",
                                 border: "1px solid #e2e8f0",
-                                color: "#64748b",
-                                "&:hover": { color: "#2C3E50", bgcolor: "#f8fafc", borderColor: "#cbd5e1" },
+                                color: "#0077B5", // Twitter Blue
+                                "&:hover": {
+                                    color: "#FFFFFF",
+                                    bgcolor: "#0077B5",
+                                    borderColor: "#0077B5",
+                                },
                             }}
                         >
                             <TwitterIcon sx={{ fontSize: 22 }} />
@@ -106,8 +118,12 @@ export default function Footer() {
                                 height: 40,
                                 borderRadius: "12px",
                                 border: "1px solid #e2e8f0",
-                                color: "#64748b",
-                                "&:hover": { color: "#2C3E50", bgcolor: "#f8fafc", borderColor: "#cbd5e1" },
+                                color: "#1DA1F2", // LinkedIn Blue
+                                "&:hover": {
+                                    color: "#FFFFFF",
+                                    bgcolor: "#1DA1F2",
+                                    borderColor: "#1DA1F2",
+                                },
                             }}
                         >
                             <LinkedInIcon sx={{ fontSize: 22 }} />

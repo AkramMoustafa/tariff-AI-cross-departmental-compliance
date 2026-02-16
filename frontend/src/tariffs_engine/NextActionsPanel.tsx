@@ -21,8 +21,8 @@ function ActionRow({
   rightIcon,
   onClick,
   disabled = false,
-  iconBg = "#f3f4f6",
-  iconColor = "#374151",
+iconBg = "rgba(16, 52, 166, 0.05)",
+iconColor = "#1034A6",
 }: {
   icon: React.ReactNode;
   title: string;
@@ -46,7 +46,7 @@ function ActionRow({
     cursor: disabled ? "not-allowed" : "pointer",
     opacity: disabled ? 0.5 : 1,
     "&:hover": {
-      bgcolor: disabled ? "transparent" : "#f9fafb",
+     bgcolor: disabled ? "transparent" : "#f8fafc",
     },
   }}
 >
@@ -69,7 +69,13 @@ function ActionRow({
 
       {/* TEXT */}
       <Box sx={{ flex: 1 }}>
-        <Typography fontSize={13} fontWeight={600}>
+     <Typography
+  sx={{
+    fontSize: "0.875rem",
+    fontWeight: 600,
+    color: "#2C3E50",
+  }}
+>
           {title}
         </Typography>
         <Typography fontSize={11.5} color="text.secondary">
@@ -79,7 +85,7 @@ function ActionRow({
 
       {/* RIGHT ICON */}
       {rightIcon && (
-        <Box sx={{ color: "#9ca3af", flexShrink: 0 }}>
+        <Box sx={{ color: "#94a3b8", flexShrink: 0 }}>
           {rightIcon}
         </Box>
       )}
@@ -94,23 +100,37 @@ export default function NextActionsPanel({
   onSaveCalculation,
 }: NextActionsPanelProps) {
   return (
-    <Paper
-      sx={{
-        p: 2.5,
-        borderRadius: 1,
-        border: "1px solid #e5e7eb",
-        bgcolor: "#ffffff",
-      }}
-    >
+<Paper
+  elevation={0}
+  sx={{
+    p: 3,
+    borderRadius: "16px",
+    border: "1px solid #e2e8f0",
+    bgcolor: "#ffffff",
+    boxShadow: "0 2px 10px rgba(0,0,0,0.02)",
+    transition: "all 0.3s ease",
+    "&:hover": {
+      boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+    },
+  }}
+>
       <Stack spacing={2}>
         {/* NEXT ACTIONS */}
         <Box>
-          <Typography fontSize={11} fontWeight={600} color="#9ca3af" mb={1}>
+         <Typography
+  sx={{
+    fontSize: "0.75rem",
+    fontWeight: 600,
+    color: "#64748b",
+    letterSpacing: "0.08em",
+  }}
+  mb={1}
+>
             NEXT ACTIONS
           </Typography>
 
           <Stack spacing={0.5}>
-            <Box sx={{ border: "1px solid #e5e7eb", pt: 0.5, borderRadius: 1 }}>
+            <Box sx={{ border: "1px solid #e2e8f0", pt: 0.5, borderRadius: 1 }}>
 <ActionRow
   icon={<Truck size={18} strokeWidth={1.75} />}
   title="Find Suppliers"
@@ -122,7 +142,7 @@ export default function NextActionsPanel({
 />
             </Box>
 
-            <Box sx={{ border: "1px solid #e5e7eb", pt: 0.5, borderRadius: 1 }}>
+            <Box sx={{ border: "1px solid #e2e8f0", pt: 0.5, borderRadius: 1 }}>
             <ActionRow
               icon={<Download size={18} strokeWidth={1.75} />}
               title="Export Report"
@@ -137,7 +157,7 @@ export default function NextActionsPanel({
             />
             </Box>
 
-            <Box sx={{ border: "1px solid #e5e7eb", pt: 0.5, borderRadius: 1 }}>
+            <Box sx={{ border: "1px solid #e2e8f0", pt: 0.5, borderRadius: 1 }}>
             <ActionRow
               icon={<Bookmark size={18} strokeWidth={1.75} />}
               title="Save Calculation"
@@ -149,8 +169,7 @@ export default function NextActionsPanel({
           </Stack>
         </Box>
 
-        <Divider sx={{ borderColor: "#e5e7eb" }} />
-
+   <Divider sx={{ borderColor: "#e2e8f0" }} />
         {/* COMPLIANCE ALERT */}
         <Box
           sx={{

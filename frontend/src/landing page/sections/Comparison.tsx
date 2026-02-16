@@ -19,9 +19,9 @@ export default function Comparison() {
             type: "negative",
         },
         {
-            title: "No single source of truth",
-            description: "Conflicting versions and outdated information hide real risk.",
-            type: "negative",
+            title: "Save 10x Money and Time with NomAI Intelligence Layer",
+            description: "Automated AI auditing finds tariff errors, reduces manual work, and uncovers savings opportunities in minutes instead of weeks.",
+            type: "positive",
         },
         {
             title: "Unified with NomiAI",
@@ -43,13 +43,13 @@ export default function Comparison() {
             sx={{
                 borderTop: "1px solid #f1f5f9",
                 borderBottom: "1px solid #f1f5f9",
-                pt: { xs: 10, md: 16 },
-                pb: { xs: 10, md: 16 },
+                pt: { xs: 8, md: 16 },
+                pb: { xs: 8, md: 16 },
                 bgcolor: "#fff",
             }}
         >
-            <Container maxWidth="xl" sx={{ maxWidth: "80rem !important", px: { xs: 3, md: 6 } }}>
-                <Grid container spacing={{ xs: 8, md: 12 }} alignItems="center">
+            <Container maxWidth="xl" sx={{ maxWidth: "80rem !important", px: { xs: 2, sm: 3, md: 6 } }}>
+                <Grid container spacing={{ xs: 6, md: 12 }} alignItems="center">
                     {/* Left side */}
                     <Grid item xs={12} lg={6}>
                         <MotionBox
@@ -59,36 +59,44 @@ export default function Comparison() {
                         >
                             <Typography
                                 sx={{
-                                    fontSize: { xs: "1.875rem", md: "2.25rem" },
+                                    fontSize: { xs: "1.75rem", sm: "1.875rem", md: "2.25rem" },
                                     fontWeight: 600,
                                     color: "#2C3E50",
                                     letterSpacing: "-0.025em",
-                                    mb: 4,
+                                    mb: { xs: 3, md: 4 },
+                                    lineHeight: 1.2,
                                 }}
                             >
                                 Stop chasing screenshots
                             </Typography>
 
-                            <Typography sx={{ fontSize: "1.125rem", lineHeight: 1.6, color: "#64748b", mb: 6 }}>
+                            <Typography
+                                sx={{
+                                    fontSize: { xs: "1rem", md: "1.125rem" },
+                                    lineHeight: 1.6,
+                                    color: "#64748b",
+                                    mb: { xs: 4, md: 6 }
+                                }}
+                            >
                                 The traditional way of compliance involves Data fragmented across spreadsheets, emails, and
                                 applications. <strong>NomiAI</strong> acts as a streamlined platform.
                             </Typography>
 
-                            <Box sx={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                            <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 3.5, md: 5 } }}>
                                 {items.map((item, index) => (
                                     <Box
                                         key={index}
                                         sx={{
                                             display: "flex",
-                                            gap: 4,
-                                            ...(index === 2 ? { pt: 3, borderTop: "1px solid #f1f5f9" } : {}),
+                                            gap: { xs: 2.5, md: 4 },
+                                            ...(index === 2 ? { pt: { xs: 2.5, md: 3 }, borderTop: "1px solid #f1f5f9" } : {}),
                                         }}
                                     >
                                         <Box
                                             sx={{
                                                 flexShrink: 0,
-                                                width: 24,
-                                                height: 24,
+                                                width: { xs: 20, md: 24 },
+                                                height: { xs: 20, md: 24 },
                                                 borderRadius: "50%",
                                                 display: "flex",
                                                 alignItems: "center",
@@ -99,17 +107,31 @@ export default function Comparison() {
                                             }}
                                         >
                                             {item.type === "positive" ? (
-                                                <CheckIcon sx={{ fontSize: 14 }} />
+                                                <CheckIcon sx={{ fontSize: { xs: 12, md: 14 } }} />
                                             ) : (
-                                                <CloseIcon sx={{ fontSize: 14 }} />
+                                                <CloseIcon sx={{ fontSize: { xs: 12, md: 14 } }} />
                                             )}
                                         </Box>
 
-                                        <Box>
-                                            <Typography sx={{ fontSize: "0.875rem", fontWeight: 500, color: "#2C3E50", mb: 0.5 }}>
+                                        <Box sx={{ minWidth: 0 }}>
+                                            <Typography
+                                                sx={{
+                                                    fontSize: { xs: "0.8125rem", md: "0.875rem" },
+                                                    fontWeight: 500,
+                                                    color: "#2C3E50",
+                                                    mb: 0.5,
+                                                    lineHeight: 1.4,
+                                                }}
+                                            >
                                                 {item.title}
                                             </Typography>
-                                            <Typography sx={{ fontSize: "0.875rem", color: "#64748b", lineHeight: 1.6 }}>
+                                            <Typography
+                                                sx={{
+                                                    fontSize: { xs: "0.8125rem", md: "0.875rem" },
+                                                    color: "#64748b",
+                                                    lineHeight: 1.6
+                                                }}
+                                            >
                                                 {item.description}
                                             </Typography>
                                         </Box>
@@ -129,56 +151,74 @@ export default function Comparison() {
                         >
                             <Box
                                 sx={{
-                                    borderRadius: "16px",
-                                    p: { xs: 3, sm: 5, md: 8 },
+                                    borderRadius: { xs: "12px", md: "16px" },
+                                    p: { xs: 2.5, sm: 4, md: 8 },
                                     border: "1px solid #e2e8f0",
                                     boxShadow: "inset 0 2px 4px rgba(0,0,0,0.06)",
                                     bgcolor: "#f8fafc",
                                     position: "relative",
-                                    overflow: { xs: "hidden", md: "visible" }, // prevents off-screen bits on phones
+                                    overflow: "hidden",
                                 }}
                             >
                                 {/* Risk Card */}
                                 <Box
                                     sx={{
-                                        position: { xs: "relative", md: "absolute" },
-                                        right: { xs: "auto", md: -16 },
-                                        top: { xs: "auto", md: -16 },
-
-                                        // On mobile, it sits nicely on top of the content (no overflow)
-                                        mb: { xs: 3, md: 0 },
-
-                                        p: { xs: 2.5, md: 4 },
-                                        borderRadius: "12px",
-                                        boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+                                        position: "relative",
+                                        mb: 3,
+                                        p: { xs: 2, sm: 2.5, md: 4 },
+                                        borderRadius: { xs: "10px", md: "12px" },
+                                        boxShadow: {
+                                            xs: "0 4px 12px rgba(0,0,0,0.08)",
+                                            md: "0 10px 25px rgba(0,0,0,0.1)"
+                                        },
                                         border: "1px solid #e2e8f0",
-
-                                        width: { xs: "100%", md: "auto" },
-                                        maxWidth: { xs: "100%", md: 200 },
-
+                                        width: "100%",
+                                        maxWidth: { xs: "100%", sm: "85%", md: 200 },
+                                        ml: { xs: 0, md: "auto" },
+                                        mr: { xs: 0, md: -2 },
                                         transform: { xs: "none", md: "rotate(3deg)" },
                                         zIndex: 10,
                                         bgcolor: "#fff",
                                     }}
                                 >
-                                    <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1.5 }}>
-                                        <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "#f59e0b" }} />
-                                        <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: "#334155" }}>
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 1.5, md: 2 }, mb: 1.5 }}>
+                                        <Box sx={{ width: { xs: 6, md: 8 }, height: { xs: 6, md: 8 }, borderRadius: "50%", bgcolor: "#f59e0b" }} />
+                                        <Typography
+                                            sx={{
+                                                fontSize: { xs: "0.6875rem", md: "0.75rem" },
+                                                fontWeight: 600,
+                                                color: "#334155"
+                                            }}
+                                        >
                                             Audit Risk
                                         </Typography>
                                     </Box>
-                                    <Typography sx={{ fontSize: "0.75rem", color: "#64748b" }}>
+                                    <Typography
+                                        sx={{
+                                            fontSize: { xs: "0.6875rem", md: "0.75rem" },
+                                            color: "#64748b",
+                                            lineHeight: 1.5,
+                                        }}
+                                    >
                                         Evidence missing for 3 controls.
                                     </Typography>
                                 </Box>
 
                                 {/* Blurred Lines */}
-                                <Box sx={{ display: "flex", flexDirection: "column", gap: 3, opacity: 0.6, filter: "blur(1px)" }}>
+                                <Box
+                                    sx={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: { xs: 2, md: 3 },
+                                        opacity: 0.6,
+                                        filter: "blur(1px)"
+                                    }}
+                                >
                                     {blurredLineWidths.map((w, index) => (
                                         <Box
                                             key={index}
                                             sx={{
-                                                height: 32,
+                                                height: { xs: 24, md: 32 },
                                                 width: `${w}%`,
                                                 borderRadius: "4px",
                                                 border: "1px solid #e2e8f0",
@@ -191,22 +231,27 @@ export default function Comparison() {
                                 {/* Clean Card */}
                                 <Box
                                     sx={{
-                                        mt: { xs: 4, md: 8 },
-                                        borderRadius: "12px",
-                                        boxShadow: "0 10px 40px rgba(0,0,0,0.1)",
+                                        mt: { xs: 4, sm: 6, md: 8 },
+                                        borderRadius: { xs: "10px", md: "12px" },
+                                        boxShadow: {
+                                            xs: "0 6px 20px rgba(0,0,0,0.08)",
+                                            md: "0 10px 40px rgba(0,0,0,0.1)"
+                                        },
                                         border: "1px solid #e2e8f0",
                                         overflow: "hidden",
                                         transform: "scale(1)",
                                         transition: "transform 0.5s ease",
-                                        "&:hover": { transform: "scale(1.02)" },
+                                        "&:hover": {
+                                            transform: { xs: "scale(1)", md: "scale(1.02)" }
+                                        },
                                         bgcolor: "#fff",
                                     }}
                                 >
                                     {/* Header */}
                                     <Box
                                         sx={{
-                                            px: { xs: 3, md: 4 },
-                                            py: { xs: 2, md: 3 },
+                                            px: { xs: 2.5, sm: 3, md: 4 },
+                                            py: { xs: 1.75, sm: 2, md: 3 },
                                             display: "flex",
                                             alignItems: "center",
                                             justifyContent: "space-between",
@@ -216,7 +261,7 @@ export default function Comparison() {
                                     >
                                         <Typography
                                             sx={{
-                                                fontSize: "0.75rem",
+                                                fontSize: { xs: "0.6875rem", sm: "0.75rem" },
                                                 fontFamily: "monospace",
                                                 color: "#fff",
                                                 overflow: "hidden",
@@ -228,37 +273,53 @@ export default function Comparison() {
                                             nomiai_monitor_active
                                         </Typography>
 
-                                        <Box sx={{ display: "flex", gap: 1.25, flexShrink: 0 }}>
-                                            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "#475569" }} />
-                                            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "#475569" }} />
-                                            <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: "#475569" }} />
+                                        <Box sx={{ display: "flex", gap: { xs: 1, md: 1.25 }, flexShrink: 0 }}>
+                                            <Box sx={{ width: { xs: 6, md: 8 }, height: { xs: 6, md: 8 }, borderRadius: "50%", bgcolor: "#475569" }} />
+                                            <Box sx={{ width: { xs: 6, md: 8 }, height: { xs: 6, md: 8 }, borderRadius: "50%", bgcolor: "#475569" }} />
+                                            <Box sx={{ width: { xs: 6, md: 8 }, height: { xs: 6, md: 8 }, borderRadius: "50%", bgcolor: "#475569" }} />
                                         </Box>
                                     </Box>
 
                                     {/* Content */}
-                                    <Box sx={{ p: { xs: 3, md: 5 } }}>
-                                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 4, gap: 2 }}>
-                                            <Typography sx={{ fontSize: "0.875rem", fontWeight: 500, color: "#2C3E50" }}>
+                                    <Box sx={{ p: { xs: 2.5, sm: 3, md: 5 } }}>
+                                        <Box
+                                            sx={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "space-between",
+                                                mb: { xs: 3, md: 4 },
+                                                gap: 2,
+                                                flexWrap: { xs: "wrap", sm: "nowrap" },
+                                            }}
+                                        >
+                                            <Typography
+                                                sx={{
+                                                    fontSize: { xs: "0.8125rem", md: "0.875rem" },
+                                                    fontWeight: 500,
+                                                    color: "#2C3E50"
+                                                }}
+                                            >
                                                 Control Status
                                             </Typography>
 
                                             <Box
                                                 sx={{
-                                                    fontSize: "0.75rem",
+                                                    fontSize: { xs: "0.6875rem", md: "0.75rem" },
                                                     fontWeight: 700,
-                                                    px: 2,
-                                                    py: 1,
+                                                    px: { xs: 1.5, md: 2 },
+                                                    py: { xs: 0.75, md: 1 },
                                                     borderRadius: "50px",
                                                     color: "#1034A6",
                                                     bgcolor: "#dbeafe",
                                                     flexShrink: 0,
+                                                    whiteSpace: "nowrap",
                                                 }}
                                             >
                                                 98% PASSING
                                             </Box>
                                         </Box>
 
-                                        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                                        <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 2.5, md: 3 } }}>
                                             {bars.map((item, index) => (
                                                 <Box
                                                     key={index}
@@ -266,18 +327,24 @@ export default function Comparison() {
                                                         display: "flex",
                                                         alignItems: "center",
                                                         justifyContent: "space-between",
-                                                        fontSize: "0.75rem",
-                                                        gap: 2,
+                                                        fontSize: { xs: "0.6875rem", md: "0.75rem" },
+                                                        gap: { xs: 1.5, md: 2 },
                                                     }}
                                                 >
-                                                    <Typography sx={{ color: "#64748b", minWidth: 92 }}>
+                                                    <Typography
+                                                        sx={{
+                                                            color: "#64748b",
+                                                            minWidth: { xs: 72, md: 92 },
+                                                            fontSize: { xs: "0.6875rem", md: "0.75rem" },
+                                                        }}
+                                                    >
                                                         {item.label}
                                                     </Typography>
 
                                                     <Box
                                                         sx={{
                                                             flex: 1,
-                                                            height: 6,
+                                                            height: { xs: 5, md: 6 },
                                                             borderRadius: "50px",
                                                             overflow: "hidden",
                                                             bgcolor: "#f1f5f9",
@@ -289,11 +356,20 @@ export default function Comparison() {
                                                                 width: item.width,
                                                                 borderRadius: "50px",
                                                                 bgcolor: "#2C3E50",
+                                                                transition: "width 0.5s ease",
                                                             }}
                                                         />
                                                     </Box>
 
-                                                    <Typography sx={{ color: "#64748b", width: 48, textAlign: "right", flexShrink: 0 }}>
+                                                    <Typography
+                                                        sx={{
+                                                            color: "#64748b",
+                                                            width: { xs: 40, md: 48 },
+                                                            textAlign: "right",
+                                                            flexShrink: 0,
+                                                            fontSize: { xs: "0.6875rem", md: "0.75rem" },
+                                                        }}
+                                                    >
                                                         {item.width}
                                                     </Typography>
                                                 </Box>

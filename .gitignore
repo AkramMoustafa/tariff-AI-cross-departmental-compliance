@@ -38,7 +38,7 @@ scripts/hts_2026_basic.csv
 !package.json  # keep only your frontend package.json visible
 # Data files
 *.csv
-
+!intent_vectors.json
 # Tariff engine data outputs
 src/api/NewTariffEngine/**/output_*.csv
 src/api/NewTariffEngine/**/htsdata.csv

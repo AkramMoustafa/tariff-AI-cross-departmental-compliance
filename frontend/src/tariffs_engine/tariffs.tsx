@@ -11,6 +11,8 @@ import {
   InputAdornment,
   Divider,
 } from "@mui/material";
+import HsLookup from "./HsLookup"
+
 import { calculateDuty,   exportTariffPdf,type DutyCalculationResponse } from "@/api/tariffClient";
 import { useState } from "react";
 import { usePaymentStatus } from "@/api/payment";
@@ -20,6 +22,7 @@ import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import NextActionsPanel from "./NextActionsPanel"
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { useNavigate } from "react-router-dom";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 export default function TariffCalculator() {
   const { paid, loading: paymentLoading } = usePaymentStatus();
@@ -32,9 +35,7 @@ export default function TariffCalculator() {
   const [insurance, setInsurance] = useState(50);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DutyCalculationResponse | null>(null);
-  const [hsTree, setHsTree] = useState<any | null>(null);
-  const [hsLoading, setHsLoading] = useState(false);
-  const [hsError, setHsError] = useState<string | null>(null);
+
   const handleClearForm = () => {
   setHsCode("");
   setOrigin("CN");
@@ -45,54 +46,15 @@ export default function TariffCalculator() {
 
   setResult(null);
   setError(null);
-  setHsTree(null);
-  setHsError(null);
+
 };
-
-useEffect(() => {
-  const normalizedHs = hsCode.replace(/\D/g, "");
-
-  console.log("RAW:", hsCode, "NORMALIZED:", normalizedHs);
-
-  if (normalizedHs.length < 2) {
-    setHsTree(null);
-    return;
-  }
-
-  const controller = new AbortController();
-
-  const fetchHsTree = async () => {
-    console.log("FETCH HS TREE CALLED");
-
-    setHsLoading(true);
-    setHsError(null);
-
-    try {
-      const res = await fetch(
-        `http://localhost:8000/tariffs/hs/tree?hs_code=${normalizedHs}`,
-        { signal: controller.signal }
-      );
-
-      if (!res.ok) throw new Error("HS lookup failed");
-
-      const data = await res.json();
-      console.log("HS TREE RESPONSE:", data.tree);
-
-      setHsTree(data.tree);
-    } catch (err: any) {
-      if (err.name !== "AbortError") {
-        console.error(err);
-        setHsTree(null);
-        setHsError("HS code not found");
-      }
-    } finally {
-      setHsLoading(false);
-    }
-  };
-
-  fetchHsTree();
-  return () => controller.abort();
-}, [hsCode]);
+const cardSx = {
+  p: 3,
+borderRadius: "16px" ,         // consistent roundness
+  border: "1px solid #e2e8f0",
+  backgroundColor: "#ffffff",
+  boxShadow: "0 8px 24px rgba(15,23,42,0.05)",
+};
 
   const downloadPDF = async () => {
   if (!result || !paid) return;
@@ -174,60 +136,26 @@ const tariffLines = result
       result.duty_payable.total_duty_payable
     : 0;
 
-  const normalizedHs = hsCode.replace(/\D/g, "");
-
-const effectiveHsNode = hsTree
-  ?.filter((n: any) => normalizedHs.startsWith(n.parent_code))
-  .sort((a: any, b: any) => b.parent_code.length - a.parent_code.length)[0];
-
-const headingNode = hsTree?.find((n: any) => n.parent_code.length === 4);
-const showHsInfo =
-  normalizedHs.length >= 4 &&
-  !hsLoading &&
-  !hsError &&
-  !!effectiveHsNode;
+  
 
   return (
     <Box
       sx={{
-        // I removed minHeight: "100vh" and overflow: "hidden".
-        // Having 100vh here caused the sidebar to get pushed off screen.
-        position: "relative",
-        bgcolor: "#ffffff",
-        p: 4,
+
+    position: "relative",
+    minHeight: "100vh",
+    bgcolor: "#f8fafc",
+    p: 4,
       }}
     >
-      {/* GRID BACKGROUND */}
+      
       <Box
-        sx={{
-          position: "absolute",
-          inset: 0,
-          backgroundColor: "#ffffff",
-          backgroundImage: `
-            linear-gradient(to right, rgba(221, 221, 221, 0.25) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(203,203,203,0.25) 1px, transparent 1px)
-          `,
-          backgroundSize: "40px 40px",
-          pointerEvents: "none",
-          zIndex: 0,
-        }}
+
       />
 
       <Box
         sx={{
-          position: "absolute",
-          top: -80,
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: "100%",
-          maxWidth: "56rem",
-          height: "28rem",
-          filter: "blur(90px)",
-          borderRadius: "50%",
-          opacity: 0.22,
-          bgcolor: "rgba(0,0 0, 0, 0.18)",
-          zIndex: 0,
-          pointerEvents: "none",
+
         }}
       />
 
@@ -254,7 +182,7 @@ const showHsInfo =
                 color: "#1034A6",
                 fontWeight: 600,
                 fontSize: "11px",
-                borderRadius: 1,
+                borderRadius: "16px",
               }}
             />
             <Typography
@@ -284,13 +212,15 @@ const showHsInfo =
             estimate and compliance breakdown.
           </Typography>
         </Box>
+        <Box sx={{ mb: 4 }}>
+  <HsLookup
+    onSelect={(code) => {
+      setHsCode(code);
+    }}
+  />
+</Box>
 
         {/* MAIN LAYOUT */}
-        {/* 
-          I Switched from Grid with wrap="nowrap" to flex.
-          Grid nowrap caused horizontal overflow on small screens.
-          Flex + responsive flexDirection lets us stack on mobile. -- Reddit Said So.
-        */}
         <Box sx={{
           display: "flex",
           gap: 3,
@@ -305,54 +235,47 @@ const showHsInfo =
             minWidth: 0,
             width: { xs: "100%", lg: "auto" },
           }}>
-            <Paper
-              sx={{
-                p: 3,
-                borderRadius: 2,
-                // Previously width was set using vh which ignores the container. -- vh can cause bugs on mobile browsers. 
-                minHeight: { xs: "auto", md: "480px" },
-                position: "relative",
-                overflow: "hidden",
-                bgcolor: "#ffffff",
-                border: "1px solid #e5e7eb",
-              }}
-            >
+           <Paper
+  elevation={0}
+  sx={{
+    borderRadius: "16px",
+    border: "1px solid #e2e8f0",
+    background: "#ffffff",
+   boxShadow: "0 2px 10px rgba(0,0,0,0.02)",
+transition: "all 0.3s ease",
+"&:hover": {
+  boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+},
+    padding: "40px",
+
+  }}
+>
               {/* TOP BAR */}
               <Box
-                sx={{
-                  position: "absolute",
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: "50px",
-                  bgcolor: "#f9f9f9",
-                  px: 3,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  zIndex: 2
-                }}
+             
               >
                 {/* LEFT: TITLE */}
                 <Box>
-                  <Typography
-                    sx={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "#0f172a",
-                      lineHeight: 1.2,
-                    }}
-                  >
-                    Shipment Parameters
-                  </Typography>
-                  <Typography
-                    sx={{
-                      fontSize: 11,
-                      color: "#64748b",
-                    }}
-                  >
-                    Used for duty & tariff calculation
-                  </Typography>
+<Typography
+  sx={{
+    fontSize: 18,
+    fontWeight: 600,
+    color: "#2C3E50",
+    letterSpacing: "-0.3px",
+    mb: 0.5,
+  }}
+>
+  Shipment Parameters
+</Typography>
+
+<Typography
+  sx={{
+    fontSize: 13,
+    color: "#64748b",
+  }}
+>
+  Used for duty & tariff calculation
+</Typography>
                 </Box>
 <Button
   variant="text"
@@ -376,18 +299,6 @@ const showHsInfo =
 
               {/* BOTTOM BAR */}
               <Box
-                sx={{
-                  position: "absolute",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: "70px",
-                  bgcolor: "#fafafa",
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  alignItems: "center",
-                  px: 3,
-                }}
               >
 
 
@@ -412,20 +323,24 @@ const showHsInfo =
                       <PlayArrowRoundedIcon sx={{ fontSize: 14 }} />
                     </Box>
                   }
-                  sx={{
-                    bgcolor: "#0f172a",
-                    color: "#ffffff",
-                    borderRadius: 0.75,
-                    height: 34,
-                    px: 2.5,
-                    textTransform: "none",
-                    fontWeight: 600,
-                    boxShadow: "none",
-                    "&:hover": {
-                      bgcolor: "#020617",
-                      boxShadow: "none",
-                    },
-                  }}
+            sx={{
+              height: 34,
+              px: 2.5,
+              borderRadius: 999,
+              textTransform: "uppercase",
+              fontWeight: 700,
+              fontSize: 13,
+              letterSpacing: "0.5px",
+              
+              color: "#ffffff",
+            
+              bgcolor: "#1034A6",
+              boxShadow: "0 4px 14px rgba(16,52,166,0.25)",
+              "&:hover": {
+                bgcolor: "#0b2f8a",
+                boxShadow: "0 6px 18px rgba(16,52,166,0.35)",
+              },
+            }}
                 >
                   {loading ? "Calculating..." : "Calculate"}
                 </Button>
@@ -443,119 +358,7 @@ const showHsInfo =
                 }}
               >
                 {/* HS CODE */}
-                <Box>
-                  <Box>
-                    <Typography variant="subtitle2" mb={0.5}>
-                      HS Code
-                    </Typography>
 
-                    <TextField
-                      fullWidth
-                      size="small"
-                        placeholder="Search by HS code or product description (e.g. 850440 or lithium battery)"
-                        value={hsCode}
-                        onChange={(e) => setHsCode(e.target.value)}
-                      InputProps={{
-                        startAdornment: (
-                          <InputAdornment position="start">
-                            <SearchIcon sx={{ fontSize: 18, color: "text.secondary" }} />
-                          </InputAdornment>
-                        ),
-                      }}
-                      sx={{
-                        bgcolor: "#ffffff",
-
-                        "& .MuiOutlinedInput-root": {
-                          borderRadius: 0.75,
-                          fontSize: "14px",
-                          height: 40,
-                        },
-
-                        "& .MuiOutlinedInput-input": {
-                          py: 1,
-                        },
-
-                        "& .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#e5e7eb",
-                        },
-                        "&:hover .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#c7cdd4",
-                        },
-                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#2563eb",
-                        },
-                      }}
-                    />
-                  </Box>
-
-                  {/* SEARCH RESULT */}
-                 {/* SEARCH RESULT */}
-{showHsInfo && (
-  <Box
-    sx={{
-      mt: 1.5,
-      p: 1.5,
-      borderRadius: 1,
-      bgcolor: "rgba(37, 99, 235, 0.06)",
-      border: "1px solid rgba(37, 99, 235, 0.15)",
-      display: "flex",
-      alignItems: "flex-start",
-      gap: 1.25,
-    }}
-  >
-    {/* LEFT ICON */}
-    <Box
-      sx={{
-        mt: "2px",
-        width: 18,
-        height: 18,
-        borderRadius: "50%",
-        bgcolor: "rgba(37, 99, 235, 0.12)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-      }}
-    >
-      <Box
-        sx={{
-          width: 8,
-          height: 8,
-          borderRadius: "50%",
-          bgcolor: "#2563eb",
-        }}
-      />
-    </Box>
-
-    {/* TEXT */}
-    <Box>
-      <Typography
-        sx={{
-          fontSize: 13,
-          fontWeight: 600,
-          color: "#1e40af",
-          lineHeight: 1.3,
-        }}
-      >
-        {effectiveHsNode.description}
-      </Typography>
-
-      {headingNode && (
-        <Typography
-          sx={{
-            fontSize: 12,
-            color: "#1e3a8a",
-            opacity: 0.8,
-          }}
-        >
-          {`Heading ${headingNode.parent_code} · ${headingNode.description}`}
-        </Typography>
-      )}
-    </Box>
-  </Box>
-)}
-
-                </Box>
 
                 <Box
                   sx={{
@@ -591,7 +394,7 @@ const showHsInfo =
                         "& .MuiOutlinedInput-root": {
                           height: 34,
                           fontSize: 14,
-                          borderRadius: 1.25,
+                         borderRadius: "16px",
                           backgroundColor: "#fff",
                         },
                         "& .MuiOutlinedInput-input": {
@@ -641,7 +444,7 @@ const showHsInfo =
                         "& .MuiOutlinedInput-root": {
                           height: 34,
                           fontSize: 14,
-                          borderRadius: 1.25,
+                          borderRadius: "16px",
                           backgroundColor: "#fff",
                         },
                         "& .MuiOutlinedInput-input": {
@@ -696,7 +499,7 @@ const showHsInfo =
                         "& .MuiOutlinedInput-root": {
                           height: 30,
                           fontSize: 14,
-                          borderRadius: 1.25,
+                          borderRadius: "16px",
                           backgroundColor: "#fff",
                         },
                         "& .MuiOutlinedInput-input": {
@@ -752,7 +555,7 @@ const showHsInfo =
                         "& .MuiOutlinedInput-root": {
                           height: 30,
                           fontSize: 14,
-                          borderRadius: 1.25,
+                         borderRadius: "16px",
                           backgroundColor: "#fff",
                         },
                         "& .MuiOutlinedInput-input": {
@@ -803,7 +606,7 @@ const showHsInfo =
                         "& .MuiOutlinedInput-root": {
                           height: 30,
                           fontSize: 14,
-                          borderRadius: 1.25,
+                          borderRadius: "16px",
                           backgroundColor: "#fff",
                         },
                         "& .MuiOutlinedInput-input": {
@@ -854,7 +657,7 @@ const showHsInfo =
                         "& .MuiOutlinedInput-root": {
                           height: 30,
                           fontSize: 14,
-                          borderRadius: 1.25,
+                          borderRadius: "16px",
                           backgroundColor: "#fff",
                         },
                         "& .MuiOutlinedInput-input": {
@@ -906,8 +709,8 @@ const showHsInfo =
             <Paper
               sx={{
                 p: 2,
-                borderRadius: 1.5,
-                border: "1px solid #e5e7eb",
+               borderRadius: "16px",
+                border: "1px solid #e2e8f0",
               }}
             >
               <Typography fontSize={11} color="text.secondary">
@@ -924,8 +727,15 @@ const showHsInfo =
                 <Chip
                   label="Calculated"
                   size="small"
-                  color="success"
-                  variant="outlined"
+                  sx={{
+                    fontSize: "0.625rem",
+                    fontWeight: 700,
+                    color: "#1034A6",
+                    bgcolor: "#dbeafe",
+                    px: "0.375rem",
+                    py: "0.125rem",
+                    borderRadius: "4px",
+                  }}
                 />
                 <Typography fontSize={11} color="text.secondary">
                   Updated 2 mins ago
@@ -939,9 +749,9 @@ const showHsInfo =
             <Paper
               sx={{
                 p: 2,
-                borderRadius: 1.5,
+               borderRadius: "16px",
                  height: "100%",
-                border: "1px solid #e5e7eb",
+                border: "1px solid #e2e8f0",
               }}
             >
               <Typography fontSize={11} color="text.secondary">
@@ -957,9 +767,15 @@ const showHsInfo =
               <Chip
                 label="Section 301 Applied"
                 size="small"
-                color="warning"
-                variant="outlined"
-                sx={{ mt: 1 }}
+                sx={{
+  fontSize: "0.625rem",
+  fontWeight: 700,
+  color: "#1034A6",
+  bgcolor: "#dbeafe",
+  borderRadius: "16px",
+  mt: 1
+}}
+      
               />
             )}
             </Paper>
@@ -980,8 +796,8 @@ const showHsInfo =
             mt: 3,
             p: 2,
             height: "100%", 
-            borderRadius: 1.5,
-            border: "1px solid #e5e7eb",
+           borderRadius: "16px",
+            border: "1px solid #e2e8f0",
           }}
         >
           <Typography fontSize={14} fontWeight={600} mb={2}>
@@ -1118,7 +934,7 @@ const navigate = useNavigate();
       elevation={0}
       sx={{
         p: 3,
-        borderRadius: 2,
+       borderRadius: "16px",
         border: "1px dashed #cbd5e1",
         textAlign: "center",
         maxWidth: 300,

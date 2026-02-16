@@ -7,8 +7,7 @@ import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 
 // Hero images
-import heroSectionImg from "../../assets/herosection.jpeg";
-import heroSectionImg2x from "../../assets/herosection@2x.jpg";
+import heroSectionImg from "../../assets/finalherosection.png";
 import CalculateOutlinedIcon from "@mui/icons-material/CalculateOutlined";
 import RequestQuoteOutlinedIcon from "@mui/icons-material/RequestQuoteOutlined";
 
@@ -28,9 +27,9 @@ export default function Hero({ onBookDemo, onWatchDemo, spotlightHref }: Props) 
     const heroRef = useRef(null);
     const heroInView = useInView(heroRef, { once: true });
     const navigate = useNavigate();
-  const handleGoToSignup = () => {
-    navigate("/signin");
-  };
+    const handleGoToSignup = () => {
+        navigate("/signin");
+    };
 
     return (
         <Box
@@ -212,7 +211,7 @@ export default function Hero({ onBookDemo, onWatchDemo, spotlightHref }: Props) 
                                 mb: { xs: 5, md: 8 },
                             }}
                         >
-                            Calculate import duties, Section 232/301 tariffs, and landed costs instantly — with transparent, audit-ready compliance logic.
+                            Know your true import costs before you ship. Calculate duties, Section 232/301 tariffs, and landed costs in seconds using traceable, audit-ready logic built on official schedules.
                         </Typography>
                     </MotionBox>
 
@@ -233,27 +232,34 @@ export default function Hero({ onBookDemo, onWatchDemo, spotlightHref }: Props) 
                             }}
                         >
 
-<Button
-  onClick={handleGoToSignup}
-  endIcon={<CalculateOutlinedIcon sx={{ fontSize: 16 }} />}
-  sx={{
-    textTransform: "none",
-    fontSize: "0.875rem",
-    fontWeight: 600,
-    color: "#ffffff",
-    bgcolor: "#1034A6",
-    px: 3,
-    py: 1,
-    borderRadius: "999px",
-    border: "1px solid #c7d2fe",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-    "&:hover": {
-      bgcolor: "#102a44",
-    },
-  }}
->
-  Start Tariff Estimator
-</Button>
+                            <Button
+                                onClick={handleGoToSignup}
+                                endIcon={<CalculateOutlinedIcon sx={{ fontSize: 18 }} />}
+                                sx={{
+                                    textTransform: "none",
+                                    fontSize: "1rem",
+                                    fontWeight: 600,
+                                    color: "#ffffff",
+                                    bgcolor: "#1034A6",
+                                    px: 4,
+                                    py: 1.5,
+                                    borderRadius: "12px",
+                                    border: "none",
+                                    boxShadow: "0 4px 12px rgba(16, 52, 166, 0.25), 0 2px 4px rgba(16, 52, 166, 0.15)",
+                                    transition: "all 0.2s ease-in-out",
+                                    "&:hover": {
+                                        bgcolor: "#0d2a85",
+                                        boxShadow: "0 6px 20px rgba(16, 52, 166, 0.35), 0 3px 6px rgba(16, 52, 166, 0.2)",
+                                        transform: "translateY(-1px)",
+                                    },
+                                    "&:active": {
+                                        transform: "translateY(0px)",
+                                        boxShadow: "0 2px 8px rgba(16, 52, 166, 0.2)",
+                                    },
+                                }}
+                            >
+                                Start Tariff Estimator
+                            </Button>
                         </Box>
                     </MotionBox>
 
@@ -273,30 +279,31 @@ export default function Hero({ onBookDemo, onWatchDemo, spotlightHref }: Props) 
                         <Box
                             sx={{
                                 position: "relative",
-                                borderRadius: { xs: "16px", md: "22px" },
-                                p: { xs: 0.5, md: 1 },
-                                background:
-                                    "linear-gradient(135deg, rgba(16,52,166,0.40), rgba(44,62,80,0.10), rgba(16,52,166,0.26))",
-                                boxShadow: "0 28px 80px rgba(15,23,42,0.18)",
+                                borderRadius: { xs: "16px", md: "24px" },
+                                p: { xs: 1, md: 1.5 },
+                                background: "rgba(255, 255, 255, 0.6)",
+                                backdropFilter: "blur(10px)",
+                                WebkitBackdropFilter: "blur(10px)",
+                                border: "1px solid rgba(226, 232, 240, 0.8)",
+                                boxShadow: "0 20px 60px rgba(15, 23, 42, 0.12), 0 8px 16px rgba(15, 23, 42, 0.08)",
                             }}
                         >
                             <Box
                                 sx={{
-                                    borderRadius: { xs: "12px", md: "18px" },
+                                    borderRadius: { xs: "12px", md: "20px" },
                                     overflow: "hidden",
                                     bgcolor: "#fff",
-                                    border: { xs: "1px solid rgba(226,232,240,0.6)", md: "1px solid rgba(226,232,240,0.95)" },
+                                    border: "1px solid rgba(226, 232, 240, 0.6)",
                                     width: "100%",
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center",
+                                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
                                 }}
                             >
                                 <Box
                                     component="img"
                                     src={heroSectionImg}
-                                    srcSet={`${heroSectionImg} 1x, ${heroSectionImg2x} 2x`}
-                                    sizes="100vw"
                                     alt="ComplianceAI platform preview"
                                     loading="eager"
                                     decoding="async"

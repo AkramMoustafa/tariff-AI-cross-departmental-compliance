@@ -4,11 +4,13 @@ import { useEffect, useState } from "react";
 
 import Navbar from "./sections/Navbar";
 import Hero from "./sections/Hero";
+import CompliancePainPoints from "./sections/CompliancePainPoints";
+import ComplianceWorkflow from "./sections/ComplianceWorkflow";
 import Features from "./sections/Features";
 import Comparison from "./sections/Comparison";
-import Steps from "./sections/Steps";
-import FaqSection from "./FaqSection";
+import Pricing from "./sections/PricingPage";
 import Footer from "./sections/Footer";
+
 
 import BookDemoDialog from "./dialogs/BookDemoDialog";
 import WatchDemoDialog from "./dialogs/WatchDemoDialog";
@@ -26,15 +28,16 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <Box  id="home" sx={{ bgcolor: "#ffffff", minHeight: "100vh", fontFamily: "Inter, sans-serif" }}>
+    <Box id="home" sx={{ bgcolor: "#ffffff", minHeight: "100vh", fontFamily: "Inter, sans-serif" }}>
       <Navbar scrolled={scrolled} />
 
       <Hero onBookDemo={() => setOpenBookDemo(true)} onWatchDemo={() => setOpenWatchDemo(true)} />
 
+      <CompliancePainPoints />
+      <ComplianceWorkflow />
       <Features />
       <Comparison />
-      <Steps />
-      <FaqSection />
+      <Pricing />
       <Footer />
 
       <BookDemoDialog open={openBookDemo} onClose={() => setOpenBookDemo(false)} />
@@ -42,3 +45,4 @@ export default function LandingPage() {
     </Box>
   );
 }
+

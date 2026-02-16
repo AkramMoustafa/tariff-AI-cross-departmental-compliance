@@ -1,9 +1,7 @@
-// src/pages/LandingPage/sections/Features.tsx
-import { Box, Container, Typography } from "@mui/material";
+import { Box, Container, Typography, Chip } from "@mui/material";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 
-import FlashOnIcon from "@mui/icons-material/FlashOn";
 import DescriptionIcon from "@mui/icons-material/Description";
 import LockIcon from "@mui/icons-material/Lock";
 import ShareIcon from "@mui/icons-material/Share";
@@ -13,12 +11,6 @@ const MotionBox = motion(Box);
 export default function Features() {
     const featuresRef = useRef(null);
     const featuresInView = useInView(featuresRef, { once: true, margin: "-100px" });
-
-    const miniBars = [
-        { color: "#1034A6", width: 96 },
-        { color: "#1034A6", width: 64 },
-        { color: "#f59e0b", width: 80 },
-    ];
 
     const docs = [
         { name: "access_policy.pdf", status: "REVIEWED" },
@@ -32,248 +24,201 @@ export default function Features() {
             ref={featuresRef}
             sx={{
                 bgcolor: "#f8fafc",
-                pt: { xs: 10, md: 16 },
-                pb: { xs: 10, md: 16 },
+                background: "radial-gradient(circle at 50% 0%, #f1f5f9 0%, #f8fafc 50%)",
+                pt: { xs: 8, md: 16 },
+                pb: { xs: 8, md: 16 },
+                position: "relative",
+                overflow: "hidden",
             }}
         >
-            <Container maxWidth="xl" sx={{ maxWidth: "80rem !important", px: 6 }}>
+            {/* Background decoration */}
+            <Box
+                sx={{
+                    position: "absolute",
+                    top: { xs: -50, md: -100 },
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: "100%",
+                    maxWidth: "1200px",
+                    height: { xs: "400px", md: "600px" },
+                    background: "radial-gradient(50% 50% at 50% 50%, rgba(16, 52, 166, 0.03) 0%, rgba(255, 255, 255, 0) 100%)",
+                    zIndex: 0,
+                    pointerEvents: "none",
+                }}
+            />
+            <Container maxWidth="xl" sx={{ maxWidth: "80rem !important", px: { xs: 2, sm: 4, md: 6 } }}>
                 {/* Header */}
                 <MotionBox
                     initial={{ opacity: 0, y: 30 }}
                     animate={featuresInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
                     transition={{ duration: 0.7 }}
-                    sx={{ textAlign: "center", mb: 12, maxWidth: "48rem", mx: "auto" }}
+                    sx={{
+                        textAlign: "center",
+                        mb: { xs: 6, md: 12 },
+                        maxWidth: "48rem",
+                        mx: "auto",
+                        position: "relative",
+                        zIndex: 1,
+                        px: { xs: 2, sm: 0 }
+                    }}
                 >
                     <Typography
                         sx={{
-                            fontSize: { xs: "1.875rem", md: "2.25rem" },
-                            fontWeight: 600,
-                            color: "#2C3E50",
+                            fontSize: { xs: "1.75rem", sm: "2.25rem", md: "3rem" },
+                            fontWeight: 700,
+                            color: "#0f172a",
                             letterSpacing: "-0.025em",
-                            mb: 3,
+                            mb: { xs: 2, md: 3 },
+                            lineHeight: 1.1,
                         }}
                     >
                         Complete compliance visibility
                     </Typography>
 
-                    <Typography sx={{ fontSize: "1.125rem", color: "#64748b", lineHeight: 1.6 }}>
+                    <Typography
+                        sx={{
+                            fontSize: { xs: "1rem", md: "1.125rem" },
+                            color: "#64748b",
+                            lineHeight: 1.6,
+                            px: { xs: 1, sm: 0 }
+                        }}
+                    >
                         Everything you need to understand, manage, and prove compliance — in one intelligence platform.
                     </Typography>
                 </MotionBox>
 
-                {/* CSS Grid Layout */}
+                {/* Grid Layout */}
                 <Box
                     sx={{
                         display: "grid",
-                        gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" },
-                        gap: "1.5rem",
-                        gridAutoRows: "minmax(300px, auto)",
+                        gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
+                        gap: { xs: "1rem", md: "1.5rem" },
+                        gridAutoRows: "minmax(280px, auto)",
                     }}
                 >
-                    {/* Large Card - Internal Auditing (spans 2 columns) */}
-                    <MotionBox
-                        initial={{ opacity: 0, y: 40 }}
-                        animate={featuresInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
-                        transition={{ duration: 0.7 }}
-                        sx={{
-                            gridColumn: { xs: "1", md: "span 2" },
-                            bgcolor: "#fff",
-                            borderRadius: "16px",
-                            p: 8,
-                            border: "1px solid #e2e8f0",
-                            boxShadow: "0 2px 10px rgba(0,0,0,0.02)",
-                            position: "relative",
-                            overflow: "hidden",
-                            transition: "all 0.3s ease",
-                            "&:hover": { boxShadow: "0 10px 30px rgba(0,0,0,0.08)" },
-                        }}
-                    >
-                        <Box sx={{ position: "relative", zIndex: 10 }}>
-                            <Box
-                                sx={{
-                                    width: 40,
-                                    height: 40,
-                                    borderRadius: "8px",
-                                    bgcolor: "rgba(16, 52, 166, 0.05)",
-                                    color: "#1034A6",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    mb: "1.5rem",
-                                    transition: "transform 0.3s ease",
-                                    "&:hover": { transform: "scale(1.1)" },
-                                }}
-                            >
-                                <FlashOnIcon sx={{ fontSize: 20 }} />
-                            </Box>
-
-                            <Typography
-                                sx={{
-                                    fontSize: "1.25rem",
-                                    fontWeight: 600,
-                                    letterSpacing: "-0.025em",
-                                    color: "#2C3E50",
-                                    mb: "0.5rem",
-                                }}
-                            >
-                                Internal Auditing
-                            </Typography>
-
-                            <Typography sx={{ fontSize: "1rem", color: "#64748b", maxWidth: "28rem", lineHeight: 1.6 }}>
-                                Automated obligation tracking across departments with real-time gap detection, also maps findings to
-                                specific regulations and ownerships.
-                            </Typography>
-                        </Box>
-
-                        {/* Decorative Element */}
-                        {/* Decorative Element */}
-                        <Box
-                            sx={{
-                                position: { xs: "relative", md: "absolute" },
-                                right: { xs: "auto", md: 0 },
-                                bottom: { xs: "auto", md: 0 },
-
-                                // On mobile it becomes a normal block under the text
-                                mt: { xs: 3, md: 0 },
-
-                                width: { xs: "100%", md: "33.333%" },
-                                height: { xs: "auto", md: "75%" },
-
-                                bgcolor: "#f8fafc",
-                                border: "1px solid #f1f5f9",
-                                borderTop: "1px solid #f1f5f9",
-                                borderLeft: { xs: "1px solid #f1f5f9", md: "1px solid #f1f5f9" },
-
-                                borderRadius: { xs: "12px", md: "16px 0 0 0" },
-
-                                p: { xs: 2, md: 4 },
-
-                                // No translate on mobile (this is what causes overlap)
-                                transform: { xs: "none", md: "translate(16px, 16px)" },
-                                transition: "transform 0.3s ease",
-
-                                "&:hover": {
-                                    transform: { xs: "none", md: "translate(8px, 8px)" },
-                                },
-                            }}
-                        >
-                            <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 1.5, md: 3 } }}>
-                                {miniBars.map((item, index) => (
-                                    <Box
-                                        key={index}
-                                        sx={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 2,
-                                            p: { xs: 1.25, md: 2 },
-                                            borderRadius: "6px",
-                                            border: "1px solid #f1f5f9",
-                                            bgcolor: "#fff",
-                                            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                                        }}
-                                    >
-                                        <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: item.color }} />
-                                        <Box
-                                            sx={{
-                                                height: 8,
-                                                width: { xs: "100%", md: `${item.width}px` },
-                                                maxWidth: { xs: 260, md: "none" },
-                                                borderRadius: "4px",
-                                                bgcolor: "#f1f5f9",
-                                            }}
-                                        />
-                                    </Box>
-                                ))}
-                            </Box>
-                        </Box>
-
-                    </MotionBox>
-
-                    {/* Tall Card - Supplier Onboarding (spans 2 rows) */}
+                    {/* Tall Card - Supplier Onboarding */}
                     <MotionBox
                         initial={{ opacity: 0, y: 40 }}
                         animate={featuresInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
                         transition={{ duration: 0.7, delay: 0.1 }}
                         sx={{
                             gridRow: { xs: "auto", md: "span 2" },
-                            bgcolor: "#fff",
-                            borderRadius: "16px",
-                            p: "2rem",
-                            border: "1px solid #e2e8f0",
-                            boxShadow: "0 2px 10px rgba(0,0,0,0.02)",
-                            transition: "all 0.3s ease",
-                            "&:hover": { boxShadow: "0 10px 30px rgba(0,0,0,0.08)" },
+                            bgcolor: "rgba(255, 255, 255, 0.8)",
+                            backdropFilter: "blur(12px)",
+                            borderRadius: { xs: "16px", md: "24px" },
+                            p: { xs: 3, sm: 4, md: 5 },
+                            border: "1px solid rgba(255, 255, 255, 0.5)",
+                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02), inset 0 0 0 1px rgba(255, 255, 255, 0.6)",
+                            transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+                            "&:hover": {
+                                transform: { xs: "none", md: "translateY(-4px)" },
+                                boxShadow: {
+                                    xs: "0 4px 6px -1px rgba(0, 0, 0, 0.02)",
+                                    md: "0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02)"
+                                },
+                            },
                         }}
                     >
                         <Box
                             sx={{
-                                width: 40,
-                                height: 40,
+                                width: { xs: 36, md: 40 },
+                                height: { xs: 36, md: 40 },
                                 borderRadius: "8px",
                                 bgcolor: "rgba(16, 52, 166, 0.05)",
                                 color: "#1034A6",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                mb: "1.5rem",
+                                mb: { xs: "1rem", md: "1.5rem" },
                             }}
                         >
-                            <DescriptionIcon sx={{ fontSize: 20 }} />
+                            <DescriptionIcon sx={{ fontSize: { xs: 18, md: 20 } }} />
                         </Box>
 
                         <Typography
                             sx={{
-                                fontSize: "1.25rem",
+                                fontSize: { xs: "1.25rem", md: "1.5rem" },
                                 fontWeight: 600,
                                 letterSpacing: "-0.025em",
-                                color: "#2C3E50",
-                                mb: "0.5rem",
+                                color: "#0f172a",
+                                mb: "0.75rem",
                             }}
                         >
                             Supplier Onboarding
                         </Typography>
 
-                        <Typography sx={{ fontSize: "1rem", color: "#64748b", mb: "1.5rem", lineHeight: 1.6 }}>
+                        <Typography
+                            sx={{
+                                fontSize: { xs: "0.9375rem", md: "1rem" },
+                                color: "#64748b",
+                                mb: { xs: "1.5rem", md: "2rem" },
+                                lineHeight: 1.7
+                            }}
+                        >
                             Risk scored vendor compliance assessment before contract approval and recommends better better-performing
                             alternative when compliance gaps are detected.
                         </Typography>
 
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: "0.75rem", md: "1rem" } }}>
                             {docs.map((doc, index) => (
                                 <Box
                                     key={index}
                                     sx={{
                                         display: "flex",
                                         alignItems: "center",
-                                        gap: "0.75rem",
-                                        p: "0.5rem",
-                                        borderRadius: "4px",
+                                        gap: { xs: "0.75rem", md: "1rem" },
+                                        p: { xs: "0.625rem 0.875rem", md: "0.75rem 1rem" },
+                                        borderRadius: { xs: "10px", md: "12px" },
                                         border: "1px solid #f1f5f9",
-                                        bgcolor: "#f8fafc",
+                                        bgcolor: "#fff",
+                                        transition: "all 0.2s ease",
+                                        "&:hover": {
+                                            borderColor: "#e2e8f0",
+                                            transform: { xs: "none", md: "translateX(4px)" },
+                                            boxShadow: { xs: "none", md: "0 2px 4px rgba(0,0,0,0.02)" },
+                                        },
                                     }}
                                 >
-                                    <DescriptionIcon sx={{ fontSize: 16, color: "#94a3b8" }} />
+                                    <Box
+                                        sx={{
+                                            width: { xs: 28, md: 32 },
+                                            height: { xs: 28, md: 32 },
+                                            borderRadius: "8px",
+                                            bgcolor: "#f1f5f9",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        <DescriptionIcon sx={{ fontSize: { xs: 16, md: 18 }, color: "#64748b" }} />
+                                    </Box>
 
                                     <Typography
                                         sx={{
                                             fontFamily: "monospace",
-                                            fontSize: "0.75rem",
-                                            color: "#475569",
+                                            fontSize: { xs: "0.75rem", md: "0.8125rem" },
+                                            color: "#334155",
+                                            fontWeight: 500,
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
                                         }}
                                     >
                                         {doc.name}
                                     </Typography>
 
-                                    <Box sx={{ ml: "auto" }}>
+                                    <Box sx={{ ml: "auto", flexShrink: 0 }}>
                                         <Typography
                                             sx={{
-                                                fontSize: "0.625rem",
+                                                fontSize: { xs: "0.5625rem", md: "0.625rem" },
                                                 fontWeight: 700,
-                                                color: "#1034A6",
-                                                bgcolor: "#dbeafe",
-                                                px: "0.375rem",
-                                                py: "0.125rem",
-                                                borderRadius: "4px",
+                                                color: doc.status === "VERIFIED" ? "#166534" : doc.status === "PENDING" ? "#b45309" : "#1e40af",
+                                                bgcolor: doc.status === "VERIFIED" ? "#dcfce7" : doc.status === "PENDING" ? "#fef3c7" : "#dbeafe",
+                                                px: { xs: "0.375rem", md: "0.5rem" },
+                                                py: "0.25rem",
+                                                borderRadius: "6px",
+                                                letterSpacing: "0.025em",
                                             }}
                                         >
                                             {doc.status}
@@ -290,45 +235,59 @@ export default function Features() {
                         animate={featuresInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
                         transition={{ duration: 0.7, delay: 0.2 }}
                         sx={{
-                            bgcolor: "#fff",
-                            borderRadius: "16px",
-                            p: "2rem",
-                            border: "1px solid #e2e8f0",
-                            boxShadow: "0 2px 10px rgba(0,0,0,0.02)",
-                            transition: "all 0.3s ease",
-                            minHeight: 300,
-                            "&:hover": { boxShadow: "0 10px 30px rgba(0,0,0,0.08)" },
+                            bgcolor: "rgba(255, 255, 255, 0.8)",
+                            backdropFilter: "blur(12px)",
+                            borderRadius: { xs: "16px", md: "24px" },
+                            p: { xs: 3, sm: 4, md: 5 },
+                            border: "1px solid rgba(255, 255, 255, 0.5)",
+                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02), inset 0 0 0 1px rgba(255, 255, 255, 0.6)",
+                            transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+                            minHeight: { xs: 240, md: 300 },
+                            "&:hover": {
+                                transform: { xs: "none", md: "translateY(-4px)" },
+                                boxShadow: {
+                                    xs: "0 4px 6px -1px rgba(0, 0, 0, 0.02)",
+                                    md: "0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02)"
+                                },
+                            },
                         }}
                     >
                         <Box
                             sx={{
-                                width: 40,
-                                height: 40,
+                                width: { xs: 36, md: 40 },
+                                height: { xs: 36, md: 40 },
                                 borderRadius: "8px",
                                 bgcolor: "rgba(16, 52, 166, 0.05)",
                                 color: "#1034A6",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                mb: "1.5rem",
+                                mb: { xs: "1rem", md: "1.5rem" },
                             }}
                         >
-                            <LockIcon sx={{ fontSize: 20 }} />
+                            <LockIcon sx={{ fontSize: { xs: 18, md: 20 } }} />
                         </Box>
 
                         <Typography
                             sx={{
-                                fontSize: "1.25rem",
+                                fontSize: { xs: "1.25rem", md: "1.5rem" },
                                 fontWeight: 600,
                                 letterSpacing: "-0.025em",
-                                color: "#2C3E50",
-                                mb: "0.5rem",
+                                color: "#0f172a",
+                                mb: "0.75rem",
                             }}
                         >
                             Ownership &amp; Accountability
                         </Typography>
 
-                        <Typography sx={{ fontSize: "1rem", color: "#64748b", lineHeight: 1.6, mb: "1rem" }}>
+                        <Typography
+                            sx={{
+                                fontSize: { xs: "0.9375rem", md: "1rem" },
+                                color: "#64748b",
+                                lineHeight: 1.6,
+                                mb: "1rem"
+                            }}
+                        >
                             Assign responsibility for controls, documents, and gaps across teams and departments.
                         </Typography>
                     </MotionBox>
@@ -339,45 +298,59 @@ export default function Features() {
                         animate={featuresInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
                         transition={{ duration: 0.7, delay: 0.3 }}
                         sx={{
-                            bgcolor: "#fff",
-                            borderRadius: "16px",
-                            p: "2rem",
-                            border: "1px solid #e2e8f0",
-                            boxShadow: "0 2px 10px rgba(0,0,0,0.02)",
-                            transition: "all 0.3s ease",
-                            minHeight: 300,
-                            "&:hover": { boxShadow: "0 10px 30px rgba(0,0,0,0.08)" },
+                            bgcolor: "rgba(255, 255, 255, 0.8)",
+                            backdropFilter: "blur(12px)",
+                            borderRadius: { xs: "16px", md: "24px" },
+                            p: { xs: 3, sm: 4, md: 5 },
+                            border: "1px solid rgba(255, 255, 255, 0.5)",
+                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.02), inset 0 0 0 1px rgba(255, 255, 255, 0.6)",
+                            transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+                            minHeight: { xs: 240, md: 300 },
+                            "&:hover": {
+                                transform: { xs: "none", md: "translateY(-4px)" },
+                                boxShadow: {
+                                    xs: "0 4px 6px -1px rgba(0, 0, 0, 0.02)",
+                                    md: "0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02)"
+                                },
+                            },
                         }}
                     >
                         <Box
                             sx={{
-                                width: 40,
-                                height: 40,
+                                width: { xs: 36, md: 40 },
+                                height: { xs: 36, md: 40 },
                                 borderRadius: "8px",
                                 bgcolor: "rgba(16, 52, 166, 0.05)",
                                 color: "#1034A6",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                mb: "1.5rem",
+                                mb: { xs: "1rem", md: "1.5rem" },
                             }}
                         >
-                            <ShareIcon sx={{ fontSize: 20 }} />
+                            <ShareIcon sx={{ fontSize: { xs: 18, md: 20 } }} />
                         </Box>
 
                         <Typography
                             sx={{
-                                fontSize: "1.25rem",
+                                fontSize: { xs: "1.25rem", md: "1.5rem" },
                                 fontWeight: 600,
                                 letterSpacing: "-0.025em",
-                                color: "#2C3E50",
-                                mb: "0.5rem",
+                                color: "#0f172a",
+                                mb: "0.75rem",
                             }}
                         >
                             Cross department
                         </Typography>
 
-                        <Typography sx={{ fontSize: "1rem", color: "#64748b", lineHeight: 1.6, mb: "1rem" }}>
+                        <Typography
+                            sx={{
+                                fontSize: { xs: "0.9375rem", md: "1rem" },
+                                color: "#64748b",
+                                lineHeight: 1.6,
+                                mb: "1rem"
+                            }}
+                        >
                             Multiple department impact visualization through knowledge graphs.
                         </Typography>
                     </MotionBox>

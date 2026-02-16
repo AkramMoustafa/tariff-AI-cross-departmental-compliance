@@ -2,10 +2,47 @@ import csv
 import sys
 from sqlalchemy import create_engine, text
 import os
-
+from src.api.New.loader import load_hs_tree
 DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
+def get_full_chain(node, hs_tree):
+    chain = []
+    current_code = node.code
+
+    while True:
+
+        if not current_code:
+            break
+
+        current_node = hs_tree.get(current_code)
+
+        if current_node:
+            chain.append({
+                "hs_code": current_node.code,
+                "description": current_node.description,
+                "level": current_node.level
+            })
+
+            parent_code = current_node.parent_code
+
+            # stop if parent is null or empty
+            if not parent_code:
+                break
+
+            current_code = parent_code
+
+        else:
+            # fallback: trim 2 digits
+            if not isinstance(current_code, str):
+                break
+
+            if len(current_code) <= 2:
+                break
+
+            current_code = current_code[:-2]
+
+    return list(reversed(chain))
 
 def normalize_hs(hs: str) -> str:
     if not hs:
@@ -22,7 +59,7 @@ def load_agoa_countries(path: str) -> set:
 
 
 def load_cbi_countries(path: str) -> set:
-    countries = szcheet()
+    countries = set()
     with open(path, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         for row in reader:
@@ -119,10 +156,10 @@ def get_hs_tree(hs_code: str) -> list[dict]:
     hs = hs_code.replace(".", "").strip()
 
     sql = text("""
-        SELECT parent_code, indent, description
+        SELECT clean_hs, level, description
         FROM tariffs_basic_data
-        WHERE :hs LIKE parent_code || '%'
-        ORDER BY indent ASC
+        WHERE :hs LIKE clean_hs || '%'
+        ORDER BY LENGTH(clean_hs) ASC
     """)
 
     with engine.connect() as conn:
@@ -130,13 +167,24 @@ def get_hs_tree(hs_code: str) -> list[dict]:
 
     return [
         {
-            "parent_code": r.parent_code,
-            "indent": r.indent,
+            "hs_code": r.clean_hs,
+            "level": r.level,
             "description": r.description
         }
         for r in rows
     ]
 
+def get_hs_hierarchy_only(hs_code: str):
+    hs_tree = load_hs_tree()
+
+    normalized = hs_code.replace(".", "").strip()
+
+    node = hs_tree.get(normalized)
+
+    if not node:
+        return []
+
+    return get_full_chain(node, hs_tree)
 
 def parse_programs(programs_text: str) -> set:
     """
@@ -216,8 +264,12 @@ def build_product_profile(hs_code: str, rows: dict):
         row = rows.get(code)
 
         if row:
-            profile["hs_chain"].append(code)
-            profile["descriptions"].append(row.get("description_clean"))
+            profile.setdefault("hierarchy", []).append({
+                "hs_code": code,
+                "description": row.get("description_clean"),
+                "level": len(code)
+            })
+
 
             # Capture tariff info (most specific first)
             if (
@@ -238,6 +290,8 @@ def build_product_profile(hs_code: str, rows: dict):
                 profile["special_programs"].update(row["special_programs"])
 
         code = code[:-2]
+    if "hierarchy" in profile:
+        profile["hierarchy"] = list(reversed(profile["hierarchy"]))
 
     # Effective tariff = most specific HS (first hit)
     if profile["tariff_chain"]:
@@ -355,10 +409,10 @@ def get_tariff_api(hs_code: str, origin_country: str) -> dict:
         "hs_code": hs_code,
         "origin_country": origin,
         "product": {
+            "hierarchy": profile.get("hierarchy", []),
             "effective_description": profile.get("effective_description"),
-            "hs_hierarchy": profile["hs_chain"],
-            "descriptions": profile["descriptions"],
         },
+
         "base_tariff": {
             "general_rate": t["general_rate"],
             "special_rate": t["special_rate"],
