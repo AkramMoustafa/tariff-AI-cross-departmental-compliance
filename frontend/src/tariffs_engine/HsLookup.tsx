@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import apiClient from "@/api/client"
-import { useEffect } from "react";
+import CircularProgress from "@mui/material/CircularProgress";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 type HSCategoryResult = {
   hs_code: string
@@ -23,7 +24,7 @@ export default function HsLookup({
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null)
   const [categoryProducts, setCategoryProducts] = useState<Record<string, HSCategoryResult[]>>({})
   const [loadingCategory, setLoadingCategory] = useState<string | null>(null)
-  
+  const [hasSearched, setHasSearched] = useState(false)
 const [hsTree, setHsTree] = useState<any[] | null>(null)
 const [treeLoading, setTreeLoading] = useState(false)
  const handleClear = () => {
@@ -34,67 +35,64 @@ const [treeLoading, setTreeLoading] = useState(false)
   setExpandedCategory(null)
   setCategoryProducts({})
   setError(null)
+  setHasSearched(false) 
 }
-useEffect(() => {
-  const normalized = query.replace(/\D/g, "")
+const handleSearch = async () => {
+  setHasSearched(true) 
+  const trimmed = query.trim()
+  const normalized = trimmed.replace(/\D/g, "")
+
   setExpandedCategory(null)
   setCategoryProducts({})
   setSelectedCode(null)
   setError(null)
-  if (query.trim().length < 3) {
+
+  if (trimmed.length < 3) {
     setResults([])
     setHsTree(null)
     return
   }
 
-  if (/^\d+(\.\d+)*$/.test(query)) {
-    const fetchTree = async () => {
-      try {
-        setTreeLoading(true)
-        const { data } = await apiClient.get("/tariffs/hs/tree", {
-          params: { hs_code: normalized },
-        })
-        setHsTree(data.tree)
-        
-        setResults([])
-      } catch (err) {
-        setHsTree(null)
-      } finally {
-        setTreeLoading(false)
-      }
+  // Numeric → Tree lookup
+  if (/^\d+(\.\d+)*$/.test(trimmed)) {
+    try {
+      setTreeLoading(true)
+      const { data } = await apiClient.get("/tariffs/hs/tree", {
+        params: { hs_code: normalized },
+      })
+      setHsTree(data.tree)
+      setResults([])
+    } catch (err) {
+      setHsTree(null)
+    } finally {
+      setTreeLoading(false)
     }
-
-    fetchTree()
     return
   }
 
-  const fetchAI = async () => {
-    try {
-      setLoading(true)
-      const { data } = await apiClient.get("/hs/search", {
-        params: { q: query.trim() },
-      })
+  // AI Search
+  try {
+    setLoading(true)
+    const { data } = await apiClient.get("/hs/search", {
+      params: { q: trimmed },
+    })
 
-      const rawResults = Array.isArray(data.results) ? data.results : []
+    const rawResults = Array.isArray(data.results) ? data.results : []
 
-      // 🔥 Only show 4-digit headings initially
-      const filtered = rawResults.filter((item: HSCategoryResult) => {
-        const normalized = item.hs_code.replace(/\D/g, "")
-        return normalized.length === 4
-      })
+    const filtered = rawResults.filter((item: HSCategoryResult) => {
+      const normalized = item.hs_code.replace(/\D/g, "")
+      return normalized.length === 4
+    })
 
-      setResults(filtered)
-      setHsTree(null)
-    } catch (err: any) {
-      setError(err.response?.data?.detail || err.message)
-    } finally {
-      setLoading(false)
-    }
+    setResults(filtered)
+    setHsTree(null)
+  } catch (err: any) {
+    setError(err.response?.data?.detail || err.message)
+  } finally {
+    setLoading(false)
   }
+}
 
-  fetchAI()
-
-}, [query])
   const fetchProducts = async (code: string) => {
     setLoadingCategory(code)
     try {
@@ -123,116 +121,238 @@ useEffect(() => {
 return (
   <div style={styles.container}>
 
-    {selectedCode ? (
-      <div style={styles.selectedMode}>
-        <div style={styles.selectedContent}>
-          <div>
-            <div style={styles.selectedLabel}>Classification Selected</div>
-            <div style={styles.selectedValue}>{selectedCode}</div>
-          </div>
 
-          <button onClick={handleClear} style={styles.changeButton}>
-            Change
-          </button>
-        </div>
-      </div>
-    ) : (
       <>
         {/* Header */}
         <div style={styles.headerRow}>
-          
-        <div style={styles.sectionHeader}>
- <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>
-  CLASSIFICATION
-</Typography>   
+                      
+                    <div style={styles.sectionHeader}>
+            <div style={styles.headerSection}>
+              <div>
+                <div style={styles.sectionLabel}>Classification</div>
+                <div style={styles.sectionSubtitle}>
+                  Search or enter an HS code to begin classification.
+                </div>
+              </div>
+            </div>
 
-</div>
+            </div>
 
-          {query && (
-            <button onClick={handleClear} style={styles.clearButton}>
-              Clear
-            </button>
-          )}
-        </div>
+                      {query && (
+                        <button onClick={handleClear} style={styles.clearButton}>
+                          Clear
+                        </button>
+                      )}
+                    </div>
 
         {/* Search */}
-        <div style={styles.searchRow}>
-          <span style={styles.searchIcon}>🔍</span>
-          <input
-            type="text"
-            placeholder="e.g. Men's leather winter jacket with zipper"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            style={styles.input}
-          />
-        </div>
+<div style={styles.searchRow}>
+  <span style={styles.searchIcon}>🔍</span>
 
+  <input
+    type="text"
+    placeholder="e.g. Men's leather winter jacket with zipper"
+    value={query}
+    onChange={(e) => setQuery(e.target.value)}
+    style={styles.input}
+  />
+
+<button
+  onClick={handleSearch}
+  disabled={loading || treeLoading || query.trim().length < 3}
+  style={{
+    ...styles.searchButton,
+    opacity:
+      loading || treeLoading || query.trim().length < 3 ? 0.6 : 1,
+    cursor:
+      loading || treeLoading || query.trim().length < 3
+        ? "not-allowed"
+        : "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  }}
+>
+  {(loading || treeLoading) && (
+    <CircularProgress size={14} sx={{ color: "#ffffff" }} />
+  )}
+  {loading || treeLoading ? "Searching..." : "Search"}
+</button>
+
+</div>
         {error && (
           <div style={styles.errorBox}>{error}</div>
         )}
 
-        {query.length >= 3 && !loading && !hsTree && results.length === 0 && (
+        {hasSearched && query.trim().length >= 3 && !loading && !treeLoading && !hsTree && results.length === 0 && !error && (
           <div style={styles.emptyState}>
             No matching HS codes found.
           </div>
         )}
 
+
         {/* Results */}
         {results.length > 0 && (
           <div style={styles.resultsBox}>
             {results.map((item) => (
-              <div
-                key={item.hs_code}
-                onClick={async () => {
-                  const normalized = item.hs_code.replace(/\D/g, "")
+  <Paper
+    key={item.hs_code}
+    elevation={0}
+    onClick={async () => {
+  const normalized = item.hs_code.replace(/\D/g, "")
 
-                  if (normalized.length === 4) {
-                    try {
-                      setLoading(true)
-                      const { data } = await apiClient.get("/hs/drilldown", {
-                        params: { code: item.hs_code },
-                      })
-                      setResults(data.results)
-                    } finally {
-                      setLoading(false)
-                    }
-                    return
-                  }
+  if (normalized.length < 10) {
+    try {
+      setLoading(true)
+      const { data } = await apiClient.get("/hs/drilldown", {
+        params: { code: item.hs_code },
+      })
+      setResults(data.results)
+    } finally {
+      setLoading(false)
+    }
+    return
+  }
 
-                  setSelectedCode(item.hs_code)
-                  onSelect(item.hs_code)
-                }}
-                style={styles.resultCard}
-              >
-                <div>
-                  <div style={styles.code}>{item.hs_code}</div>
-                  <div style={styles.description}>{item.description}</div>
-                </div>
-              </div>
-            ))}
+  // final tariff line
+  setSelectedCode(item.hs_code)
+setResults([])        // 👈 clear results dropdown
+setHsTree(null)       // 👈 clear tree if present
+setHasSearched(false) // 👈 optional, prevents empty message
+onSelect(item.hs_code)
+}}
+
+    sx={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "12px 14px",
+      zIndex: 2,
+      borderRadius: 2,
+     border:
+  selectedCode === item.hs_code
+    ? "1px solid #1e3a8a"
+    : "1px solid #e5e7eb",
+
+backgroundColor:
+  selectedCode === item.hs_code
+    ? "#eef2ff"
+    : "#ffffff",
+      cursor: "pointer",
+      transition: "all 0.15s ease",
+      "&:hover": {
+        backgroundColor: "#f1f5f9",
+        borderColor: "#cbd5e1",
+        transform: "translateY(-1px)",
+      },
+      "&:active": {
+        transform: "scale(0.98)",
+      },
+    }}
+  >
+    <Box>
+      <Typography fontWeight={600} fontSize={13}>
+        {item.hs_code}
+      </Typography>
+      <Typography fontSize={12} color="#4b5563">
+        {item.description}
+      </Typography>
+    </Box>
+
+    <ChevronRightIcon sx={{ fontSize: 18, color: "#94a3b8" }} />
+  </Paper>
+))}
           </div>
         )}
+{!hasSearched && !loading && !treeLoading && !results.length && !hsTree && (
+  <Box mt={2}>
+    <Typography fontSize={13} color="#64748b" mb={1}>
+      Try one of these examples:
+    </Typography>
 
-        {hsTree && (
-          <div
-            onClick={() => {
-              const mostSpecific = hsTree[hsTree.length - 1]
-              setSelectedCode(mostSpecific?.hs_code)
-              onSelect(mostSpecific?.hs_code)
-            }}
-            style={styles.selectionBox}
-          >
-            {treeLoading && <div>Loading HS hierarchy...</div>}
+    <Box display="flex" flexDirection="column" gap={1}>
+      {[
+        "Men's leather jacket",
+        "Electric motor 5kW",
+        "Frozen Atlantic salmon",
+        "8703.23.01",
+      ].map((example) => (
+        <Box
+          key={example}
+          onClick={() => setQuery(example)}
+          sx={{
+            px: 2,
+            py: 1,
+            borderRadius: 2,
+            fontSize: 13,
+            backgroundColor: "#f8fafc",
+            border: "1px solid #e5e7eb",
+            cursor: "pointer",
+            transition: "all 0.15s ease",
+            "&:hover": {
+              backgroundColor: "#eef2ff",
+              borderColor: "#cbd5e1",
+              transform: "translateX(4px)",
+            },
+          }}
+        >
+          {example}
+        </Box>
+      ))}
+    </Box>
+  </Box>
+)}
 
-            {hsTree.map((node: any, idx: number) => (
-              <div key={idx} style={{ marginBottom: 4 }}>
-                <strong>{node.hs_code}</strong> — {node.description}
-              </div>
-            ))}
-          </div>
-        )}
-      </>
+{hsTree && (
+  <Paper
+    elevation={0}
+    onClick={() => {
+      const mostSpecific = hsTree[hsTree.length - 1]
+      setSelectedCode(mostSpecific?.hs_code)
+      onSelect(mostSpecific?.hs_code)
+    }}
+    sx={{
+      marginTop: 2,
+      padding: "14px",
+      borderRadius: 2,
+      border: "1px solid #e5e7eb",
+      backgroundColor: "#ffffff",
+      cursor: "pointer",
+      transition: "all 0.15s ease",
+      "&:hover": {
+        backgroundColor: "#f1f5f9",
+        borderColor: "#cbd5e1",
+        transform: "translateY(-1px)",
+      },
+      "&:active": {
+        transform: "scale(0.98)",
+      },
+    }}
+  >
+    {treeLoading && (
+      <Typography fontSize={13} color="#6b7280">
+        Loading HS hierarchy...
+      </Typography>
     )}
+
+    {hsTree.length > 0 && (
+      <Box display="flex" justifyContent="space-between" alignItems="center">
+        <Typography fontSize={13}>
+          {hsTree.map((node: any, idx: number) => (
+            <span key={idx}>
+              <strong>{node.hs_code}</strong> — {node.description}
+              {idx < hsTree.length - 1 && " → "}
+            </span>
+          ))}
+        </Typography>
+
+        <ChevronRightIcon sx={{ fontSize: 18, color: "#94a3b8" }} />
+      </Box>
+    )}
+  </Paper>
+)}
+      </>
+    
   </div>
 )
 
@@ -246,11 +366,13 @@ return (
               fontFamily: "Inter, sans-serif",
             },
       container: {
-      maxWidth: "1000px",
-      height: "350px",
-      padding: "16px 0",   
-      display: "flex",
-      flexDirection: "column",
+        maxWidth: "1200px",
+        margin: "0 auto",
+        background: "#ffffff",
+        borderRadius: 16,
+        padding: "32px",
+        border: "1px solid #e5e7eb",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
       },
 
       header: {
@@ -266,35 +388,44 @@ return (
         fontSize: 14,
         color: "#6b7280"
       },
-      searchRow: {
-        display: "flex",
-        alignItems: "center",
-        height: 42,
-        borderRadius: 10,
-        border: "1px solid #e5e7eb",
-        background: "#ffffff",
-        padding: "0 14px",
-        transition: "all 160ms ease",
-      },
-
+searchRow: {
+  display: "flex",
+  alignItems: "center",
+  height: 52,
+  borderRadius: 14,
+  border: "1px solid #cbd5e1",
+  background: "#f8fafc",
+  padding: "0 16px",
+  transition: "all 0.2s ease",
+},
       rowContent: {
       display: "flex",
       alignItems: "center",
       gap: 12,
       flex: 1,
       overflow: "hidden",
-      },
+      },searchButton: {
+  marginLeft: 10,
+  height: 32,
+  padding: "0 16px",
+  borderRadius: 8,
+  border: "none",
+  background: "#1e3a8a",
+  color: "#ffffff",
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+},
 input: {
   flex: 1,
   border: "none",
   outline: "none",
-  fontSize: 14,
+  fontSize: 15,
   fontWeight: 500,
   color: "#0f172a",
   background: "transparent",
-  fontFamily: "inherit",
 },
-
 
       headerRow: {
       display: "flex",
@@ -333,6 +464,8 @@ input: {
       resultsBox: {
       marginTop: 8,
       borderRadius: 8,
+      position: "relative",
+      zIndex: 1,
       background: "#ffffff",
       overflowY: "auto",
       maxHeight: "200px",
@@ -405,6 +538,23 @@ input: {
       borderRadius: 8,
       marginBottom: 16
       },
+      headerSection: {
+  marginBottom: 24,
+},
+
+sectionLabel: {
+  fontSize: 12,
+  fontWeight: 700,
+  letterSpacing: "1px",
+  textTransform: "uppercase",
+  color: "#64748b",
+  marginBottom: 6,
+},
+
+sectionSubtitle: {
+  fontSize: 14,
+  color: "#475569",
+},
       emptyState: {
       fontSize: 14,
       color: "#6b7280"

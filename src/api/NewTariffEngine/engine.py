@@ -172,7 +172,7 @@ def get_tariff_with_duty_payable(
 
     # Percent math (already correct in your system)
     rates = calculate_total_ad_valorem(
-        base_tariff_rate=tariff["final_tariff"]["rate"],
+        base_tariff_rate=tariff["base_tariff"]["rate"],
         section301=section301
     )
 

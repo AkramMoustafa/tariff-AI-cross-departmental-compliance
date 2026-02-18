@@ -3,6 +3,11 @@ import sys
 from sqlalchemy import create_engine, text
 import os
 from src.api.New.loader import load_hs_tree
+import json
+import re
+from sqlalchemy import text
+from src.api.NewTariffEngine.rules.chapter99  import resolve_additional_duty
+
 DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
@@ -371,6 +376,31 @@ def clean_rate(value):
     if isinstance(value, str) and value.lower() == "nan":
         return ""
     return value
+def parse_rate_to_percent(rate):
+    """
+    Converts tariff text into numeric percent.
+    Examples:
+        "Free" -> 0.0
+        "3.5%" -> 3.5
+        "25%" -> 25.0
+        "" -> 0.0
+        None -> 0.0
+    """
+    if not rate:
+        return 0.0
+
+    rate = str(rate).strip().lower()
+
+    if "free" in rate:
+        return 0.0
+
+    if "%" in rate:
+        return float(rate.replace("%", "").strip())
+
+    try:
+        return float(rate)
+    except ValueError:
+        raise ValueError(f"Unsupported duty format: {rate}")
 
 def get_tariff_api(hs_code: str, origin_country: str) -> dict:
     rows = load_hs_from_postgres()
@@ -403,25 +433,47 @@ def get_tariff_api(hs_code: str, origin_country: str) -> dict:
         fta_programs=FTA_PROGRAMS
     )
 
+    base_rate = parse_rate_to_percent(tariff_result["rate"])
+
+    additional_result = resolve_additional_duty(
+        country_code=origin,
+        hs_code=hs_code,
+        base_rate_percent=base_rate
+    )
+
+    additional_rate = (
+        parse_rate_to_percent(additional_result["rate"])
+        if additional_result
+        else 0
+    )
+
+    total_rate = base_rate + additional_rate
+
+
+    total_rate = base_rate + additional_rate
     t = profile["effective_tariff"]
 
     return {
         "hs_code": hs_code,
         "origin_country": origin,
+
         "product": {
             "hierarchy": profile.get("hierarchy", []),
             "effective_description": profile.get("effective_description"),
         },
 
         "base_tariff": {
-            "general_rate": t["general_rate"],
-            "special_rate": t["special_rate"],
-            "column2_rate": t["column2_rate"],
-            "eligible_programs": t["special_programs"],
-        },
-        "final_tariff": {
-            "rate": tariff_result["rate"],
+            "rate": base_rate,
             "basis": tariff_result["basis"],
             "applied_program": tariff_result["applied_program"],
+            "eligible_programs": t["special_programs"],
+        },
+
+        "chapter_99": additional_result if additional_result else None,
+
+        "duty_summary": {
+            "base_rate": base_rate,
+            "additional_rate": additional_rate,
+            "total_rate": total_rate
         }
     }
