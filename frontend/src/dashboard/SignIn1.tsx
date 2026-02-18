@@ -167,7 +167,7 @@ gap: 4,
               </Typography>
 
               <Typography sx={{ color: "#64748b", fontSize: 12 }}>
-                Compliance Intelligence Platform
+                AI Tariff & Trade Intelligence Platform
               </Typography>
               </Box>
             </Box>
@@ -182,7 +182,7 @@ gap: 4,
             color: "#2C3E50",
             }}
           >
-            Sign in to your compliance workspace.
+            Access your tariff operations platform.
           </Typography>
 
         <Typography
@@ -288,7 +288,7 @@ lineHeight: 1.65,
       },
     }}
   >
-    CDC
+    Enterprise Admin
   </Button>
 
   <Button
@@ -310,7 +310,7 @@ lineHeight: 1.65,
       },
     }}
   >
-    Standard Users
+    TARIFF USERS
   </Button>
 </Box>
 

@@ -7,12 +7,14 @@ type HSCategoryResult = {
   description: string
   score?: number
 }
+import { Box, Paper, Typography, TextField, Button } from "@mui/material";
 
 export default function HsLookup({
   onSelect,
 }: {
   onSelect: (hsCode: string) => void;
 }) {
+  const [isFocused, setIsFocused] = useState(false)
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<HSCategoryResult[]>([])
   const [loading, setLoading] = useState(false)
@@ -138,12 +140,13 @@ return (
       <>
         {/* Header */}
         <div style={styles.headerRow}>
-          <div>
-            <h2 style={styles.title}>AI Tariff Classification</h2>
-            <p style={styles.subtitle}>
-              Describe your product to identify the most relevant HS codes.
-            </p>
-          </div>
+          
+        <div style={styles.sectionHeader}>
+ <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>
+  CLASSIFICATION
+</Typography>   
+
+</div>
 
           {query && (
             <button onClick={handleClear} style={styles.clearButton}>
@@ -154,6 +157,7 @@ return (
 
         {/* Search */}
         <div style={styles.searchRow}>
+          <span style={styles.searchIcon}>🔍</span>
           <input
             type="text"
             placeholder="e.g. Men's leather winter jacket with zipper"
@@ -241,224 +245,223 @@ return (
               padding: "60px 20px",
               fontFamily: "Inter, sans-serif",
             },
-          container: {
-            maxWidth: "1000px",
-            height: "350px",         
-            margin: "auto",
-            background: "#ffffff",
-            borderRadius: 16,
-            padding: "16px 20px",   // 🔥 reduced from 28px
-            border: "1px solid rgba(15,23,42,0.06)",
-            boxShadow: "0 10px 30px rgba(15,23,42,0.05)",
-            display: "flex",
-            flexDirection: "column",
-          },
+      container: {
+      maxWidth: "1000px",
+      height: "350px",
+      padding: "16px 0",   
+      display: "flex",
+      flexDirection: "column",
+      },
 
-            header: {
-              marginBottom: 30
-            },
-            title: {
-  fontSize: 22,
-  fontWeight: 700,
-  letterSpacing: "-0.3px",
-  marginBottom: 8,
-},
-            subtitle: {
-              fontSize: 14,
-              color: "#6b7280"
-            },
-          searchRow: {
-            display: "flex",
-            gap: 12,
-            marginBottom: 12,
-          },
+      header: {
+        marginBottom: 30
+      },
+      title: {
+      fontSize: 22,
+      fontWeight: 700,
+      letterSpacing: "-0.3px",
+      marginBottom: 8,
+      },
+      subtitle: {
+        fontSize: 14,
+        color: "#6b7280"
+      },
+      searchRow: {
+        display: "flex",
+        alignItems: "center",
+        height: 42,
+        borderRadius: 10,
+        border: "1px solid #e5e7eb",
+        background: "#ffffff",
+        padding: "0 14px",
+        transition: "all 160ms ease",
+      },
 
-            rowContent: {
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            flex: 1,
-            overflow: "hidden",
-          },
-          input: {
-            width: "100%",
-            padding: "8px 0",
-            border: "none",
-            outline: "none",
-            fontSize: 16,
-          backgroundImage: `
-            linear-gradient(
-              to right,
-              rgba(209,213,219,0.4) 0%,
-              rgba(209,213,219,0.4) 70%,
-              transparent 100%
-            )
-          `,
-            backgroundRepeat: "no-repeat",
-            backgroundSize: "100% 1px",
-            backgroundPosition: "bottom",
-            transition: "all 0.3s ease",
-          },
-
-
-          headerRow: {
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: 30,
-          },
-          clearButton: {
-            fontSize: 13,
-            fontWeight: 500,
-            color: "#2563eb",
-            background: "transparent",
-            border: "none",
-            cursor: "pointer",
-            marginLeft: 20,   // 👈 moves it slightly right
-            marginTop: 6      // 👈 aligns vertically with subtitle
-          },
-          button: {
-            height: 36,                 // controls actual size
-            padding: "0 18px",          // horizontal only
-            borderRadius: 999,
-            border: "none",
-            background: "#6366f1",
-            color: "#111827",
-            fontWeight: 600,
-            fontSize: 13,
-            letterSpacing: "0.3px",
-            textTransform: "uppercase",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            transition: "all 0.2s ease",
-          }
-          ,
-          resultsBox: {
-            marginTop: 8,
-  borderRadius: 8,
-  background: "#ffffff",
-  overflowY: "auto",
-  maxHeight: "200px",
-  border: "1px solid #e5e7eb",
-},
-resultCard: {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  padding: "10px 12px",
-  borderRadius: 8,
-  border: "1px solid #e5e7eb",
-  background: "#ffffff",
-  cursor: "pointer",
-  transition: "0.2s"
-},
-code: {
-  fontWeight: 600,
-  fontSize: 13,
-  marginBottom: 2
-},
-description: {
-  fontSize: 12,
-  color: "#4b5563",
-  lineHeight: 1.3,
-  display: "-webkit-box",
-  WebkitLineClamp: 2,         
-  WebkitBoxOrient: "vertical",
-  overflow: "hidden",
-},
-confidenceContainer: {
-  width: 50,
-  marginLeft: 10,
-  flexShrink: 0
-},
-confidenceBar: {
-  height: 4,
-  borderRadius: 4,
-  marginBottom: 2
-},
-confidenceText: {
-  fontSize: 10,
-  textAlign: "right",
-  color: "#6b7280"
-},
-drilldown: {
-  paddingLeft: 24,
-  paddingTop: 4,
-  paddingBottom: 4,
-},
-productCard: {
-  padding: "6px 12px",
-  cursor: "pointer",
-  fontSize: 12,
-  display: "flex",
-  flexDirection: "column",
-},
-selectionBox: {
-  marginTop: 14,
-  padding: "10px 14px",
-  borderRadius: 8,
-  border: "1px solid #ffffff",
-  background: "#ffffff",
-  fontSize: 13,
-},
-  errorBox: {
-    padding: 12,
-    background: "#fee2e2",
-    color: "#991b1b",
-    borderRadius: 8,
-    marginBottom: 16
-  },
-  emptyState: {
-    fontSize: 14,
-    color: "#6b7280"
-  },
-  loadingText: {
-    fontSize: 13,
-    color: "#6b7280"
-  },selectedMode: {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  height: "100%",
+      rowContent: {
+      display: "flex",
+      alignItems: "center",
+      gap: 12,
+      flex: 1,
+      overflow: "hidden",
+      },
+input: {
+  flex: 1,
+  border: "none",
+  outline: "none",
+  fontSize: 14,
+  fontWeight: 500,
+  color: "#0f172a",
+  background: "transparent",
+  fontFamily: "inherit",
 },
 
 
-selectedContent: {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  width: "100%",
-  padding: "24px",
-  borderRadius: 16,
-  background: "#ffffff",
-  border: "1px solid #ffffff",
-  boxShadow: "0 6px 18px rgba(0,0,0,0.04)",
-},
+      headerRow: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start",
+      marginBottom: 30,
+      },
+      clearButton: {
+      fontSize: 13,
+      fontWeight: 500,
+      color: "#2563eb",
+      background: "transparent",
+      border: "none",
+      cursor: "pointer",
+      marginLeft: 20,   // 👈 moves it slightly right
+      marginTop: 6      // 👈 aligns vertically with subtitle
+      },
+      button: {
+      height: 36,                 // controls actual size
+      padding: "0 18px",          // horizontal only
+      borderRadius: 999,
+      border: "none",
+      background: "#6366f1",
+      color: "#111827",
+      fontWeight: 600,
+      fontSize: 13,
+      letterSpacing: "0.3px",
+      textTransform: "uppercase",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      transition: "all 0.2s ease",
+      }
+      ,
+      resultsBox: {
+      marginTop: 8,
+      borderRadius: 8,
+      background: "#ffffff",
+      overflowY: "auto",
+      maxHeight: "200px",
+      border: "1px solid #e5e7eb",
+      },
+      resultCard: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "10px 12px",
+      borderRadius: 8,
+      border: "1px solid #e5e7eb",
+      background: "#ffffff",
+      cursor: "pointer",
+      transition: "0.2s"
+      },
+      code: {
+      fontWeight: 600,
+      fontSize: 13,
+      marginBottom: 2
+      },
+      description: {
+      fontSize: 12,
+      color: "#4b5563",
+      lineHeight: 1.3,
+      display: "-webkit-box",
+      WebkitLineClamp: 2,         
+      WebkitBoxOrient: "vertical",
+      overflow: "hidden",
+      },
+      confidenceContainer: {
+      width: 50,
+      marginLeft: 10,
+      flexShrink: 0
+      },
+      confidenceBar: {
+      height: 4,
+      borderRadius: 4,
+      marginBottom: 2
+      },
+      confidenceText: {
+      fontSize: 10,
+      textAlign: "right",
+      color: "#6b7280"
+      },
+      drilldown: {
+      paddingLeft: 24,
+      paddingTop: 4,
+      paddingBottom: 4,
+      },
+      productCard: {
+      padding: "6px 12px",
+      cursor: "pointer",
+      fontSize: 12,
+      display: "flex",
+      flexDirection: "column",
+      },
+      selectionBox: {
+      marginTop: 14,
+      padding: "10px 14px",
+      borderRadius: 8,
+      border: "1px solid #ffffff",
+      background: "#ffffff",
+      fontSize: 13,
+      },
+      errorBox: {
+      padding: 12,
+      background: "#fee2e2",
+      color: "#991b1b",
+      borderRadius: 8,
+      marginBottom: 16
+      },
+      emptyState: {
+      fontSize: 14,
+      color: "#6b7280"
+      },
+      loadingText: {
+      fontSize: 13,
+      color: "#6b7280"
+      },selectedMode: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      height: "100%",
+      },searchIcon: {
+      marginRight: 8,
+      fontSize: 14,
+      color: "#6b7280",
+      },
 
-selectedLabel: {
-  fontSize: 13,
-  fontWeight: 600,
-  color: "#6b7280",
-  marginBottom: 8,
-},
-selectedValue: {
-  fontSize: 26,
-  fontWeight: 700,
-  color: "#1f2937",
-  letterSpacing: "0.5px",
-},
-changeButton: {
-  fontSize: 12,
-  fontWeight: 600,
-  color: "#1e3a8a",
-  background: "rgba(30, 58, 138, 0.08)",
-  border: "1px solid rgba(30, 58, 138, 0.15)",
-  padding: "6px 12px",
-  borderRadius: 8,
-  cursor: "pointer",
-  transition: "all 0.2s ease",
-},
 
-}
+      selectedContent: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      width: "100%",
+      padding: "24px",
+      borderRadius: 16,
+      background: "#ffffff",
+      border: "1px solid #ffffff",
+      boxShadow: "0 6px 18px rgba(0,0,0,0.04)",
+      },
+
+      selectedLabel: {
+      fontSize: 13,
+      fontWeight: 600,
+      color: "#6b7280",
+      marginBottom: 8,
+      },
+      selectedValue: {
+      fontSize: 26,
+      fontWeight: 700,
+      color: "#1f2937",
+      letterSpacing: "0.5px",
+      },
+      changeButton: {
+      fontSize: 12,
+      fontWeight: 600,
+      color: "#1e3a8a",
+      background: "rgba(30, 58, 138, 0.08)",
+      border: "1px solid rgba(30, 58, 138, 0.15)",
+      padding: "6px 12px",
+      borderRadius: 8,
+      cursor: "pointer",
+      transition: "all 0.2s ease",
+      },sectionHeader: {
+      paddingBottom: 16,
+      marginBottom: 20,
+      borderBottom: "1px solid #e5e7eb",
+      },
+
+      }

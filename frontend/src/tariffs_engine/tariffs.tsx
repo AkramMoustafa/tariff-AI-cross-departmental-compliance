@@ -144,7 +144,7 @@ const tariffLines = result
 
     position: "relative",
     minHeight: "100vh",
-    bgcolor: "#f8fafc",
+    bgcolor: "#ffffff",
     p: 4,
       }}
     >
@@ -173,8 +173,8 @@ const tariffLines = result
 
         {/* HEADER META */}
         <Box sx={{ mb: 2 }}>
-          <Stack direction="row" spacing={1} alignItems="center" mb={1}>
-            <Chip
+          {/* <Stack direction="row" spacing={1} alignItems="center" mb={1}> */}
+            {/* <Chip
               label="OFFICIAL DATA SOURCE"
               size="small"
               sx={{
@@ -184,25 +184,25 @@ const tariffLines = result
                 fontSize: "11px",
                 borderRadius: "16px",
               }}
-            />
-            <Typography
+            /> */}
+            {/* <Typography
               variant="caption"
               color="text.secondary"
               sx={{ fontWeight: 500 }}
             >
               HTS 2026 v3
-            </Typography>
-          </Stack>
+            </Typography> */}
+          {/* </Stack> */}
 
-          <Typography variant="h4" fontWeight={600} mb={0.5}>
+          {/* <Typography variant="h4" fontWeight={600} mb={0.5}>
             HS Code Tariff Calculator
-          </Typography>
+          </Typography> */}
 
-          <Typography variant="body2" fontSize={12} color="text.secondary">
+          {/* <Typography variant="body2" fontSize={12} color="text.secondary">
             Official tariff calculations based on Harmonized Tariff Schedule (HTS)
             schedules.
-          </Typography>
-          <Typography
+          </Typography> */}
+          {/* <Typography
             variant="body2"
             fontSize={12}
             color="text.secondary"
@@ -210,7 +210,7 @@ const tariffLines = result
           >
             Enter shipment details below to receive an instant, auditable duty
             estimate and compliance breakdown.
-          </Typography>
+          </Typography> */}
         </Box>
         <Box sx={{ mb: 4 }}>
   <HsLookup

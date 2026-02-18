@@ -88,10 +88,11 @@ export default function SystemStatusPanel() {
         {/* Right column */}
         <Stack spacing={1}>
           {[
-            "Rules engine up to date",
-            "Audit trail integrity verified",
+            "Chapter 99 rules synchronized",
+            "Section 232/301 schedules current",
+            "HTS updates verified",
             "12,418 calculations today",
-            "No compliance alerts",
+            "No trade action conflicts",
           ].map((text, i) => (
             <StatusLine key={text} text={text} index={i + 2} />
           ))}
