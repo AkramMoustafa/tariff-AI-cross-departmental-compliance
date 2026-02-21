@@ -1,0 +1,156 @@
+{
+  "9903.94.01": {
+    "priority": 1,
+    "type": "chapter_99_trade_action_vehicle",
+    "legal_basis": "U.S. Note 33 to Subchapter III, Chapter 99",
+    "rate": {
+      "type": "ad_valorem_additional",
+      "value": 25,
+      "applies_to": "customs_value",
+      "calculation": "duty_provided_in_applicable_subheading + 25%"
+    },
+    "product_scope": [
+      "8703.22.01",
+      "8703.23.01",
+      "8703.24.01",
+      "8703.31.01",
+      "8703.32.01",
+      "8703.33.01",
+      "8703.40.00",
+      "8703.50.00",
+      "8703.60.00",
+      "8703.70.00",
+      "8703.80.00",
+      "8703.90.01",
+      "8704.21.01",
+      "8704.31.01",
+      "8704.41.00",
+      "8704.51.00",
+      "8704.60.00"
+    ],
+    "exclusions": {
+      "excluded_headings": [
+        "9903.94.02",
+        "9903.94.03",
+        "9903.94.04",
+        "9903.94.31",
+        "9903.94.40",
+        "9903.94.41",
+        "9903.94.50",
+        "9903.94.51",
+        "9903.94.60",
+        "9903.94.61"
+      ]
+    },
+    "stacking": {
+      "allowed": true,
+      "description": "Applies in addition to normal column 1 duty unless another 9903.94.xx exclusion applies."
+    }
+  },
+
+  "9903.94.03": {
+    "priority": 10,
+    "type": "conditional_override",
+    "overrides": ["9903.94.01"],
+    "conditions": {
+      "usmca_eligible": true,
+      "commerce_approval": true,
+      "documentation_submitted": true
+    },
+    "rate": {
+      "type": "partial_value_ad_valorem",
+      "value": 25,
+      "base": "non_us_content",
+      "formula": "customs_value - us_content_value"
+    }
+  },
+
+  "9903.94.31": {
+    "priority": 30,
+    "type": "country_specific_reduced_rate",
+    "overrides": ["9903.94.01"],
+    "conditions": {
+      "country_of_origin": "GB",
+      "subdivision_i_eligible": true
+    },
+    "rate": {
+      "type": "ad_valorem_additional",
+      "value": 7.5,
+      "applies_to": "customs_value",
+      "description": "MFN + 7.5% for qualifying UK passenger vehicles"
+    }
+  },
+
+  "9903.94.60": {
+    "priority": 20,
+    "type": "country_specific_exemption",
+    "overrides": ["9903.94.01", "9903.94.03"],
+    "conditions": {
+      "country_of_origin": "KR",
+      "column_1_rate_minimum_percent": 15
+    },
+    "rate": {
+      "type": "no_additional_duty",
+      "description": "Apply only the duty provided in the applicable subheading"
+    }
+  },
+
+  "9903.94.61": {
+    "priority": 21,
+    "type": "country_specific_rate_floor",
+    "overrides": ["9903.94.01", "9903.94.03"],
+    "conditions": {
+      "country_of_origin": "KR",
+      "column_1_rate_less_than_percent": 15
+    },
+    "rate": {
+      "type": "ad_valorem_total_override",
+      "value": 15,
+      "applies_to": "customs_value",
+      "description": "Total duty set to 15% ad valorem"
+    }
+  },
+  "9903.94.41": {
+    "priority": 36,
+    "type": "country_specific_rate_floor",
+    "overrides": ["9903.94.01"],
+    "conditions": {
+      "country_of_origin": "JP",
+      "column_1_rate_less_than_percent": 15
+    },
+    "rate": {
+      "type": "ad_valorem_total_override",
+      "value": 15,
+      "applies_to": "customs_value",
+      "description": "Total duty set to 15% for qualifying Japanese vehicles"
+    }
+  },
+  "9903.94.50": {
+  "priority": 37,
+  "type": "country_specific_exemption",
+  "overrides": ["9903.94.01"],
+  "conditions": {
+    "country_group": "EU",
+    "column_1_rate_minimum_percent": 15
+  },
+  "rate": {
+    "type": "no_additional_duty",
+    "description": "Apply only the duty provided in the applicable subheading"
+  }
+},"9903.94.51": {
+  "priority": 38,
+  "type": "country_specific_rate_floor",
+  "overrides": ["9903.94.01"],
+  "conditions": {
+    "country_group": "EU",
+    "column_1_rate_less_than_percent": 15
+  },
+  "rate": {
+    "type": "ad_valorem_total_override",
+    "value": 15,
+    "applies_to": "customs_value",
+    "description": "Total duty set to 15% for qualifying EU vehicles"
+  }
+}
+
+}

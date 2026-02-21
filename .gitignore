@@ -85,6 +85,19 @@ venv/
 Thumbs.db
 desktop.ini
 
+# Allow tariff rule JSON files
+!SteelIron/*.json
+!SteelIron/rules_for_steel_iron.json
+!SteelIron/Steel_Iron.json
+
+# Allow Chapter 99 rule files
+!9903.76.xx.json
+!chapter99_global_rules.json
+!vehicles_9903_94.json
+!Canada.json
+!Mexico.json
+!china.json
+
 sample_regulations.json
 admin-key.json
 src/core/files_metadata.json

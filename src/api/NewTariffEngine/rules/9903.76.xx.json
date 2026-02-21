@@ -1,0 +1,111 @@
+{
+  "chapter": "99",
+  "subchapter": "III",
+  "rule_family": "product_overrides",
+  "description": "Product-specific Chapter 99 additional duties under U.S. Note 37",
+  "rules": [
+      {
+      "heading": "9903.76.01",
+      "description": "Softwood timber and lumber products provided for in subdivision (b) of U.S. Note 37 of this subchapter",
+      "legal_trigger": {
+        "us_note": "37",
+        "subdivision": "b"
+      }, "scope": {
+        "type": "hs_list",
+        "items": [
+          "4403.11.00",
+          "4403.21.01",
+          "4403.22.01",
+          "4403.23.01",
+          "4403.24.01",
+          "4403.25.01",
+          "4403.26.01",
+          "4403.99.01",
+          "4406.11.00",
+          "4406.91.00",
+          "4407.11.00",
+          "4407.12.00",
+          "4407.13.00",
+          "4407.14.00",
+          "4407.19.00"
+        ]
+      },
+      "duty": {
+        "additional_rate": 10,
+        "rate_type": "ad_valorem",
+        "stacking": {
+        "with_chapters_1_97": true,
+        "with_other_chapter_99": false
+        },  
+        "calculation_basis": "duty provided in the applicable subheading plus additional duty"
+      },
+      "priority": "product_override",
+      "source": {
+        "document": "HTSUS Revision 2 (2026)",
+        "section": "Chapter 99, Subchapter III",
+        "table_row": "9903.76.01"
+      }
+    },
+    {
+      "heading": "9903.76.02",
+      "description": "Upholstered wooden furniture products provided for in subdivision (d) of U.S. Note 37 of this subchapter",
+      "legal_trigger": {
+        "us_note": "37",
+        "subdivision": "d"
+      }, "scope": {
+        "type": "hs_list",
+        "items": [
+          "9401.61.4011",
+          "9401.61.4031",
+          "9401.61.6011",
+          "9401.61.6031"
+        ]
+      },
+      "duty": {
+        "additional_rate": 25,
+        "rate_type": "ad_valorem",
+        "stacking": {
+        "with_chapters_1_97": true,
+        "with_other_chapter_99": false
+        },  
+        "calculation_basis": "duty provided in the applicable subheading plus additional duty"
+      },
+      "priority": "product_override",
+      "source": {
+        "document": "HTSUS Revision 2 (2026)",
+        "section": "Chapter 99, Subchapter III",
+        "table_row": "9903.76.02"
+      }
+    },
+    {
+      "heading": "9903.76.03",
+      "description": "Completed kitchen cabinets and vanities and parts of kitchen cabinets and vanities provided for in subdivision (f) of U.S. Note 37 of this subchapter",
+      "legal_trigger": {
+        "us_note": "37",
+        "subdivision": "f"
+      }, "scope": {
+        "type": "hs_list",
+        "items": [
+          "9403.40.9060",
+          "9403.60.8093",
+          "9403.91.0080"
+        ]
+      },
+      "duty": {
+        "additional_rate": 25,
+        "rate_type": "ad_valorem",
+        "stacking": {
+        "with_chapters_1_97": true,
+        "with_other_chapter_99": false
+        },  
+        "calculation_basis": "duty provided in the applicable subheading plus additional duty"
+      },
+      "priority": "product_override",
+      "source": {
+        "document": "HTSUS Revision 2 (2026)",
+        "section": "Chapter 99, Subchapter III",
+        "table_row": "9903.76.03"
+      }
+    }
+  ]
+}

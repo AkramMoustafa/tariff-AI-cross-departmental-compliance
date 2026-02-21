@@ -1,0 +1,62 @@
+{
+  "country": "CA",
+  "country_name": "Canada",
+  "chapter": "99",
+  "subchapter": "III",
+  "description": "Temporary modifications established pursuant to trade legislation",
+  "rules": [
+    {
+      "heading": "9903.01.10",
+      "rate": 35,
+      "rate_type": "ad_valorem",
+      "applies_to": "products_of_canada",
+      "stacking": true,
+      "conditions": {
+        "excluded_headings": [
+          "9903.01.11",
+          "9903.01.13",
+          "9903.76.01",
+          "9903.76.02",
+          "9903.76.03"
+        ],
+        "origin_definition": [
+          "goods_of_canada_under_19_CFR_102",
+          "last_substantial_transformation_in_canada"
+        ]
+      },
+      "additional_notes": [
+        "Stacks with Chapters 1–97 duties",
+        "Applies in addition to antidumping and countervailing duties",
+        "De minimis exemption allowed until Commerce notification"
+      ]
+    },
+    {
+    "heading": "9903.01.11",
+    "rate": 0,
+    "rate_type": "exempt",
+    "applies_to": "donations",
+    "effect": "blocks_additional_duties",
+    "description": "Donations of food, clothing, and medicine intended to relieve human suffering"
+    },
+
+    {
+      "heading": "9903.01.13",
+      "rate": 10,
+      "rate_type": "ad_valorem",
+      "applies_to": "covered_energy_and_critical_mineral_products_of_canada",
+      "description": "Applies to crude oil, natural gas, lease condensates, natural gas liquids, refined petroleum products, uranium, coal, biofuels, geothermal heat, hydropower, and critical minerals as defined by 30 U.S.C. 1606(a)(3).",
+      "stacking": true,
+      "conditions": {
+        "origin_definition": [
+          "goods_of_canada_under_19_CFR_102",
+          "last_substantial_transformation_in_canada"
+        ]
+      },
+      "additional_notes": [
+        "Stacks with Chapters 1–97 duties",
+        "Stacks with AD/CVD",
+        "De minimis exemption conditional"
+      ]
+    }
+  ]
+}

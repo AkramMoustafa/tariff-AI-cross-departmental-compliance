@@ -121,8 +121,6 @@ const handleSearch = async () => {
 return (
   <div style={styles.container}>
 
-
-      <>
         {/* Header */}
         <div style={styles.headerRow}>
                       
@@ -180,6 +178,8 @@ return (
 </button>
 
 </div>
+{!selectedCode ? (
+  <>
         {error && (
           <div style={styles.errorBox}>{error}</div>
         )}
@@ -351,7 +351,43 @@ backgroundColor:
     )}
   </Paper>
 )}
-      </>
+   </>
+) : (
+
+   <Box
+  sx={{
+    mt: 1,
+    px: 1.5,
+    py: 0.75,
+    borderRadius: 999,
+    border: "1px solid #cbd5e1",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 1,
+    backgroundColor: "#f1f5f9",
+  }}
+>
+  <Typography fontSize={12} fontWeight={600}>
+    ✓ {selectedCode}
+  </Typography>
+
+  <Typography
+    fontSize={11}
+    sx={{
+      cursor: "pointer",
+      color: "#1e3a8a",
+      fontWeight: 500,
+    }}
+    onClick={() => {
+      setSelectedCode(null)
+      setQuery("")
+      setHasSearched(false)
+    }}
+  >
+    Change
+  </Typography>
+</Box>
+)}
     
   </div>
 )

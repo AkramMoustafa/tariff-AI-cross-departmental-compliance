@@ -1,0 +1,41 @@
+{
+  "country_codes": ["CN", "HK"],
+  "country_names": ["China", "Hong Kong"],
+  "chapter": "99",
+  "subchapter": "III",
+  "us_note": 2,
+  "program_type": "china_emergency_overlay",
+  "headings": [
+    {
+      "heading": "9903.01.20",
+      "additional_duty": {
+        "rate": 10,
+        "rate_type": "ad_valorem",
+        "stacking": true
+      },
+      "applies_to": "products_of_china_and_hong_kong",
+      "excludes_headings": [
+        "9903.01.21",
+        "9903.01.22"
+      ],
+      "personal_use_exclusion": true,
+      "other_duties_remain": [
+        "MFN",
+        "AD",
+        "CVD",
+        "other_applicable_fees"
+      ]
+    }
+  ],
+  "special_headings": [{
+    "heading": "9903.01.21",
+    "description": "Donations to relieve human suffering",
+    "applies_to": "products_of_china_and_hong_kong"
+  },
+     {
+      "heading": "9903.01.22",
+      "description": "Articles the product of China and Hong Kong that are informational materials, including but not limited to, publications, films, posters, phonograph records, photographs, microfilms, microfiche, tapes, compact disks, CD ROMs, artworks, and news wire feeds",
+      "applies_to": "products_of_china_and_hong_kong"
+    }
+  ]
+}

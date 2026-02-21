@@ -1,0 +1,128 @@
+{
+  "country": "MX",
+  "country_name": "Mexico",
+  "chapter": "99",
+  "subchapter": "III",
+  "description": "Temporary modifications established pursuant to trade legislation",
+  "rules": [
+    {
+      "heading": "9903.01.01",
+      "rate": 25,
+      "rate_type": "ad_valorem",
+      "applies_to": "products_of_mexico",
+      "stacking": true,
+      "conditions": {
+        "origin_definition": [
+          "goods_of_mexico_under_19_CFR_102",
+          "last_substantial_transformation_in_mexico"
+        ],
+        "included": [
+          "products eligible for special tariff treatment under GN 3(c)(i)",
+          "products eligible for subchapter II chapter 99 exemptions"
+        ],
+        "excluded_headings": [
+          "9903.01.02",
+          "9903.01.03",
+          "9903.01.04",
+          "9903.01.05",
+          "9903.76.01",
+          "9903.76.02",
+          "9903.76.03"
+        ],
+        "excluded_entries": {
+          "chapter_98": {
+            "excluded": [
+              "9802.00.80",
+              "9802.00.40",
+              "9802.00.50",
+              "9802.00.60"
+            ],
+            "special_valuation_rules": {
+              "9802.00.40": "value_of_repairs_or_processing_in_mexico",
+              "9802.00.50": "value_of_repairs_or_processing_in_mexico",
+              "9802.00.60": "value_of_repairs_or_processing_in_mexico",
+              "9802.00.80": "assembled_value_less_us_components"
+            }
+          }
+        }
+      },
+      "additional_notes": [
+        "Does not replace Chapters 1–97 rates",
+        "Applies in addition to antidumping and countervailing duties",
+        "De minimis exemption allowed until Commerce notification"
+      ]
+    },
+
+    {
+      "heading": "9903.01.02",
+      "rate": 0,
+      "rate_type": "exempt",
+      "applies_to": "donations",
+      "conditions": {
+        "donation_type": [
+          "food",
+          "clothing",
+          "medicine"
+        ],
+        "restrictions": [
+          "national_emergency",
+          "coercion",
+          "armed_forces_risk"
+        ]
+      }
+    },
+
+    {
+      "heading": "9903.01.03",
+      "rate": 0,
+      "rate_type": "exempt",
+      "applies_to": "informational_materials",
+      "effect": "blocks_additional_duties",
+      "description": "Informational materials including publications, films, posters, recordings, photographs, artworks, and news wire feeds"
+    },
+
+    {
+      "heading": "9903.01.04",
+      "rate": 0,
+      "rate_type": "exempt",
+      "applies_to": "usmca_qualifying_goods",
+      "effect": "blocks_additional_duties",
+      "description": "Articles entered free of duty under General Note 11 (USMCA)"
+    },
+
+    {
+      "heading": "9903.01.05",
+      "rate": 10,
+      "rate_type": "ad_valorem",
+      "applies_to": "products_of_mexico",
+      "stacking": true,
+      "conditions": {
+        "excluded_headings": [
+          "9903.01.01",
+          "9903.01.02",
+          "9903.01.03",
+          "9903.01.04"
+        ],
+        "origin_definition": [
+          "goods_of_mexico_under_19_CFR_102",
+          "last_substantial_transformation_in_mexico"
+        ],
+        "excluded_entries": {
+          "chapter_98": {
+            "excluded": [
+              "9802.00.80",
+              "9802.00.40",
+              "9802.00.50",
+              "9802.00.60"
+            ]
+          }
+        }
+      },
+      "additional_notes": [
+        "Stacks with Chapters 1–97 duties",
+        "Stacks with AD/CVD",
+        "De minimis exemption conditional"
+      ]
+    }
+  ]
+}

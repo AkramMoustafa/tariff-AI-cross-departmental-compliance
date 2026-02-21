@@ -1,0 +1,42 @@
+{
+  "rule_id": "CH99_GLOBAL_AD_VALOREM_DEFAULT",
+  "scope": "all_imported_products",
+  "applies_by_default": true,
+  "imposing_headings": [
+    "9903.01.25",
+    "9903.01.63",
+    "9903.02.01-9903.02.73",
+    "9903.02.79-9903.02.80",
+    "9903.02.82-9903.02.83",
+    "9903.02.87-9903.02.88"
+  ],
+  "duty_type": "additional_ad_valorem",
+  "stacking": {
+    "with_chapters_1_97": true,
+    "with_other_chapter_99_duties": true,
+    "with_antidumping_countervailing": true
+  },
+  "exceptions": {
+    "excluded_headings": [
+      "9903.01.26-9903.01.33",
+      "9903.01.34",
+      "9903.96.01",
+      "9903.96.02",
+      "9903.02.74-9903.02.78",
+      "9903.02.81",
+      "9903.02.84-9903.02.86",
+      "9903.02.89-9903.02.91"
+    ],
+    "excluded_note_subdivisions": "v(ii)-v(xxv)",
+    "personal_baggage": true
+  },
+  "special_treatment_override": {
+    "fta_or_special_tariff_treatment": "does_not_exempt",
+    "temporary_duty_reductions": "does_not_exempt",
+    "civil_aircraft_exception": [
+      "9903.96.01",
+      "9903.96.02"
+    ]
+  },
+  "notes": "Additional duties apply globally unless an explicit exception heading or subdivision applies. Duties stack with all other applicable duties."
+}
