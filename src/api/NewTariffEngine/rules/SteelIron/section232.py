@@ -1,9 +1,12 @@
 import json
-
+from pathlib import Path
 # Load rules
-with open(r"C:\Tariffs\New\Chapter99\countries\Mexico\SteelIron\rules_for_steel_iron.json", "r") as f:
+# Resolve path relative to this file
+BASE_DIR = Path(__file__).resolve().parent
+RULES_PATH = BASE_DIR / "rules_for_steel_iron.json"
+
+with RULES_PATH.open("r", encoding="utf-8") as f:
     RULES = json.load(f)
-    print("Loaded rules:", RULES.keys())
 
 def normalize(code: str) -> str:
     return code.replace(".", "").strip()

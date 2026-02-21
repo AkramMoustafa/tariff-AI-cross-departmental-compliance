@@ -23,8 +23,6 @@ def get_8_digit_hts(hs_code: str) -> str:
     if len(hs) >= 10:
         return hs[:8]
     return hs
-
-
 import re
 
 def parse_ad_valorem_rate(rate) -> float:
