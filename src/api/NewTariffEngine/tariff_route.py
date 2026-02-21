@@ -82,6 +82,22 @@ def calculate_duty(req: DutyCalculationRequest):
         print("ERROR TYPE:", type(e))
         print("ERROR VALUE:", e)
         raise
+
+@router.post("/explain")
+def explain_tariff(req: TariffRequest):
+    try:
+        result = get_tariff_api(
+            hs_code=req.hs_code,
+            origin_country=req.origin_country.upper()
+        )
+
+        return result
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Internal tariff explanation error")
+        
 @router.post("/calculate")
 def calculate_tariff(req: TariffRequest):
     hs_code = req.hs_code

@@ -8,6 +8,14 @@ import {
   Grid
 } from "@mui/material";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
+import {
+  Select,
+  MenuItem,
+  FormControl,
+} from "@mui/material";
+import { COUNTRIES } from "@/constants/countries";
+import { Autocomplete, TextField } from "@mui/material";
+
 
 type AdditionalDuty = {
   label: string;
@@ -17,18 +25,17 @@ type AdditionalDuty = {
 type TariffExposureSnapshotProps = {
   hsCode?: string;
   description?: string;
-
   mfnRate?: number | null;
   appliedProgram?: string;
-
   additionalDuties?: AdditionalDuty[];
-
   totalEffectiveRate?: number | null;
-
   showWarning?: boolean;
   warningText?: string;
-
   landedCost?: number | null;
+originCountry?: string;
+onOriginChange?: (value: string) => void;
+  onExplainClick?: () => void;
+  onFindTariff?: (hsCode: string) => void;
 };
 
 export default function TariffExposureSnapshot({
@@ -41,36 +48,143 @@ export default function TariffExposureSnapshot({
   showWarning = false,
   warningText = "Trade overlay applied",
   landedCost,
-}: TariffExposureSnapshotProps) {
-  return (
+originCountry,
+onOriginChange,
+  onExplainClick,
+  onFindTariff,
+}: TariffExposureSnapshotProps){  return (
     <Paper
       elevation={0}
-      sx={{
-        mt: 2,
-        p: 2,
-        width: "90%",
-        borderRadius: 2.5,
-        border: "1px solid #E2E8F0",
-        background: "#FFFFFF",
-        boxShadow: "0 6px 18px rgba(15, 23, 42, 0.06)",
+ sx={{
+    mt: 3,
+    mb: 4,   
+    p: 4,
+    width: "100%",
+    borderRadius: 3,
+    border: "1px solid #e5e7eb",
+    backgroundColor: "#ffffff",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.05)",
+    transition: "all 0.25s ease",
+    "&:hover": {
+      boxShadow: "0 14px 40px rgba(0,0,0,0.08)",
+    },
       }}
     >
       {/* Header */}
-      <Stack spacing={0.2} mb={1.5}>
-        <Typography
-          variant="caption"
-          sx={{ letterSpacing: "0.08em", color: "#64748B", fontWeight: 600 }}
-        >
-          TARIFF EXPOSURE SNAPSHOT
-        </Typography>
-      </Stack>
+      
+<Stack
+  direction="row"
+  justifyContent="space-between"
+  alignItems="center"
+  mb={3}
+>
+  <Box>
+    <Typography
+      sx={{
+        fontSize: 12,
+        fontWeight: 700,
+        letterSpacing: "1px",
+        textTransform: "uppercase",
+        color: "#64748b",
+        mb: 0.5,
+      }}
+    >
+      Tariff Snapshot
+    </Typography>
 
+    <Typography
+      sx={{
+        fontSize: 14,
+        color: "#475569",
+      }}
+    >
+      Real-time duty exposure for selected product
+    </Typography>
+  </Box>
+
+  {onExplainClick && (
+    <Typography
+      onClick={onExplainClick}
+      sx={{
+        fontSize: 12,
+        fontWeight: 600,
+        color: "#1e3a8a",
+        cursor: "pointer",
+        transition: "0.2s",
+        "&:hover": {
+          opacity: 0.7,
+        },
+      }}
+    >
+      View Legal Breakdown →
+    </Typography>
+  )}
+</Stack>
       <Grid container spacing={3} alignItems="center">
         {/* HS Info */}
-        <Grid item xs={3}>
+        <Grid item xs={12} md={3}>
+            {onFindTariff && hsCode !== "--" && (
+                <Typography
+                    variant="caption"
+                    sx={{
+                    display: "block",
+                    mt: 0.5,
+                    cursor: "pointer",
+                    color: "#1E3A8A",
+                    fontWeight: 600,
+                    "&:hover": { textDecoration: "underline" },
+                    }}
+                    onClick={() => onFindTariff(hsCode)}
+                >
+                    Find Tariffs for This Product
+                </Typography>
+                )}
           <Typography variant="caption" sx={{ color: "#64748B" }}>
             HS CODE
           </Typography>
+<Autocomplete
+  size="small"
+  options={COUNTRIES}
+  getOptionLabel={(option) => `${option.name} (${option.code})`}
+  value={COUNTRIES.find((c) => c.code === originCountry) || null}
+  onChange={(_, newValue) => {
+    if (newValue) {
+      onOriginChange?.(newValue.code);
+    }
+  }}
+  ListboxProps={{
+    sx: {
+      maxHeight: 160,
+      borderRadius: 2,
+      boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+    },
+  }}
+  renderInput={(params) => (
+    <TextField
+      {...params}
+      placeholder="Select origin"
+      sx={{
+        mt: 1,
+        "& .MuiOutlinedInput-root": {
+          height: 36,
+          fontSize: 13,
+          borderRadius: 2,
+          backgroundColor: "#f8fafc",
+          transition: "all 0.2s ease",
+          "&:hover": {
+            backgroundColor: "#eef2ff",
+          },
+        },
+        "& .MuiOutlinedInput-notchedOutline": {
+          borderColor: "#e5e7eb",
+        },
+        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+          borderColor: "#1e3a8a",
+        },
+      }}
+    />
+  )}
+/>
           <Typography fontWeight={600}>
             {hsCode}
           </Typography>
@@ -83,7 +197,7 @@ export default function TariffExposureSnapshot({
         </Grid>
 
         {/* MFN */}
-        <Grid item xs={2}>
+    <Grid item xs={12} md={4}>
           <Typography variant="caption" sx={{ color: "#64748B" }}>
             MFN
           </Typography>
@@ -107,7 +221,7 @@ export default function TariffExposureSnapshot({
         </Grid>
 
         {/* Additional */}
-        <Grid item xs={3}>
+       <Grid item xs={12} md={3}>
           <Typography variant="caption" sx={{ color: "#64748B" }}>
             ADDITIONAL
           </Typography>
@@ -140,7 +254,7 @@ export default function TariffExposureSnapshot({
         </Grid>
 
         {/* Total */}
-        <Grid item xs={4}>
+       <Grid item xs={12} md={4}>
           <Typography variant="caption" sx={{ color: "#64748B" }}>
             TOTAL EFFECTIVE RATE
           </Typography>

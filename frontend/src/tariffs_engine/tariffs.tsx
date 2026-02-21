@@ -23,7 +23,7 @@ import NextActionsPanel from "./NextActionsPanel"
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { useNavigate } from "react-router-dom";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-
+import { explainTariff } from "@/api/client";
 export default function TariffCalculator() {
   const { paid, loading: paymentLoading } = usePaymentStatus();
   const navigate = useNavigate();
@@ -36,6 +36,21 @@ export default function TariffCalculator() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<DutyCalculationResponse | null>(null);
 
+const [explanation, setExplanation] = useState(null);
+const [explainLoading, setExplainLoading] = useState(false);
+const handleExplainClick = async () => {
+  if (!hsCode) return;
+
+  try {
+    setExplainLoading(true);
+    const data = await explainTariff(hsCode, origin);
+    setExplanation(data);
+  } catch (err) {
+    console.error(err);
+  } finally {
+    setExplainLoading(false);
+  }
+};
   const handleClearForm = () => {
   setHsCode("");
   setOrigin("CN");
@@ -194,16 +209,41 @@ const tariffLines = result
 </Box>
 <Box sx={{ mt: 4 }}>
   <TariffExposureSnapshot
-    hsCode={result?.hs_code}
+    hsCode={result?.hs_code ?? hsCode ?? "--"}
     description="Electric motor, AC > 5kW"
+    originCountry={origin}
+    onOriginChange={(value) => {
+      setOrigin(value);
+      setResult(null);
+      setExplanation(null);
+    }}
     mfnRate={result?.calculated_duties.base_rate_percent}
     appliedProgram="MFN"
     additionalDuties={additionalDuties}
     totalEffectiveRate={result?.calculated_duties.total_rate_percent}
     showWarning={!!result?.section_301?.applies}
     landedCost={result ? landedCost : null}
+    onExplainClick={hsCode ? handleExplainClick : undefined}
   />
 </Box>
+{explanation && (
+  <Paper sx={{ mt: 2, p: 2, borderRadius: 2 }}>
+    <Typography fontWeight={600} mb={1}>
+      Legal Breakdown
+    </Typography>
+
+    {explanation.applied_rules?.map((rule: any, idx: number) => (
+      <Box key={idx} mb={1}>
+        <Typography fontWeight={600}>
+          {rule.rule_type} — {rule.rate_percent}%
+        </Typography>
+        <Typography fontSize={12} color="text.secondary">
+          {rule.legal_reference}
+        </Typography>
+      </Box>
+    ))}
+  </Paper>
+)}
         {/* MAIN LAYOUT */}
         <Box sx={{
           display: "flex",
@@ -349,59 +389,6 @@ transition: "all 0.3s ease",
                     gap: 2,
                   }}
                 >
-                  {/* ORIGIN */}
-                  <Box>
-                    
-                    <Typography
-                      sx={{
-                        fontSize: 12,
-                        fontWeight: 500,
-      
-                        color: "#475569",
-                        mb: 0.5,
-                      }}
-                    >
-                      
-                      Origin Country
-                    </Typography>
-
-
-                    <TextField
-                      select
-                      fullWidth
-                      size="small"
-                      value={origin}
-                      onChange={(e) => setOrigin(e.target.value)}
-                      sx={{
-                        "& .MuiOutlinedInput-root": {
-                          height: 34,
-                          fontSize: 14,
-                         borderRadius: "16px",
-                          backgroundColor: "#fff",
-                        },
-                        "& .MuiOutlinedInput-input": {
-                          py: 0.75,
-                        },
-                        "& .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#e2e8f0",
-                        },
-                        "&:hover .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#cbd5e1",
-                        },
-                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-                          borderColor: "#2563eb",
-                          borderWidth: 1,
-                        },
-                        "& .MuiSelect-icon": {
-                          color: "#94a3b8",
-                        },
-                      }}
-                    >
-                      <MenuItem value="CN">China (CN)</MenuItem>
-                      <MenuItem value="DE">Germany (DE)</MenuItem>
-                    </TextField>
-                  </Box>
-
 
                   {/* DESTINATION */}
                   <Box>

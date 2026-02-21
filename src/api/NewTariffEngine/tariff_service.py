@@ -11,6 +11,66 @@ from src.api.NewTariffEngine.rules.chapter99  import resolve_additional_duty
 DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
+class TariffRuleEngine:
+
+    def __init__(self, rows, agoa, cbi, fta):
+        self.rows = rows
+        self.agoa = agoa
+        self.cbi = cbi
+        self.fta = fta
+
+    def evaluate(self, hs_code: str, origin: str):
+
+        profile = build_product_profile(hs_code, self.rows)
+
+        if not profile["effective_tariff"]:
+            raise ValueError("No tariff data found")
+
+        applied_rules = []
+
+        # --- BASE TARIFF ---
+        tariff_result = determine_tariff(
+            profile,
+            origin_country=origin,
+            agoa_countries=self.agoa,
+            cbi_countries=self.cbi,
+            fta_programs=self.fta
+        )
+
+        base_rate = parse_rate_to_percent(tariff_result["rate"])
+
+        applied_rules.append({
+            "rule_type": "BASE_TARIFF",
+            "rate_percent": base_rate,
+            "basis": tariff_result["basis"],
+            "applied_program": tariff_result["applied_program"],
+            "legal_reference": f"HTSUS Column 1 ({tariff_result['basis']})"
+        })
+
+        additional_result = resolve_additional_duty(
+            country_code=origin,
+            hs_code=hs_code,
+            base_rate_percent=base_rate
+        )
+
+        if additional_result:
+            additional_rate = parse_rate_to_percent(additional_result["rate"])
+
+            applied_rules.append({
+                "rule_type": additional_result.get("rule_type", "CHAPTER_99"),
+                "rate_percent": additional_rate,
+                "legal_reference": additional_result.get("legal_reference", "Chapter 99"),
+                "metadata": additional_result
+            })
+
+        total_rate = sum(r["rate_percent"] for r in applied_rules)
+
+        return {
+            "profile": profile,
+            "applied_rules": applied_rules,
+            "total_rate": total_rate
+        }
+
 def get_full_chain(node, hs_tree):
     chain = []
     current_code = node.code
@@ -376,6 +436,7 @@ def clean_rate(value):
     if isinstance(value, str) and value.lower() == "nan":
         return ""
     return value
+
 def parse_rate_to_percent(rate):
     """
     Converts tariff text into numeric percent.

@@ -1,5 +1,5 @@
 import axios from "axios";
-import apiClient from "@/api/client"
+
 const rawEnvBase = import.meta.env.VITE_API_BASE_URL;
 
 // 🔍 startup debug
@@ -51,7 +51,17 @@ export async function fetchWorkspace(user_id: string) {
   const res = await apiClient.get(`/api/workspace/${user_id}/regulations`);
   return res.data;
 }
+export const explainTariff = async (
+  hs_code: string,
+  origin_country: string
+) => {
+  const { data } = await apiClient.post("/tariffs/explain", {
+    hs_code,
+    origin_country,
+  });
 
+  return data;
+};
 export interface ComplianceDashboardResponse {
   pendingEvidenceAccess: number;
   pendingNominations: number;
