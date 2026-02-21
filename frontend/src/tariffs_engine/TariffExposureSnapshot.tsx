@@ -32,6 +32,7 @@ type TariffExposureSnapshotProps = {
   showWarning?: boolean;
   warningText?: string;
   landedCost?: number | null;
+  
 originCountry?: string;
 onOriginChange?: (value: string) => void;
   onExplainClick?: () => void;

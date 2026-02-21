@@ -39,14 +39,27 @@ export default function TariffCalculator() {
 const [explanation, setExplanation] = useState(null);
 const [explainLoading, setExplainLoading] = useState(false);
 const handleExplainClick = async () => {
-  if (!hsCode) return;
+  const activeHs = result?.hs_code || hsCode;
+
+  console.log("[Explain] Triggered");
+  console.log("[Explain] HS:", activeHs);
+  console.log("[Explain] Origin:", origin);
+
+  if (!activeHs) {
+    console.warn("[Explain] No HS code available");
+    return;
+  }
 
   try {
     setExplainLoading(true);
-    const data = await explainTariff(hsCode, origin);
+
+    const data = await explainTariff(activeHs, origin);
+
+    console.log("[Explain] API Response:", data);
+
     setExplanation(data);
   } catch (err) {
-    console.error(err);
+    console.error("[Explain] API Error:", err);
   } finally {
     setExplainLoading(false);
   }
@@ -63,20 +76,20 @@ const handleExplainClick = async () => {
   setError(null);
 
 };
-const additionalDuties = result
-  ? [
-      {
-        label: "Sec 301",
-        rate: result.section_301?.applies
-          ? result.calculated_duties.section301_rate_percent
-          : null,
-      },
-      {
-        label: "Sec 232",
-        rate: null,
-      },
-    ]
-  : [];
+const additionalDuties =
+  explanation?.chapter_99
+    ? [
+        {
+          label:
+            explanation.chapter_99.source === "section_301"
+              ? "Sec 301"
+              : explanation.chapter_99.source === "section_232"
+              ? "Sec 232"
+              : explanation.chapter_99.source.toUpperCase(),
+          rate: explanation.chapter_99.rate,
+        },
+      ]
+    : [];
 const cardSx = {
   p: 3,
 borderRadius: "16px" ,         // consistent roundness
@@ -217,34 +230,26 @@ const tariffLines = result
       setResult(null);
       setExplanation(null);
     }}
-    mfnRate={result?.calculated_duties.base_rate_percent}
+    mfnRate={
+  result?.calculated_duties.base_rate_percent ??
+  explanation?.base_tariff?.rate ??
+  null
+}
+
     appliedProgram="MFN"
     additionalDuties={additionalDuties}
-    totalEffectiveRate={result?.calculated_duties.total_rate_percent}
+    totalEffectiveRate={
+  result?.calculated_duties.total_rate_percent ??
+  explanation?.duty_summary?.total_rate ??
+  null
+}
     showWarning={!!result?.section_301?.applies}
     landedCost={result ? landedCost : null}
-    onExplainClick={hsCode ? handleExplainClick : undefined}
+    
+   onExplainClick={handleExplainClick}
   />
 </Box>
-{explanation && (
-  <Paper sx={{ mt: 2, p: 2, borderRadius: 2 }}>
-    <Typography fontWeight={600} mb={1}>
-      Legal Breakdown
-    </Typography>
-
-    {explanation.applied_rules?.map((rule: any, idx: number) => (
-      <Box key={idx} mb={1}>
-        <Typography fontWeight={600}>
-          {rule.rule_type} — {rule.rate_percent}%
-        </Typography>
-        <Typography fontSize={12} color="text.secondary">
-          {rule.legal_reference}
-        </Typography>
-      </Box>
-    ))}
-  </Paper>
-)}
-        {/* MAIN LAYOUT */}
+  {/* MAIN LAYOUT */}
         <Box sx={{
           display: "flex",
           gap: 3,
@@ -389,6 +394,7 @@ transition: "all 0.3s ease",
                     gap: 2,
                   }}
                 >
+
 
                   {/* DESTINATION */}
                   <Box>
