@@ -191,41 +191,41 @@ def get_tariff_with_duty_payable(
     }
 
 
-def get_tariff_with_duty_payable(
-    hs_code: str,
-    origin_country: str,
-    customs_value: float,
-    freight: float = 0.0,
-    insurance: float = 0.0
-) -> dict:
+# def get_tariff_with_duty_payable(
+#     hs_code: str,
+#     origin_country: str,
+#     customs_value: float,
+#     freight: float = 0.0,
+#     insurance: float = 0.0
+# ) -> dict:
 
-    # Existing tariff logic
-    tariff = get_tariff_api(hs_code, origin_country)
+#     # Existing tariff logic
+#     tariff = get_tariff_api(hs_code, origin_country)
 
-    # Section 301
-    section301 = get_section301_duty(hs_code, origin_country)
+#     # Section 301
+#     section301 = get_section301_duty(hs_code, origin_country)
 
-    # Percent math (already correct in your system)
-    rates = calculate_total_ad_valorem(
-        base_tariff_rate=tariff["final_tariff"]["rate"],
-        section301=section301
-    )
+#     # Percent math (already correct in your system)
+#     rates = calculate_total_ad_valorem(
+#         base_tariff_rate=tariff["final_tariff"]["rate"],
+#         section301=section301
+#     )
 
-    # 💰 Final USD calculation
-    duty_payable = calculate_total_duty_payable(
-        customs_value=customs_value,
-        freight=freight,
-        insurance=insurance,
-        total_ad_valorem_rate=rates["total_rate_percent"]
-    )
+#     # 💰 Final USD calculation
+#     duty_payable = calculate_total_duty_payable(
+#         customs_value=customs_value,
+#         freight=freight,
+#         insurance=insurance,
+#         total_ad_valorem_rate=rates["total_rate_percent"]
+#     )
 
 
-    return {
-        **tariff,
-        "section_301": section301 or {"applies": False},
-        "calculated_duties": rates,
-        "duty_payable": duty_payable
-    }
+#     return {
+#         **tariff,
+#         "section_301": section301 or {"applies": False},
+#         "calculated_duties": rates,
+#         "duty_payable": duty_payable
+#     }
 
 
 if __name__ == "__main__":

@@ -12,7 +12,7 @@ import {
   Divider,
 } from "@mui/material";
 import HsLookup from "./HsLookup"
-
+import TariffExposureSnapshot from "./TariffExposureSnapshot";
 import { calculateDuty,   exportTariffPdf,type DutyCalculationResponse } from "@/api/tariffClient";
 import { useState } from "react";
 import { usePaymentStatus } from "@/api/payment";
@@ -48,6 +48,20 @@ export default function TariffCalculator() {
   setError(null);
 
 };
+const additionalDuties = result
+  ? [
+      {
+        label: "Sec 301",
+        rate: result.section_301?.applies
+          ? result.calculated_duties.section301_rate_percent
+          : null,
+      },
+      {
+        label: "Sec 232",
+        rate: null,
+      },
+    ]
+  : [];
 const cardSx = {
   p: 3,
 borderRadius: "16px" ,         // consistent roundness
@@ -171,47 +185,6 @@ const tariffLines = result
         width: "100%",
       }}>
 
-        {/* HEADER META */}
-        <Box sx={{ mb: 2 }}>
-          {/* <Stack direction="row" spacing={1} alignItems="center" mb={1}> */}
-            {/* <Chip
-              label="OFFICIAL DATA SOURCE"
-              size="small"
-              sx={{
-                bgcolor: "rgba(16, 52, 166, 0.08)",
-                color: "#1034A6",
-                fontWeight: 600,
-                fontSize: "11px",
-                borderRadius: "16px",
-              }}
-            /> */}
-            {/* <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ fontWeight: 500 }}
-            >
-              HTS 2026 v3
-            </Typography> */}
-          {/* </Stack> */}
-
-          {/* <Typography variant="h4" fontWeight={600} mb={0.5}>
-            HS Code Tariff Calculator
-          </Typography> */}
-
-          {/* <Typography variant="body2" fontSize={12} color="text.secondary">
-            Official tariff calculations based on Harmonized Tariff Schedule (HTS)
-            schedules.
-          </Typography> */}
-          {/* <Typography
-            variant="body2"
-            fontSize={12}
-            color="text.secondary"
-            mb={3}
-          >
-            Enter shipment details below to receive an instant, auditable duty
-            estimate and compliance breakdown.
-          </Typography> */}
-        </Box>
         <Box sx={{ mb: 4 }}>
   <HsLookup
     onSelect={(code) => {
@@ -219,7 +192,18 @@ const tariffLines = result
     }}
   />
 </Box>
-
+<Box sx={{ mt: 4 }}>
+  <TariffExposureSnapshot
+    hsCode={result?.hs_code}
+    description="Electric motor, AC > 5kW"
+    mfnRate={result?.calculated_duties.base_rate_percent}
+    appliedProgram="MFN"
+    additionalDuties={additionalDuties}
+    totalEffectiveRate={result?.calculated_duties.total_rate_percent}
+    showWarning={!!result?.section_301?.applies}
+    landedCost={result ? landedCost : null}
+  />
+</Box>
         {/* MAIN LAYOUT */}
         <Box sx={{
           display: "flex",
@@ -228,10 +212,9 @@ const tariffLines = result
           flexDirection: { xs: "column", lg: "row" },
         }}>
 
-          {/* LEFT: Shipment Parameters */}
           <Box sx={{
             flex: 1,
-            // Without minWidth: 0, wide content can overflow the container.
+       
             minWidth: 0,
             width: { xs: "100%", lg: "auto" },
           }}>
@@ -250,11 +233,10 @@ transition: "all 0.3s ease",
 
   }}
 >
-              {/* TOP BAR */}
               <Box
              
               >
-                {/* LEFT: TITLE */}
+             
                 <Box>
 <Typography
   sx={{

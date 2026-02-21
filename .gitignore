@@ -87,8 +87,8 @@ desktop.ini
 
 # Allow tariff rule JSON files
 !SteelIron/*.json
-!SteelIron/rules_for_steel_iron.json
-!SteelIron/Steel_Iron.json
+!src/api/NewTariffEngine/rules/SteelIron/rules_for_steel_iron.json
+!src/api/NewTariffEngine/rules/SteelIron/Steel_Iron.json
 
 # Allow Chapter 99 rule files
 !9903.76.xx.json
