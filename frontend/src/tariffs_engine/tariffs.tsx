@@ -85,7 +85,7 @@ const additionalDuties =
               ? "Sec 301"
               : explanation.chapter_99.source === "section_232"
               ? "Sec 232"
-              : explanation.chapter_99.source.toUpperCase(),
+              : explanation.chapter_99.source?.toUpperCase() ?? "Other",
           rate: explanation.chapter_99.rate,
         },
       ]
@@ -99,7 +99,7 @@ borderRadius: "16px" ,         // consistent roundness
 };
 
   const downloadPDF = async () => {
-  if (!result || !paid) return;
+  if (!result) return;
 
   try {
     const blob = await exportTariffPdf({
@@ -668,7 +668,7 @@ transition: "all 0.3s ease",
             }}
           >
             <NextActionsPanel
-                canExportPdf={paid && !!result}
+                canExportPdf={!!result}
                 onExportPdf={downloadPDF}
                 onFindSuppliers={() => navigate("/suppliers")}
                 onSaveCalculation={() => {
@@ -759,13 +759,7 @@ transition: "all 0.3s ease",
 
     <Box sx={{ position: "relative", mt: 3 }}>
       {/* BLURRED CONTENT */}
-      <Box
-        sx={{
-          filter: paid ? "none" : "blur(6px)",
-          pointerEvents: paid ? "auto" : "none",
-          transition: "filter 0.25s ease",
-        }}
-      >
+      <Box>
     <Paper
           sx={{
             mt: 3,
@@ -879,7 +873,7 @@ transition: "all 0.3s ease",
       </Paper>
       </Box>
         {/* 2️⃣ OVERLAY — THIS IS WHERE IT GOES */}
-  {!paid && (
+  {/* {!paid && (
     <Box
       sx={{
         position: "absolute",
@@ -892,9 +886,9 @@ transition: "all 0.3s ease",
         zIndex: 2,
       }}
     >
-      <UpgradeOverlay />
+     
     </Box>
-  )}
+  )} */}
       </Box>
 
       </Box>

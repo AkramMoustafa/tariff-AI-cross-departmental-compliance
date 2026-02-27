@@ -24,6 +24,7 @@ import PricingPage from "./Payments/PricingPage";
 import TariffImpactMaterials from "./tariffs_engine/TariffHistory"
 import HsLookup from "./tariffs_engine/HsLookup"
 import TariffExposureSnapshot from "./tariffs_engine/TariffExposureSnapshot"
+import PrePOReview from "./PO/PrePOReview"
 export default function App() {
   return (
     <Box>
@@ -89,6 +90,18 @@ export default function App() {
   }
 />
 <Route
+  path="/po"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+          <PrePOReview />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+
+
+  }
+/>
+<Route
   path="/tariffs_history"
   element={
     <ClientSessionProvider>
@@ -129,6 +142,7 @@ export default function App() {
   }
 />
 
+
 <Route
   path="/billing"
   element={
@@ -143,10 +157,9 @@ export default function App() {
        <ClientSessionProvider>
           <PricingPage />
     </ClientSessionProvider>
-
-
   }
 />
+
       {/* <Route path="/tariff" element={<TariffCalculator />} /> */}
 
         <Route path="*" element={<NotFoundPage />} />

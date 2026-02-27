@@ -368,6 +368,7 @@ sx={{
               label="Password"
               placeholder="Enter your password"
               onChange={(e) => setPassword(e.target.value)}
+              error={!!error}
               type={showPassword ? "text" : "password"}
               variant="outlined"
               InputProps={{
