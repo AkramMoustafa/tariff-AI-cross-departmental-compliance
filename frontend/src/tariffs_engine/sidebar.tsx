@@ -1,7 +1,11 @@
 import { Box, Typography, Stack } from "@mui/material";
 import DashboardIcon from "@mui/icons-material/Dashboard";
 import CalculateIcon from "@mui/icons-material/Calculate";
-import HistoryIcon from "@mui/icons-material/History";
+import GavelIcon from "@mui/icons-material/Gavel";
+import AssignmentIndIcon from "@mui/icons-material/AssignmentInd";
+import ReceiptLongIcon from "@mui/icons-material/ReceiptLong";
+import LocalShippingIcon from "@mui/icons-material/LocalShipping";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export default function Sidebar() {
   return (
@@ -29,15 +33,25 @@ export default function Sidebar() {
         CORE
       </Typography>
 
-      <Stack spacing={0.25} mb={2}>
-        <NavItem icon={<DashboardIcon />} label="Dashboard" />
-        <NavItem
-          icon={<CalculateIcon />}
-          label="Tariff Calculator"
-          active
-        />
-        <NavItem icon={<HistoryIcon />} label="History" />
-      </Stack>
+<Stack spacing={0.25} mb={2}>
+  <NavItem
+    icon={<GavelIcon />}
+    label="tariffs"
+    to="/tariffs"
+  />
+
+  <NavItem
+    icon={<AssignmentIndIcon />}
+    label="SupplierIntake"
+    to="/SupplierIntake"
+  />
+
+  <NavItem
+    icon={<ReceiptLongIcon />}
+    label="po"
+    to="/po"
+  />
+</Stack>
 
       {/* ROADMAP */}
       <Typography
@@ -60,26 +74,32 @@ export default function Sidebar() {
     </Box>
   );
 }
-
 function NavItem({
   icon,
   label,
-  active,
+  to,
   disabled,
 }: {
   icon?: React.ReactNode;
   label: string;
-  active?: boolean;
+  to?: string;
   disabled?: boolean;
 }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+const active = to
+  ? location.pathname.startsWith(to)
+  : false;
+
   return (
     <Box
+      onClick={() => !disabled && to && navigate(to)}
       sx={{
         display: "flex",
         alignItems: "center",
         gap: 1,
         px: 1.25,
-        py: 0.6,                   // 👈 tighter height
+        py: 0.6,
         borderRadius: 0.75,
         cursor: disabled ? "default" : "pointer",
         fontSize: 13,
@@ -87,8 +107,8 @@ function NavItem({
         color: disabled
           ? "#cbd5e1"
           : active
-            ? "#1d4ed8"
-            : "#334155",
+          ? "#1d4ed8"
+          : "#334155",
         bgcolor: active ? "rgba(29, 78, 216, 0.08)" : "transparent",
         borderLeft: active
           ? "2px solid #2563eb"
@@ -98,15 +118,8 @@ function NavItem({
         },
       }}
     >
-      {icon && (
-        <Box sx={{ fontSize: 16, opacity: 0.9 }}>
-          {icon}
-        </Box>
-      )}
-
-      <Typography sx={{ fontSize: 13 }}>
-        {label}
-      </Typography>
+      {icon && <Box sx={{ fontSize: 16 }}>{icon}</Box>}
+      <Typography sx={{ fontSize: 13 }}>{label}</Typography>
     </Box>
   );
 }

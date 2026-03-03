@@ -25,6 +25,19 @@ import TariffImpactMaterials from "./tariffs_engine/TariffHistory"
 import HsLookup from "./tariffs_engine/HsLookup"
 import TariffExposureSnapshot from "./tariffs_engine/TariffExposureSnapshot"
 import PrePOReview from "./PO/PrePOReview"
+import TornadoChart from "./PO/TornadoChart"
+import MonteCarloDashboard from "./PO/MonteCarlo"
+import MarginRiskDashboard from "./Supplier/MarginRiskDashboard"
+import SupplierRiskProfile from "./Supplier/SupplierRisk"
+import SupplierRiskDirectory from "./Supplier/SupplierRiskDirectory"
+import SupplierComparison from "./Supplier/SupplierComparison"
+import SourcingMixOptimizer from "./Supplier/SourcingMixOptimizer"
+import SupplierIntake from "./Supplier/InputSupplier"
+import SupplierMarginImpact from "./Supplier/SupplierMarginImpact"
+import SupplierRiskInsights from "./Supplier/AdvancedSupplier"
+import SupplierPortfolioAnalysis from "./Supplier/SupplierPortfolioAnalysis"
+import TradeReviewResult from "./PO/TradeReviewResult"
+import TradeAuthorization from "./PO/TradeAuthorization"
 export default function App() {
   return (
     <Box>
@@ -79,6 +92,16 @@ export default function App() {
           }
         />
         
+  <Route
+  path="/TradeAuthorization"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+        <TradeAuthorization />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+  }
+/>
         <Route
   path="/tariffs"
   element={
@@ -101,6 +124,160 @@ export default function App() {
 
   }
 />
+
+
+<Route
+  path="/TradeReviewResult"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+          <TradeReviewResult />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+
+
+  }
+/>
+
+<Route
+  path="/SupplierIntake"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+          <SupplierIntake />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+
+
+  }
+/>
+<Route
+  path="/SupplierRiskInsights"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+          <SupplierRiskInsights />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+
+
+  }
+/>
+<Route
+  path="/SupplierPortfolioAnalysis"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+          <SupplierPortfolioAnalysis />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+
+
+  }
+/>
+
+
+
+<Route
+  path="/SupplierComparison"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+          <SupplierComparison />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+
+
+  }
+/>
+<Route
+  path="/SourcingMixOptimizer"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+          <SourcingMixOptimizer />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+
+
+  }
+/><Route
+  path="/SupplierMarginImpact"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+          <SupplierMarginImpact />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+
+
+  }
+/>
+
+<Route
+  path="/SupplierRiskDirectory"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+          <SupplierRiskDirectory />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+
+
+  }
+/>
+
+<Route
+  path="/SupplierRiskProfile"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+          <SupplierRiskProfile />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+  }
+/>
+
+<Route
+  path="/MarginRiskDashboard"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+          <MarginRiskDashboard />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+
+
+  }
+/>
+
+<Route
+  path="/monte"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+          <MonteCarloDashboard />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+
+
+  }
+/>
+
+<Route
+  path="/TornadoChart"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+          <TornadoChart />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+
+
+  }
+/>
+
+
 <Route
   path="/tariffs_history"
   element={
@@ -141,6 +318,7 @@ export default function App() {
     </ClientSessionProvider>
   }
 />
+
 
 
 <Route
