@@ -47,6 +47,18 @@ apiClient.interceptors.response.use(
     return Promise.reject(err);
   }
 );
+export const extractPO = async (file: File) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await apiClient.post("/api/po/extract-po", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return response.data;
+};
 export async function fetchWorkspace(user_id: string) {
   const res = await apiClient.get(`/api/workspace/${user_id}/regulations`);
   return res.data;

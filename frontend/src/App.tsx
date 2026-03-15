@@ -38,6 +38,10 @@ import SupplierRiskInsights from "./Supplier/AdvancedSupplier"
 import SupplierPortfolioAnalysis from "./Supplier/SupplierPortfolioAnalysis"
 import TradeReviewResult from "./PO/TradeReviewResult"
 import TradeAuthorization from "./PO/TradeAuthorization"
+import SupplierProfile from "./Supplier/supplier"
+import Suppliers from "./Supplier/suppliers"
+import SupplierRiskDashboard from "./Supplier/Trial"
+import SupplierIntelligence from "./Supplier/s"
 export default function App() {
   return (
     <Box>
@@ -112,6 +116,7 @@ export default function App() {
     </ClientSessionProvider>
   }
 />
+SupplierIntelligence
 <Route
   path="/po"
   element={
@@ -125,7 +130,26 @@ export default function App() {
   }
 />
 
-
+<Route
+  path="/suppliers/:supplierId"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+        <SupplierProfile />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+  }
+/>
+<Route
+  path="/s"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+        <SupplierIntelligence supplierId={1} />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+  }
+/>
 <Route
   path="/TradeReviewResult"
   element={
@@ -145,6 +169,18 @@ export default function App() {
     <ClientSessionProvider>
       <DashboardAppLayout>
           <SupplierIntake />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+
+
+  }
+/>
+<Route
+  path="/suppliers"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+          <Suppliers />
       </DashboardAppLayout>
     </ClientSessionProvider>
 
@@ -227,16 +263,8 @@ export default function App() {
   }
 />
 
-<Route
-  path="/SupplierRiskProfile"
-  element={
-    <ClientSessionProvider>
-      <DashboardAppLayout>
-          <SupplierRiskProfile />
-      </DashboardAppLayout>
-    </ClientSessionProvider>
-  }
-/>
+
+<Route path="/SupplierRiskProfile/:supplierId/" element={<SupplierRiskProfile />} />
 
 <Route
   path="/MarginRiskDashboard"
@@ -251,6 +279,19 @@ export default function App() {
   }
 />
 
+
+<Route
+  path="/SupplierRiskDashboard"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+          <SupplierRiskDashboard />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+
+
+  }
+/>
 <Route
   path="/monte"
   element={

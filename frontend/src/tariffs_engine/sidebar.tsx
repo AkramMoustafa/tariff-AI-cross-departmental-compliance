@@ -42,8 +42,8 @@ export default function Sidebar() {
 
   <NavItem
     icon={<AssignmentIndIcon />}
-    label="SupplierIntake"
-    to="/SupplierIntake"
+    label="Supplier Risk"
+    to="/suppliers"
   />
 
   <NavItem

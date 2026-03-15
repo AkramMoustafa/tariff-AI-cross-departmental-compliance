@@ -10,7 +10,10 @@ import {
   LinearProgress,
   Stack,
 } from "@mui/material";
+import { useLocation } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
+import {useEffect, useState} from "react";
+
 const sectionCard = {
   p: 4,
   borderRadius: "16px",
@@ -26,15 +29,74 @@ const riskLevel = (score: number) => {
 };
 
 export default function TradeReviewResult() {
-  // -----------------------------
-  // Static Mock Data
-  // -----------------------------
+const [baseRate, setBaseRate] = useState<number>(0);
+const [section301Rate, setSection301Rate] = useState<number>(0);
+const [chapter99Rate, setChapter99Rate] = useState<number>(0);
+  const location = useLocation();
+  const data = location.state || {};
 
-  const totalValue = 2_760_000;
-  const tariffRate = 8;
-  const tariffImpact = 220_800;
+  const origin = data.origin || "Unknown";
+  const destination = data.destination || "Unknown";
+const goodsTotal = data.goodsTotal || 0;
+const shipmentTotal = data.shipmentTotal || 0;
 
-  const supplierRiskScore = 63;
+const hsCode = data.lineItems?.[0]?.hsCode || "";
+console.log("HS Code being used:", hsCode);
+console.log("Origin:", origin);
+
+const customsValue = goodsTotal;
+console.log("Customs Value:", customsValue);
+const [tariffRate, setTariffRate] = useState<number>(0);
+const [tariffImpact, setTariffImpact] = useState<number>(0);
+
+useEffect(() => {
+  const fetchTariff = async () => {
+    try {
+
+      console.log("Sending tariff request:", {
+        hs_code: hsCode,
+        origin_country: origin,
+        customs_value: customsValue,
+        freight: 0,
+        insurance: 0
+      });
+
+      const response = await fetch("http://localhost:8000/tariffs/calculate_duty", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          hs_code: hsCode,
+          origin_country: origin,
+          customs_value: customsValue,
+          freight: 0,
+          insurance: 0
+        }),
+      });
+
+      const result = await response.json();
+
+      console.log("FULL TARIFF API RESPONSE:", result);
+
+      setTariffRate(result.calculated_duties.total_rate_percent);
+      setTariffImpact(result.duty_payable.total_duty_payable);
+
+    } catch (error) {
+      console.error("Tariff API error:", error);
+    }
+  };
+
+  if (hsCode && origin !== "Unknown") {
+    fetchTariff();
+  }
+
+}, [hsCode, origin, customsValue]);;
+  const supplierRiskScore =
+    origin === "CN" ? 65 :
+    origin === "MX" ? 45 :
+    35;
+
   const monteCarlo = {
     mean: 2_640_000,
     p90: 2_780_000,
@@ -45,6 +107,7 @@ export default function TradeReviewResult() {
 
   const risk = riskLevel(supplierRiskScore);
   const navigate = useNavigate();
+  console.log("TradeReviewResult location.state:", data);
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: 6, mb: 8, px: 3 }}>
       <Box
@@ -112,25 +175,37 @@ export default function TradeReviewResult() {
           <Grid container spacing={3}>
             <Grid item xs={12} md={4}>
               <Typography fontSize={13} color="#64748b">
-                Total Order Value
+                Goods Value (Customs Value)
               </Typography>
               <Typography fontWeight={600}>
-                ${totalValue.toLocaleString()}
+                ${goodsTotal.toLocaleString()}
               </Typography>
             </Grid>
 
             <Grid item xs={12} md={4}>
               <Typography fontSize={13} color="#64748b">
+                Total Shipment Cost
+              </Typography>
+              <Typography fontWeight={600}>
+                ${shipmentTotal.toLocaleString()}
+              </Typography>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Typography fontSize={13} color="#64748b">
                 Origin
               </Typography>
-              <Typography fontWeight={600}>China (CN)</Typography>
+              <Typography fontWeight={600}>
+  {origin}
+</Typography>
             </Grid>
 
             <Grid item xs={12} md={4}>
               <Typography fontSize={13} color="#64748b">
                 Destination
               </Typography>
-              <Typography fontWeight={600}>United States (US)</Typography>
+              <Typography fontWeight={600}>
+  {destination}
+</Typography>
             </Grid>
           </Grid>
         </Paper>

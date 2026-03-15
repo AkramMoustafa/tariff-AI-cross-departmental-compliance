@@ -11,6 +11,7 @@ from sqlalchemy import (
     Float,
     Table,
 )
+from pydantic import BaseModel
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
@@ -33,6 +34,74 @@ class User(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow)
 
+class NewsEvent(Base):
+    __tablename__ = "news_events"
+
+    id = Column(Integer, primary_key=True)
+
+    country = Column(String, index=True)
+    event_type = Column(String)
+
+    risk_level = Column(String)  # low / medium / high
+    severity = Column(Integer)
+
+    source_title = Column(String)
+    source_url = Column(String)
+
+    event_date = Column(DateTime, index=True)
+    discovered_at = Column(DateTime, default=datetime.utcnow)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+class SupplierJobPosting(Base):
+    __tablename__ = "supplier_job_postings"
+
+    id = Column(Integer, primary_key=True)
+
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
+
+    external_job_id = Column(String, index=True)
+    job_title = Column(String)
+    location = Column(String)
+    country = Column(String)
+
+    date_posted = Column(DateTime)
+    discovered_at = Column(DateTime)
+
+    employment_status = Column(String)
+    seniority = Column(String)
+
+    technologies = Column(JSON)
+
+    remote = Column(Boolean)
+
+    job_url = Column(String)
+    source_url = Column(String)
+
+    snapshot_date = Column(DateTime, index=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    supplier = relationship("Supplier", back_populates="job_postings")
+
+class SupplierHiringInsight(Base):
+    __tablename__ = "supplier_hiring_insights"
+
+    id = Column(Integer, primary_key=True)
+
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
+
+    snapshot_date = Column(DateTime, index=True)
+
+    current_jobs = Column(Integer)
+    previous_jobs = Column(Integer)
+
+    trend = Column(String)
+    risk_level = Column(String)
+
+    insight = Column(String)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 class FileExtraction(Base):
     __tablename__ = "file_extractions"
@@ -130,75 +199,6 @@ class AuthToken(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", backref="tokens")
-
-
-class TaskState(str, enum.Enum):
-    TODO = "TODO"
-    IN_PROGRESS = "IN_PROGRESS"
-    REVIEW = "REVIEW"
-    DONE = "DONE"
-    WAIVER = "WAIVER"
-    BREACH = "BREACH"
-
-
-class ObligationInstance(Base):
-    __tablename__ = "obligations"
-
-    id = Column(Integer, primary_key=True)
-    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-    description = Column(String)
-    regulation = Column(String)
-    due_date = Column(DateTime)
-
-    remediation_tasks = relationship(
-        "RemediationTask", back_populates="obligation", cascade="all, delete-orphan"
-    )
-    user = relationship("User", backref="obligations")
-
-
-class RemediationTask(Base):
-    __tablename__ = "remediation_tasks"
-
-    id = Column(Integer, primary_key=True)
-    obligation_id = Column(Integer, ForeignKey("obligations.id"))
-    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-    supplier_id = Column(Integer, ForeignKey("suppliers.id"))
-
-    assigned_to = Column(String)
-    sla_due = Column(DateTime)
-
-    state = Column(
-        SQLEnum(TaskState, name="task_state"),
-        default=TaskState.TODO,
-    )
-    checklist_template = Column(JSON)
-    breach_flag = Column(Boolean, default=False)
-
-    evidence_artifacts = relationship(
-        "EvidenceArtifact", back_populates="task", cascade="all, delete-orphan"
-    )
-    obligation = relationship("ObligationInstance", back_populates="remediation_tasks")
-    supplier = relationship("Supplier", back_populates="remediation_tasks")
-    user = relationship("User", backref="remediation_tasks")
-
-
-class EvidenceArtifact(Base):
-    __tablename__ = "evidence_artifacts"
-
-    id = Column(Integer, primary_key=True)
-    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-    task_id = Column(Integer, ForeignKey("remediation_tasks.id"))
-
-    chromadb_id = Column(String)
-    valid = Column(Boolean, default=False)
-    validation_errors = Column(JSON)
-    approved_by = Column(String, nullable=True)
-    approved_on = Column(DateTime, nullable=True)
-    attestation_hash = Column(String, nullable=True)
-
-    task = relationship("RemediationTask", back_populates="evidence_artifacts")
-    user = relationship("User", backref="evidence_artifacts")
-
 
 # CDC Core: Departments / Controls
 
@@ -452,102 +452,105 @@ class AuditFinding(Base):
     evidence_chunk = Column(Text)
     
     audit = relationship("ComplianceAudit", back_populates="findings")
+class SupplierPortSignal(Base):
+    __tablename__ = "supplier_port_signals"
 
+    id = Column(Integer, primary_key=True)
 
-# ======================
-# Suppliers & Supply Chain
-# ======================
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
 
-class SupplierTier(str, enum.Enum):
-    TIER_1 = "TIER_1"
-    TIER_2 = "TIER_2"
-    TIER_3 = "TIER_3"
-    UNRATED = "UNRATED"
+    port_name = Column(String)
 
+    ships_in_area = Column(Integer)
+    moving = Column(Integer)
+    anchored = Column(Integer)
+    entering = Column(Integer)
+    leaving = Column(Integer)
 
-class SupplierStatus(str, enum.Enum):
-    ACTIVE = "ACTIVE"
-    SUSPENDED = "SUSPENDED"
-    UNDER_REVIEW = "UNDER_REVIEW"
-    INACTIVE = "INACTIVE"
+    anchorage_ratio = Column(Float)
+    mobility_ratio = Column(Float)
 
+    estimated_wait_hours = Column(Float)
 
-supplier_backup_association = Table(
-    "supplier_backups",
-    Base.metadata,
-    Column("primary_supplier_id", Integer, ForeignKey("suppliers.id"), primary_key=True),
-    Column("backup_supplier_id", Integer, ForeignKey("suppliers.id"), primary_key=True),
-    Column("backup_priority", Integer, default=1),
-    Column("created_at", DateTime, default=datetime.utcnow),
-)
+    health_score = Column(Integer)
+    status = Column(String)
 
+    captured_at = Column(DateTime, default=datetime.utcnow)
 
+    supplier = relationship("Supplier", backref="port_signals")
+class SupplierRegistryInsight(Base):
+    __tablename__ = "supplier_registry_insights"
+
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), primary_key=True)
+
+    snapshot_date = Column(DateTime)
+
+    health_score = Column(Integer)
+    status = Column(String)
+
+    signals = Column(JSON)
+    risks = Column(JSON)
+
+    directors_count = Column(Integer)
+    filings_count = Column(Integer)
+    history_count = Column(Integer)
+    
+class SupplierRegistryHealth(Base):
+    __tablename__ = "supplier_registry_health"
+
+    id = Column(Integer, primary_key=True)
+
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
+
+    health_score = Column(Integer)
+    status = Column(String)
+
+    signals = Column(JSON)
+    risks = Column(JSON)
+
+    directors = Column(JSON)
+    filings = Column(JSON)
+
+    history_count = Column(Integer)
+
+    source_url = Column(String)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    supplier = relationship("Supplier", backref="registry_health")
+    
 class Supplier(Base):
     __tablename__ = "suppliers"
 
     id = Column(Integer, primary_key=True, index=True)
+
+    client_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("client_users.id"),
+        index=True
+    )
+
     name = Column(String, index=True)
-    email = Column(String, unique=True)
-    industry = Column(String)
-    region = Column(String)
-    country = Column(String, index=True)
+    country = Column(String)
 
-    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-
-    is_verified = Column(Boolean, default=False)
-    status = Column(
-        SQLEnum(SupplierStatus, name="supplier_status"),
-        default=SupplierStatus.ACTIVE,
-    )
-    opencorporates_verified = Column(Boolean, default=False)
-    company_number = Column(String, nullable=True)
-    jurisdiction = Column(String, nullable=True)
-
-    tier_level = Column(
-        SQLEnum(SupplierTier, name="supplier_tier"),
-        default=SupplierTier.UNRATED,
-        index=True,
-    )
-    tier_score = Column(Float, default=0.0)
-    tier_last_updated = Column(DateTime, nullable=True)
-    tier_change_reason = Column(Text, nullable=True)
-
-    quality_score = Column(Float, default=0.0)
-    delivery_score = Column(Float, default=0.0)
-    inventory_score = Column(Float, default=0.0)
-    financial_health_score = Column(Float, default=0.0)
-    compliance_score = Column(Float, default=0.0)
-
-    total_orders = Column(Integer, default=0)
-    successful_deliveries = Column(Integer, default=0)
-    last_rating_update = Column(DateTime, nullable=True)
-
-    is_restricted_country = Column(Boolean, default=False)
-    sanction_check_date = Column(DateTime, nullable=True)
-    tariff_code = Column(String, nullable=True)
-    estimated_tariff_rate = Column(Float, default=0.0)
-    free_trade_agreement = Column(String, nullable=True)
+    linkedin_company_name = Column(String, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
-    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    remediation_tasks = relationship("RemediationTask", back_populates="supplier")
+    owner = relationship("ClientUser", backref="suppliers")
 
-    backup_for = relationship(
-        "Supplier",
-        secondary=supplier_backup_association,
-        primaryjoin=id == supplier_backup_association.c.backup_supplier_id,
-        secondaryjoin=id == supplier_backup_association.c.primary_supplier_id,
-        backref="backups",
+    profile = relationship(
+        "SupplierProfile",
+        back_populates="supplier",
+        uselist=False
     )
 
-    user = relationship("User", backref="suppliers")
-
-
-
-
+    job_postings = relationship(
+        "SupplierJobPosting",
+        back_populates="supplier"
+    )
 class UserPayment(Base):
-    __tablename__ = "user_payments"
+    __tablename__ = "user_supayments"
 
     id = Column(
         UUID(as_uuid=True),
@@ -587,27 +590,6 @@ class UserPayment(Base):
 
     # relationship to client_users (optional but correct)
     client_user = relationship("ClientUser", backref="payments")
-
-class SupplierPerformanceLog(Base):
-    __tablename__ = "supplier_performance_logs"
-
-    id = Column(Integer, primary_key=True)
-    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
-    recorded_at = Column(DateTime, default=datetime.utcnow, index=True)
-
-    quality_score = Column(Float)
-    delivery_score = Column(Float)
-    inventory_score = Column(Float)
-    financial_health_score = Column(Float)
-    compliance_score = Column(Float)
-    tier_score = Column(Float)
-    tier_level = Column(SQLEnum(SupplierTier, name="supplier_tier_log"))
-
-    event_type = Column(String)
-    notes = Column(Text, nullable=True)
-
-    supplier = relationship("Supplier", backref="performance_history")
-
 
 class RestrictedCountry(Base):
     __tablename__ = "restricted_countries"
@@ -801,7 +783,94 @@ class SupplierFinancialHealth(Base):
 
     supplier = relationship("Supplier", backref="financial_records")
 
+class SupplierProfile(Base):
+    __tablename__ = "supplier_profiles"
 
+    id = Column(Integer, primary_key=True)
+
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
+
+    country_incorporation = Column(String)
+    manufacturing_country = Column(String)
+    export_port = Column(String)
+    invoicing_currency = Column(String)
+
+    incoterm = Column(String)
+    payment_terms_days = Column(Integer)
+    years_in_operation = Column(Integer)
+    revenue_band = Column(String)
+    
+    material_category = Column(String)
+    supplier_tier = Column(String)
+
+    has_trade_compliance_certs = Column(Boolean)
+    has_insurance = Column(Boolean)
+
+    single_site = Column(Boolean)
+    backup_facility = Column(Boolean)
+
+    avg_lead_time_days = Column(Integer)
+    on_time_delivery_pct = Column(Float)
+    quality_issues_pct = Column(Float)
+
+    category_volume_share_pct = Column(Float)
+    commodity_linked_pricing = Column(Boolean)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    supplier = relationship("Supplier", back_populates="profile")
+    
+class MetalPrice(Base):
+    __tablename__ = "metal_prices"
+
+    id = Column(Integer, primary_key=True)
+
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
+
+    observation_date = Column(DateTime, index=True)
+
+    metal_code = Column(String(10), index=True)   # XAU, XAG, ALU, etc
+
+    price = Column(Float)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    supplier = relationship("Supplier", backref="metal_prices")
+
+class EnergyPrice(Base):
+    __tablename__ = "energy_prices"
+
+    id = Column(Integer, primary_key=True)
+    observation_date = Column(DateTime, index=True)
+    brent = Column(Float)
+    natgas = Column(Float)
+    coal = Column(Float)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+class ForexRate(Base):
+    __tablename__ = "forex_rates"
+
+    id = Column(Integer, primary_key=True)
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
+    observation_date = Column(DateTime, index=True)
+    currency_code = Column(String, index=True)
+    rate = Column(Float)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    supplier = relationship("Supplier", backref="forex_rates")
+
+class MarketForecast(Base):
+    __tablename__ = "market_forecasts"
+
+    id = Column(Integer, primary_key=True)
+
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
+    feature = Column(String, index=True)
+    last_price = Column(Float)
+    forecast_values = Column(JSON)
+    trend = Column(String)
+    forecast_weeks = Column(Integer)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    supplier = relationship("Supplier", backref="market_forecasts")
 class RatingRecalculationLog(Base):
     __tablename__ = "rating_recalculation_logs"
 

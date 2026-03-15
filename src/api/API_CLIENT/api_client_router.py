@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from fastapi import Request, HTTPException
 
 from src.api.db import get_db
 from src.api.API_USER.client_user_tokens import get_client_user_session

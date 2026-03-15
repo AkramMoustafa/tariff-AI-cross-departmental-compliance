@@ -6,6 +6,10 @@ annotated-types==0.7.0
 anyio==4.12.0
 APScheduler==3.11.1
 attrs==25.4.0
+pdf2image
+pytesseract
+pillow
+websocket-client
 backoff==2.2.1
 rapidfuzz
 bcrypt==5.0.0
@@ -17,10 +21,13 @@ pycountry
 build==1.3.0
 CacheControl==0.14.4
 cachetools==6.2.2
+pdf2image
+pytesseract
 catalogue==2.0.10
 requests
 reportlab
 lxml
+pdfplumber
 certifi==2025.11.12
 cffi==2.0.0
 charset-normalizer==3.4.4
@@ -65,6 +72,7 @@ google-crc32c==1.7.1
 google-resumable-media==2.8.0
 googleapis-common-protos==1.72.0
 greenlet==3.2.4
+pyodbc
 grpcio==1.76.0
 grpcio-status==1.76.0
 h11==0.16.0

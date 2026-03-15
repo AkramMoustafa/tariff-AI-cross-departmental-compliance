@@ -1,28 +1,79 @@
 // SupplierIntake.tsx
 // Procurement-entered supplier profile → system-derived risk scores (static/rule-based).
 // Uses MUI only. Drop into your app and route to it from PrePOIntake.
-
-import React, { useMemo, useState } from "react";
-import {
-  Box,
-  Paper,
-  Typography,
-  TextField,
-  Grid,
-  MenuItem,
-  Divider,
-  Chip,
-  LinearProgress,
-  Stack,
-  Button,
-  Tooltip,
-} from "@mui/material";
+import { createSupplier } from "../api/SupplierIntelligence";
+import React, { useMemo, useState, useEffect } from "react";
+import {saveMetalPrices,saveForexRates,saveEnergyPrices} from "../api/SupplierIntelligence";
+import { Box,Paper,Typography, TextField, Grid, MenuItem, Divider, Chip, LinearProgress, Stack, Button, Tooltip,} from "@mui/material";
+import { getClientUserToken } from "@/api/apiClientAuth";
+import Autocomplete from "@mui/material/Autocomplete";
+import { getPorts } from "../api/SupplierIntelligence";
 import { useNavigate } from "react-router-dom";
+const country_currency = {
+  AE: "AED",AL: "ALL",AR: "ARS",AU: "AUD",BD: "BDT",BG: "BGN",BH: "BHD",BO: "BOB",BR: "BRL",CA: "CAD",CH: "CHF",CL: "CLP",CN: "CNY",CO: "COP",
+  CZ: "CZK",
+  EG: "EGP",
+  ET: "ETB",
+  EU: "EUR",
+  GB: "GBP",
+  HK: "HKD",
+  HU: "HUF",
+  ID: "IDR",
+  IN: "INR",
+  IS: "ISK",
+  JM: "JMD",
+  JP: "JPY",
+  KE: "KES",
+  KH: "KHR",
+  KR: "KRW",
+  KW: "KWD",
+  KZ: "KZT",
+  LA: "LAK",
+  LK: "LKR",
+  MA: "MAD",
+  MM: "MMK",
+  MN: "MNT",
+  MX: "MXN",
+  MY: "MYR",
+  NG: "NGN",
+  NO: "NOK",
+  NZ: "NZD",
+  OM: "OMR",
+  PE: "PEN",
+  PH: "PHP",
+  PL: "PLN",
+  PY: "PYG",
+  QA: "QAR",
+  RO: "RON",
+  RU: "RUB",
+  SA: "SAR",
+  SG: "SGD",
+  TH: "THB",
+  TR: "TRY",
+  TT: "TTD",
+  TW: "TWD",
+  TZ: "TZS",
+  UA: "UAH",
+  UG: "UGX",
+  VN: "VND",
+  ZA: "ZAR",
+};
+const commodityMap: Record<string, string[]> = {
+  plastics: ["BRENT", "NATGAS"],
+  steel: ["IRON", "COAL"],
+  electronics: ["XCU", "XAU", "XAG"],
+  automotive: ["ALU", "NI", "XCU"],
+  construction: ["IRON", "ZNC", "ALU"],
+  fertilizer: ["NATGAS"],
+};
+const nonMetalCommodities = ["BRENT", "NATGAS", "COAL"];
+
 type SupplierInput = {
   legalName: string;
   countryIncorporation: string;
   manufacturingCountry: string;
   exportPort: string;
+  linkedinCompanyName: string;
   invoicingCurrency: string;
 
   incoterm: string;
@@ -31,7 +82,8 @@ type SupplierInput = {
   revenueBand: "Unknown" | "<$10M" | "$10–50M" | "$50–200M" | ">$200M";
   hasTradeComplianceCerts: boolean;
   hasInsurance: boolean;
-
+  materialCategory: string;   // NEW
+  supplierTier: string;       // NEW
   singleSite: boolean;
   backupFacility: boolean;
   avgLeadTimeDays: number | "";
@@ -51,6 +103,9 @@ type RiskBreakdown = {
   overall: number;
   notes: string[];
 };
+
+
+const countryOptions = Object.keys(country_currency);
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
@@ -242,6 +297,7 @@ function computeRisk(input: SupplierInput): RiskBreakdown {
   return { market, policy, operational, counterparty, concentration, overall, notes };
 }
 
+
 const inputSx = {
   "& .MuiOutlinedInput-root": {
     borderRadius: "12px",
@@ -299,10 +355,27 @@ function RiskBar({
 }
 
 export default function SupplierIntake() {
+  const countryOptions = Object.keys(country_currency);
   const navigate = useNavigate();
+  
+  const [ports, setPorts] = useState<string[]>([]);
+useEffect(() => {
+  const loadPorts = async () => {
+    try {
+      const data = await getPorts();
+       console.log("Ports loaded:", data); 
+      setPorts(data.ports);
+    } catch (err) {
+      console.error("Failed to load ports", err);
+    }
+  };
+
+  loadPorts();
+}, []);
   const [form, setForm] = useState<SupplierInput>({
     legalName: "",
     countryIncorporation: "US",
+    linkedinCompanyName: "",
     manufacturingCountry: "CN",
     exportPort: "",
     invoicingCurrency: "USD",
@@ -313,7 +386,8 @@ export default function SupplierIntake() {
     revenueBand: "Unknown",
     hasTradeComplianceCerts: false,
     hasInsurance: true,
-
+  materialCategory: "",   // NEW
+  supplierTier: "",       // NEW
     singleSite: true,
     backupFacility: false,
     avgLeadTimeDays: 45,
@@ -331,7 +405,18 @@ export default function SupplierIntake() {
   };
 
   const overallLevel = riskLevel(risk.overall);
-
+  const updateCountry = (field: "countryIncorporation" | "manufacturingCountry", country: string) => {
+    setForm((prev) => ({
+      ...prev,
+      [field]: country,
+      invoicingCurrency: country_currency[country] || "USD",
+    }));
+  };
+  useEffect(() => {
+  const token = localStorage.getItem("client_user_token");
+  console.log("Client user token:", token);
+}, []);
+const commodities = commodityMap[form.materialCategory] || null;
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: 6, mb: 8, px: 3 }}>
       <Box
@@ -386,55 +471,109 @@ export default function SupplierIntake() {
                     placeholder="e.g., Shenzhen Advanced Components Ltd."
                   />
                 </Grid>
-
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12}>
                   <TextField
-                    select
                     fullWidth
-                    label="Country of Incorporation"
+                    label="LinkedIn Company Name"
                     size="small"
-                    value={form.countryIncorporation}
+                    value={form.linkedinCompanyName}
                     sx={inputSx}
-                    onChange={(e) => setField("countryIncorporation", e.target.value)}
-                  >
-                    <MenuItem value="US">United States (US)</MenuItem>
-                    <MenuItem value="CA">Canada (CA)</MenuItem>
-                    <MenuItem value="DE">Germany (DE)</MenuItem>
-                    <MenuItem value="MX">Mexico (MX)</MenuItem>
-                    <MenuItem value="CN">China (CN)</MenuItem>
-                    <MenuItem value="VN">Vietnam (VN)</MenuItem>
-                  </TextField>
+                    onChange={(e) => setField("linkedinCompanyName", e.target.value)}
+                    helperText="Example: linamar, tesla, microsoft"
+                  />
                 </Grid>
 
                 <Grid item xs={12} md={6}>
-                  <TextField
-                    select
-                    fullWidth
-                    label="Primary Manufacturing Country"
-                    size="small"
-                    value={form.manufacturingCountry}
-                    sx={inputSx}
-                    onChange={(e) => setField("manufacturingCountry", e.target.value)}
-                  >
-                    <MenuItem value="US">United States (US)</MenuItem>
-                    <MenuItem value="CA">Canada (CA)</MenuItem>
-                    <MenuItem value="DE">Germany (DE)</MenuItem>
-                    <MenuItem value="MX">Mexico (MX)</MenuItem>
-                    <MenuItem value="CN">China (CN)</MenuItem>
-                    <MenuItem value="VN">Vietnam (VN)</MenuItem>
-                    <MenuItem value="IN">India (IN)</MenuItem>
-                  </TextField>
+                <Autocomplete
+                  options={countryOptions}
+                  value={form.countryIncorporation}
+                  autoHighlight
+                  openOnFocus
+                  onChange={(event, newValue) => {
+                    if (newValue) updateCountry("countryIncorporation", newValue);
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Country of Incorporation"
+                      size="small"
+                      sx={inputSx}
+                    />
+                  )}
+                />
                 </Grid>
 
                 <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="Primary Export Port (optional)"
-                    size="small"
+                <Autocomplete
+                  options={countryOptions}
+                  value={form.manufacturingCountry}
+                  autoHighlight
+                  openOnFocus
+                  onChange={(event, newValue) => {
+                    if (newValue) updateCountry("manufacturingCountry", newValue);
+                  }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Primary Manufacturing Country"
+                      size="small"
+                      sx={inputSx}
+                    />
+                  )}
+                />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Supplier Material Category"
+                  size="small"
+                  value={form.materialCategory || ""}
+                  sx={inputSx}
+                  onChange={(e) => setField("materialCategory", e.target.value)}
+                  helperText="Primary material or industry of the supplier"
+                >
+                  <MenuItem value="plastics">Plastics / Petrochemicals</MenuItem>
+                  <MenuItem value="metals">Metals</MenuItem>
+                  <MenuItem value="electronics">Electronics Components</MenuItem>
+                  <MenuItem value="automotive">Automotive Components</MenuItem>
+                  <MenuItem value="jewelry">Precious Metals</MenuItem>
+                </TextField>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Supplier Tier"
+                  size="small"
+                  value={form.supplierTier || ""}
+                  sx={inputSx}
+                  onChange={(e) => setField("supplierTier", e.target.value)}
+                  helperText="Position in the supply chain"
+                >
+                  <MenuItem value="tier1">Tier 1 – Direct Supplier</MenuItem>
+                  <MenuItem value="tier2">Tier 2 – Sub-supplier</MenuItem>
+                  <MenuItem value="tier3">Tier 3 – Raw Material Supplier</MenuItem>
+                </TextField>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                 <Autocomplete
+                    options={ports}
                     value={form.exportPort}
-                    sx={inputSx}
-                    onChange={(e) => setField("exportPort", e.target.value)}
-                    placeholder="e.g., Yantian, Rotterdam, Lázaro Cárdenas"
+                    openOnFocus
+                    autoHighlight
+                    onChange={(event, newValue) => {
+                      setField("exportPort", newValue || "");
+                    }}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Primary Export Port"
+                        size="small"
+                        sx={inputSx}
+                        helperText="Select export port from global port dataset"
+                      />
+                    )}
                   />
                 </Grid>
 
@@ -448,12 +587,11 @@ export default function SupplierIntake() {
                     sx={inputSx}
                     onChange={(e) => setField("invoicingCurrency", e.target.value)}
                   >
-                    <MenuItem value="USD">USD</MenuItem>
-                    <MenuItem value="EUR">EUR</MenuItem>
-                    <MenuItem value="CNY">CNY</MenuItem>
-                    <MenuItem value="MXN">MXN</MenuItem>
-                    <MenuItem value="JPY">JPY</MenuItem>
-                    <MenuItem value="GBP">GBP</MenuItem>
+                  {[...new Set(Object.values(country_currency))].map((currency) => (
+                    <MenuItem key={currency} value={currency}>
+                      {currency}
+                    </MenuItem>
+                  ))}
                   </TextField>
                 </Grid>
 
@@ -661,45 +799,82 @@ export default function SupplierIntake() {
                   />
                 </Grid>
               </Grid><Box
-  sx={{
-    mt: 4,
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: 2,
-  }}
->
-  <Button
-    variant="outlined"
-    size="medium"
-    sx={{ borderRadius: "10px", textTransform: "none" }}
-  >
-    Save Draft
-  </Button>
-<Button
-  variant="contained"
-  size="medium"
-  sx={{
-    borderRadius: "10px",
-    textTransform: "none",
-    px: 3,
-    fontWeight: 600,
-    backgroundColor: "#1e3a8a",
-    "&:hover": { backgroundColor: "#1e40af" },
-  }}
-  onClick={() => {
-    navigate("/SupplierRiskProfile", {
-      state: { formData: form },
-    });
-  }}
->
-  Start Screening
-</Button>
-</Box>
-            </Paper>
-          </Grid>
+              sx={{
+                mt: 4,
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 2,
+              }}
+            >
+              <Button
+                variant="outlined"
+                size="medium"
+                sx={{ borderRadius: "10px", textTransform: "none" }}
+              >
+                Save Draft
+              </Button>
+            <Button
+              variant="contained"
+              size="medium"
+              sx={{
+                borderRadius: "10px",
+                textTransform: "none",
+                px: 3,
+                fontWeight: 600,
+                backgroundColor: "#1e3a8a",
+                "&:hover": { backgroundColor: "#1e40af" },
+              }}
+              onClick={async () => {
+                try {
 
-        </Grid>
-      </Box>
-    </Box>
-  );
-}
+                  const payload = {
+                    ...form,
+                    paymentTermsDays: form.paymentTermsDays === "" ? null : form.paymentTermsDays,
+                    yearsInOperation: form.yearsInOperation === "" ? null : form.yearsInOperation,
+                    avgLeadTimeDays: form.avgLeadTimeDays === "" ? null : form.avgLeadTimeDays,
+                    onTimeDeliveryPct: form.onTimeDeliveryPct === "" ? null : form.onTimeDeliveryPct,
+                    qualityIssuesPct: form.qualityIssuesPct === "" ? null : form.qualityIssuesPct,
+                    categoryVolumeSharePct:
+                      form.categoryVolumeSharePct === "" ? null : form.categoryVolumeSharePct,
+                  };
+
+                  // 1️⃣ create supplier
+                  const result = await createSupplier(payload);
+
+                  const supplierId = result.supplier_id;
+
+                  // 2️⃣ save commodity data
+                  const commodities = commodityMap[form.materialCategory] || [];
+
+                  await Promise.all([
+                    ...commodities
+                      .filter((c) => !nonMetalCommodities.includes(c))
+                      .map((metal) => saveMetalPrices(metal, 20, supplierId)),
+
+                    saveForexRates(form.invoicingCurrency, 20, supplierId),
+                    saveEnergyPrices()
+                  ]);
+                  
+                  // 3️⃣ navigate
+                  navigate(`/SupplierRiskProfile/${supplierId}`, {
+                    state: {
+                      formData: form,
+                    },
+                  });
+
+                } catch (error) {
+                  console.error("Failed to create supplier or load commodities", error);
+                }
+              }}
+            >
+              Start Screening
+            </Button>
+            </Box>
+                        </Paper>
+                      </Grid>
+
+                    </Grid>
+                  </Box>
+                </Box>
+              );
+            }

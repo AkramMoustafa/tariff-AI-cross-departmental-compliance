@@ -15,11 +15,18 @@ const apiUserClient = axios.create({
  */
 apiUserClient.interceptors.request.use(
   (config) => {
-    // 🔑 Human token (issued by /api/auth/signup or /api/auth/login)
+
     const token = localStorage.getItem("client_user_token");
+
+    console.log("---- API REQUEST DEBUG ----");
+    console.log("Request URL:", config.url);
+    console.log("Token from localStorage:", token);
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log("Authorization header attached");
+    } else {
+      console.warn("NO TOKEN FOUND");
     }
 
     return config;

@@ -13,6 +13,7 @@ from fastapi import (
     APIRouter,
     Query,
 )
+from src.api.po.po_routes import router as po_router
 from src.api.db import get_db, engine, SessionLocal
 from src.api.NewTariffEngine.tariff_route import router as tariff_new_engine_router
 from src.api.sanctions import (
@@ -22,6 +23,17 @@ from src.api.sanctions import (
     start_background_refresh,
 )
 
+from src.api.supplier_intelligence.Port.port_insights import router as port_activity_router
+
+import asyncio
+import json
+import websockets
+import socket
+import pyodbc
+import math
+
+from src.api.country_risk.services import run_news_pipeline
+from src.api.country_risk.routes import router as news_risk_router
 from src.api.New.newRoute import router as hs_router
 from src.api.New.newRoute import router as hs_router
 from src.api.New.tariffmodel import init_hs
@@ -39,6 +51,8 @@ from src.api.obligations_ingest import (
     extract_obligations_from_text,
     upsert_obligations_neo4j,
 )
+
+
 from  src.api.stripe.stripe_route import router as stripe_router
 from src.api.models import WorkspaceRegulation
 from src.core.regulations.state_regulations.state_engine  import normalize_regulation
@@ -49,7 +63,6 @@ from typing import Optional
 from src.core.store_file_data import save_extraction
 from src.core.regulations.state_regulations.state_engine import search_state_regulations,normalize_regulation
 from src.api.models import FileExtraction
-from apscheduler.schedulers.background import BackgroundScheduler
 
 from src.core.regulations.gov_reg.package_cache import (
     refresh_package_cache,
@@ -73,6 +86,8 @@ from src.core.regulations.gov_reg.fulltext_cache import read_file
 from uuid import uuid4
 from datetime import datetime
 from fastapi import Request, Response, HTTPException
+from src.api.db import engine
+from src.api.models import Base
 
 from src.core.nomi_file_hub import get_direct_file_url
 from fastapi.responses import FileResponse
@@ -82,6 +97,8 @@ from typing import List, Optional, Dict, Any
 from uuid import uuid4
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
+from src.api.supplier_intelligence.linkedin import router as linkedin_router
+from src.api.supplier_intelligence.supplier_intelligence import router as supplier_intelligence_router
 
 from src.core.nomi_file_hub import get_direct_file_url
 from src.api.models import User
@@ -90,13 +107,8 @@ from dotenv import load_dotenv, dotenv_values
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
 from src.api.models import (
-    User,                       
-    ObligationInstance,
-    RemediationTask,
-    EvidenceArtifact,
-    AuditLog,
-    TaskState,
-    Base,
+    Supplier,
+    SupplierProfile
 )
 from PyPDF2 import PdfReader
 
@@ -154,7 +166,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from src.api.audit_ingest import router as audit_router, upsert_audit_to_neo4j, ensure_audit_indexes
 from src.api.cfr_api import router as cfr_router
-from src.api.supplier_routes import router as supplier_router
 from contextlib import asynccontextmanager
 from src.api.order_routes import router as order_router
 import threading
@@ -174,8 +185,11 @@ from src.api.models import Regulation
 from fastapi.responses import StreamingResponse
 from src.api.tariff_routes import router as tariff_router
 
+from src.api.Commodities.metal_price_route import router as commodities_router
 
+from src.api.Commodities.ai_router import router as ai_router
 from src.api.auth_backend import router as auth_router
+from src.api.Registry.registry import router as filing_router
 
 from src.api.cli.team_routes.control_owner_route import router as control_owner_router
 from src.api.cli.team_routes.auditor_route import router as auditor_router
@@ -186,6 +200,7 @@ from src.api.API_CLIENT.api_client_router import router as api_client_router
 from src.api.API_USER.client_users import router as client_user_routes
 from src.api.public.v1 import router as public_v1_router
 from src.api.NewTariffEngine.tariff_pdf import router as tariff_pdf_router
+from src.api.intelligence.router import router as all_suppliers_router
 
 
 def cache_refresher():
@@ -194,14 +209,18 @@ def cache_refresher():
         print("[CacheRefresher] Refreshing Federal Register package cache...")
         refresh_package_cache()
 
+scheduler = BackgroundScheduler()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+
     print("[Startup] Initializing HS Tree...")
     try:
         init_hs()
         print("[Startup] HS Tree loaded successfully")
     except Exception as e:
         print(f"[ERROR] HS initialization failed: {e}")
+
     print("[Startup] Building Federal Register cache...")
     refresh_package_cache()
 
@@ -210,7 +229,6 @@ async def lifespan(app: FastAPI):
         load_sanctions()
         start_background_refresh(interval_hours=24)
     except Exception as e:
-        # IMPORTANT: Do not crash startup
         print(f"[WARN] Sanctions failed to load at startup: {e}")
 
     print("[Startup] Launching 24h refresher...")
@@ -222,12 +240,27 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Warning: Could not initialize audit indexes: {e}")
 
+    print("[Startup] Starting news risk pipeline scheduler...")
+
+    scheduler.add_job(
+        run_news_pipeline,
+        trigger="interval",
+        hours=1,
+        args=["germany"],
+        id="news_pipeline",
+        replace_existing=True
+    )
+
+    if not scheduler.running:
+        scheduler.start()
+
     yield
 
-    print("[Shutdown] Application shutting down...")
-
+    print("[Shutdown] Stopping scheduler...")
+    scheduler.shutdown()
 
 app = FastAPI(lifespan=lifespan)
+
 
 logging.basicConfig(level=logging.INFO)
 limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
@@ -285,13 +318,20 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(stripe_router)
 app.include_router(control_owner_router)
-# app.include_router(auditor_router)
 app.include_router(department_owner_router)
 app.include_router(executive_router)
 app.include_router(compliance_owner_router)
 app.include_router(api_client_router)
 app.include_router(client_user_routes)
 app.include_router(tariff_pdf_router, prefix="/api")
+app.include_router(po_router, prefix="/api/po", tags=["PO Extraction"])
+app.include_router(news_risk_router)
+app.include_router(supplier_intelligence_router)
+app.include_router(port_activity_router, prefix="/api/v1", tags=["Ports"])
+app.include_router(filing_router)
+app.include_router(commodities_router)
+app.include_router(ai_router)
+app.include_router(all_suppliers_router)
 
 @app.get("/api/sanctions/search")
 def sanctions_search(
@@ -382,10 +422,10 @@ app.include_router(auth_router)
 app.include_router(obligations_router)
 app.include_router(audit_router)
 app.include_router(cfr_router)
-app.include_router(supplier_router)
 app.include_router(order_router)
 
 app.include_router(hs_router)
+app.include_router(linkedin_router)
 
 router = APIRouter()
 
@@ -1300,10 +1340,6 @@ SERVICE_ACCOUNT_FILE = "admin-key.json"
 class UserAccessRequest(BaseModel):
     email: str
 
-# Local imports for DB
-from src.api.models import ObligationInstance, RemediationTask, EvidenceArtifact, AuditLog, TaskState, Base
-
-
 # Constants
 G_SCOPES = [
     "https://www.googleapis.com/auth/drive.readonly",
@@ -1407,9 +1443,6 @@ ROLE_ASSIGNMENTS = {
 }
 
 from src.api.models import Supplier  
-
-# SECURITY IMPROVEMENT: Supplier routes moved to supplier_routes.py
-# These endpoints are now protected in supplier_routes.py
 
 @app.post("/api/users/setup_profile")
 def setup_profile(
@@ -1532,35 +1565,6 @@ def analyze_regulation_impact(regulation: dict):
         ]
     
     return impact_analysis
-
-def auto_create_from_detected_regulation(regulation: dict, impact: dict, db: Session):
-    """Create obligations and tasks from detected regulation"""
-    obligation = ObligationInstance(
-        description=f"{regulation['title'][:200]} - Compliance Required",
-        regulation=regulation.get('regulation_type', 'Federal'),
-        due_date=datetime.utcnow() + timedelta(days=90)
-    )
-    db.add(obligation)
-    db.commit()
-    db.refresh(obligation)
-    
-    log_audit(db, "ObligationInstance", obligation.id, "auto_detect", "regulatory_monitor", 
-              f"Auto-detected from {regulation['source']}: {regulation['title'][:100]}")
-    
-    for idx, action in enumerate(impact["required_actions"]):
-        dept = impact["affected_departments"][idx % len(impact["affected_departments"])]
-        assigned_to = ROLE_ASSIGNMENTS.get(dept, "compliance@company.com")
-        
-        task = RemediationTask(
-            obligation_id=obligation.id,
-            assigned_to=assigned_to,
-            sla_due=datetime.utcnow() + timedelta(days=60 - idx*10),
-            checklist_template={"title": action, "regulation_url": regulation.get("url", "")}
-        )
-        db.add(task)
-        db.commit()
-    
-    return obligation.id
 
 def regulatory_monitoring_job():
     """Background job for regulatory monitoring"""
@@ -1976,122 +1980,6 @@ async def source_graph(
     graph_data = {"nodes": ["A", "B"], "edges": [("A", "B")]}
     return JSONResponse(content=graph_data)
 
-# Obligation Management
-@app.post("/api/obligation")
-async def create_obligation(
-    description: str = Form(...), 
-    regulation: str = Form(...), 
-    due_date: str = Form(...),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    obj = ObligationInstance(
-        description=description, 
-        regulation=regulation, 
-        due_date=datetime.fromisoformat(due_date)
-    )
-    db.add(obj)
-    db.commit()
-    db.refresh(obj)
-    log_audit(db, "ObligationInstance", obj.id, "create", current_user.uid, f"Created obligation: {description}")
-    return obj
-
-@app.get("/api/obligations")
-async def get_obligations(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    obligations = db.query(ObligationInstance).all()
-    return obligations
-
-@app.post("/api/task")
-async def create_task(
-    obligation_id: int = Form(...),
-    assigned_to: str = Form(...),
-    sla_due: str = Form(...),
-    supplier_id: str = Form(None),
-    checklist_template: str = Form("{}"),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    template = json.loads(checklist_template) if checklist_template else {}
-
-    task = RemediationTask(
-        obligation_id=obligation_id,
-        assigned_to=assigned_to,
-        sla_due=datetime.fromisoformat(sla_due),
-        supplier_id=supplier_id, 
-        checklist_template=template,
-        user_uid=current_user.uid,
-    )
-    
-    db.add(task)
-    db.commit()
-    db.refresh(task)
-    log_audit(
-        db,
-        "RemediationTask",
-        task.id,
-        "create",
-        current_user.uid,
-        f"Created task for obligation {obligation_id} (supplier: {supplier_id})"
-    )
-    return task
-
-@app.get("/api/tasks")
-async def get_tasks(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    return db.query(RemediationTask).filter(RemediationTask.user_uid == current_user.uid).all()
-
-  
-@app.get("/api/task/{task_id}")
-async def get_task(
-    task_id: int, 
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    task = db.query(RemediationTask).filter(
-        RemediationTask.id == task_id,
-        RemediationTask.user_uid == current_user.uid
-    ).first()
-    
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return task
-
-@app.post("/api/task/{task_id}/transition")
-async def transition_task(
-    task_id: int, 
-    new_state: str = Form(...),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    task = db.query(RemediationTask).filter(
-        RemediationTask.id == task_id,
-        RemediationTask.user_uid == current_user.uid
-    ).first()
-    
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    
-    allowed = {
-        "TODO": ["IN_PROGRESS", "WAIVER"],
-        "IN_PROGRESS": ["REVIEW", "WAIVER"],
-        "REVIEW": ["DONE", "WAIVER"],
-        "WAIVER": ["IN_PROGRESS"]
-    }
-    
-    if new_state not in allowed.get(task.state, []):
-        return JSONResponse(content={"error": f"Invalid transition from {task.state} to {new_state}"}, status_code=400)
-    
-    old_state = task.state
-    task.state = new_state
-    db.commit()
-    log_audit(db, "RemediationTask", task.id, "transition", current_user.uid, f"Transitioned from {old_state} to {new_state}")
-    return task
-
 # Evidence Management
 @app.post("/api/task/{task_id}/evidence")
 async def add_evidence(
@@ -2197,73 +2085,6 @@ async def get_dashboard_summary(
         "overdue": overdue_tasks
     }
 
-# @app.get("/api/audit_log")
-# async def get_audit_log(
-#     limit: int = 100, 
-#     current_user: User = Depends(get_current_user),
-#     db: Session = Depends(get_db)
-# ):
-#     logs = db.query(AuditLog).filter(
-#         AuditLog.user == current_user.id
-#     ).order_by(AuditLog.timestamp.desc()).limit(limit).all()
-#     return logs
-
-# Automation
-@app.post("/api/auto_generate_compliance")
-async def auto_generate_compliance(
-    regulation: str = Form(...),
-    due_date_offset_days: int = Form(90),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    if regulation not in REGULATION_TEMPLATES:
-        return JSONResponse(
-            content={"error": f"No template found for {regulation}"},
-            status_code=400
-        )
-    
-    template = REGULATION_TEMPLATES[regulation]
-    base_due_date = datetime.utcnow() + timedelta(days=due_date_offset_days)
-    
-    created_obligations = []
-    created_tasks = []
-    
-    for idx, obl_template in enumerate(template):
-        obl_due = base_due_date + timedelta(days=idx * 7)
-        obligation = ObligationInstance(
-            description=obl_template["description"],
-            regulation=regulation,
-            due_date=obl_due
-        )
-        db.add(obligation)
-        db.commit()
-        db.refresh(obligation)
-        created_obligations.append(obligation)
-        log_audit(db, "ObligationInstance", obligation.id, "auto_create", current_user.uid, f"Auto-generated for {regulation}")
-        
-        for task_idx, task_template in enumerate(obl_template["tasks"]):
-            task_due = obl_due - timedelta(days=(len(obl_template["tasks"]) - task_idx) * 3)
-            assigned_to = ROLE_ASSIGNMENTS.get(task_template["role"], "default@company.com")
-            task = RemediationTask(
-                obligation_id=obligation.id,
-                assigned_to=assigned_to,
-                sla_due=task_due,
-                checklist_template={"title": task_template["title"]},
-                user_uid=current_user.uid
-            )
-            db.add(task)
-            db.commit()
-            db.refresh(task)
-            created_tasks.append(task)
-            log_audit(db, "RemediationTask", task.id, "auto_create", current_user.uid, f"Auto-generated task: {task_template['title']}")
-    
-    return JSONResponse(content={
-        "status": "success",
-        "regulation": regulation,
-        "obligations_created": len(created_obligations),
-        "tasks_created": len(created_tasks),
-        "obligations": [{"id": o.id, "description": o.description} for o in created_obligations]
-    })
 
 @app.get("/api/audit/run/{file_id}")
 async def run_audit_on_file(

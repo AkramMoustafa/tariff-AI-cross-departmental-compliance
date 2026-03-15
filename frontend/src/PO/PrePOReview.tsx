@@ -9,11 +9,17 @@ import {
   Stack,
   MenuItem,
 } from "@mui/material";
+import { extractPO } from "@/api/client";
 import { useNavigate } from "react-router-dom";
+import { COUNTRIES } from "@/constants/countries";
+function getCountryCode(name: string) {
+  const match = COUNTRIES.find(
+    c => c.name.toLowerCase() === name.toLowerCase()
+  );
+  return match ? match.code : "";
+}
 export default function PrePOIntake() {
-  // -----------------------------
-  // State
-  // -----------------------------
+
   const navigate = useNavigate();
   const [supplier, setSupplier] = useState("");
   const [origin, setOrigin] = useState("");
@@ -25,10 +31,21 @@ const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [lineItems, setLineItems] = useState([
     { description: "", hsCode: "", quantity: "", unitPrice: "" },
   ]);
+const [loading, setLoading] = useState(false);
+const [freight, setFreight] = useState("");
+const [insurance, setInsurance] = useState("");
+const [otherCharges, setOtherCharges] = useState("");
+const goodsTotal = lineItems.reduce((sum, item) => {
+  const qty = parseFloat(item.quantity || "0");
+  const price = parseFloat(item.unitPrice || "0");
+  return sum + qty * price;
+}, 0);
+const shipmentTotal =
+  goodsTotal +
+  parseFloat(freight || "0") +
+  parseFloat(insurance || "0") +
+  parseFloat(otherCharges || "0");
 
-  // -----------------------------
-  // Handlers
-  // -----------------------------
 
   const addLineItem = () => {
     setLineItems([
@@ -48,37 +65,57 @@ const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     updated[index] = { ...updated[index], [field]: value };
     setLineItems(updated);
   };
+const handleAIExtract = async () => {
+  if (!uploadedFile) return;
 
-  const handleAIExtract = () => {
-    // Simulated AI Extraction (static demo data)
+  setLoading(true);
 
-    setSupplier("Shenzhen Advanced Components Ltd.");
-    setOrigin("CN");
-    setDestination("US");
-    setCurrency("USD");
-    setIncoterm("FOB");
+  try {
+    const response = await extractPO(uploadedFile);
 
-    setLineItems([
-      {
-        description: "Electronic Control Module",
-        hsCode: "853710",
-        quantity: "5000",
-        unitPrice: "120",
-      },
-      {
-        description: "Wiring Assembly",
-        hsCode: "854442",
-        quantity: "5000",
-        unitPrice: "18",
-      },
-    ]);
+    const data = response.data || response.extraction || response;
+
+    console.log("PO extraction:", data);
+
+    // Supplier
+    if (data.supplier) {
+      setSupplier(data.supplier);
+    }
+
+    // Origin country
+if (data.origin_country) {
+  setOrigin(getCountryCode(data.origin_country));
+}
+
+if (data.destination_country) {
+  setDestination(getCountryCode(data.destination_country));
+}
+
+    // Incoterm (comes from shipping_terms)
+    if (data.shipping_terms) {
+      setIncoterm(data.shipping_terms);
+    }
+
+    // Line items
+    if (data.items && Array.isArray(data.items)) {
+      setLineItems(
+        data.items.map((item: any) => ({
+          description: item.description || "",
+          hsCode: item.hs_code || "",
+          quantity: item.qty ? String(item.qty) : "",
+          unitPrice: item.price ? String(item.price) : "",
+        }))
+      );
+    }
 
     setAiExtracted(true);
-  };
 
-  // -----------------------------
-  // Styles
-  // -----------------------------
+  } catch (err) {
+    console.error("PO extraction failed", err);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const inputSx = {
     "& .MuiOutlinedInput-root": {
@@ -101,10 +138,6 @@ const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     backgroundColor: "#ffffff",
     boxShadow: "0 6px 20px rgba(0,0,0,0.04)",
   };
-
-  // -----------------------------
-  // Render
-  // -----------------------------
 
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: 6, mb: 8, px: 3 }}>
@@ -160,7 +193,7 @@ const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       </Typography>
 
       <Typography fontSize={13} color="#64748b" mb={2}>
-        PDF, CSV, or Excel. AI extraction will auto-fill fields.
+       PDF only. AI extraction will auto-fill fields.
       </Typography>
 
       <Button
@@ -234,26 +267,22 @@ const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   </Box>
 
   {/* Right Side - Button */}
-  <Button
-    variant="contained"
-    onClick={handleAIExtract}
-    sx={{
-      borderRadius: "12px",
-      textTransform: "none",
-      fontWeight: 600,
-      px: 4,
-      py: 1.2,
-      fontSize: 14,
-      background: "linear-gradient(135deg, #1e3a8a, #2563eb)",
-      boxShadow: "0 8px 20px rgba(37, 99, 235, 0.25)",
-      "&:hover": {
-        background: "linear-gradient(135deg, #1e40af, #1d4ed8)",
-        boxShadow: "0 10px 24px rgba(37, 99, 235, 0.35)",
-      },
-    }}
-  >
-    Extract with AI
-  </Button>
+<Button
+  variant="contained"
+  onClick={handleAIExtract}
+  disabled={!uploadedFile}
+  sx={{
+    borderRadius: "12px",
+    textTransform: "none",
+    fontWeight: 600,
+    px: 4,
+    py: 1.2,
+    fontSize: 14,
+    background: "linear-gradient(135deg, #1e3a8a, #2563eb)",
+  }}
+>
+{loading ? "Extracting..." : "Extract with AI"}
+</Button>
 </Box>
         {/* Pre-PO Details */}
         <Paper elevation={0} sx={{ ...sectionCard, mb: 5 }}>
@@ -410,6 +439,48 @@ const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             + Add Line Item
           </Button>
         </Paper>
+        <Paper elevation={0} sx={{ ...sectionCard, mb: 5 }}>
+  <Typography sx={{ fontSize: 16, fontWeight: 600, mb: 3 }}>
+    Shipment Costs
+  </Typography>
+
+  <Grid container spacing={3}>
+
+    <Grid item xs={12} md={4}>
+      <TextField
+        fullWidth
+        label="Freight"
+        size="small"
+        value={freight}
+        onChange={(e) => setFreight(e.target.value)}
+        sx={inputSx}
+      />
+    </Grid>
+
+    <Grid item xs={12} md={4}>
+      <TextField
+        fullWidth
+        label="Insurance"
+        size="small"
+        value={insurance}
+        onChange={(e) => setInsurance(e.target.value)}
+        sx={inputSx}
+      />
+    </Grid>
+
+    <Grid item xs={12} md={4}>
+      <TextField
+        fullWidth
+        label="Other Charges"
+        size="small"
+        value={otherCharges}
+        onChange={(e) => setOtherCharges(e.target.value)}
+        sx={inputSx}
+      />
+    </Grid>
+
+  </Grid>
+</Paper>
 
         {/* Actions */}
         <Stack direction="row" justifyContent="space-between">
@@ -419,7 +490,30 @@ const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 
 <Button
   variant="contained"
-  onClick={() => navigate("/TradeReviewResult")}
+onClick={() => {
+  const hasValidHsCode = lineItems.every(item => item.hsCode.trim() !== "");
+
+  if (!hasValidHsCode) {
+    alert("Each line item must have an HS Code before running the trade review.");
+    return;
+  }
+
+  navigate("/TradeReviewResult", {
+    state: {
+      supplier,
+      origin,
+      destination,
+      currency,
+      incoterm,
+      lineItems,
+      freight,
+      insurance,
+      otherCharges,
+      goodsTotal,
+      shipmentTotal
+    }
+  });
+}}
   sx={{
     backgroundColor: "#1e3a8a",
     borderRadius: "10px",
