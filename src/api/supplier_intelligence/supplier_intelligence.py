@@ -5,6 +5,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from src.api.db import get_db
 from src.api.API_USER.client_user_tokens import get_client_user_session
 from src.api.models import Supplier, SupplierProfile, SupplierHiringInsight
+from src.api.intelligence.service import get_supplier_risk_from_db
+from src.api.models import SupplierRiskSnapshot
+from sqlalchemy import func
+from sqlalchemy.orm import aliased
+from sqlalchemy import func, desc
 
 router = APIRouter()
 
@@ -93,6 +98,96 @@ def create_supplier(
     db.commit()
 
     return {"supplier_id": supplier.id}
+@router.get("/suppliers/high-risk")
+def get_high_risk_suppliers(
+    db: Session = Depends(get_db),
+    session = Depends(get_client_user_session)
+):
+    # 👇 Step 1: get latest snapshot per supplier
+    latest_subquery = (
+        db.query(
+            SupplierRiskSnapshot.supplier_id,
+            func.max(SupplierRiskSnapshot.computed_at).label("latest_time")
+        )
+        .group_by(SupplierRiskSnapshot.supplier_id)
+        .subquery()
+    )
+
+    latest_snap = aliased(SupplierRiskSnapshot)
+
+    # 👇 Step 2: join ONLY latest snapshot
+    rows = (
+        db.query(Supplier, SupplierRiskSnapshot)
+        .join(
+            SupplierRiskSnapshot,
+            Supplier.id == SupplierRiskSnapshot.supplier_id
+        )
+        .filter(
+            Supplier.client_user_id == session["client_user_id"],
+            SupplierRiskSnapshot.overall_level == "HIGH"
+        )
+        .order_by(
+            SupplierRiskSnapshot.computed_at.desc()
+        )
+        .all()
+    )
+
+    seen = set()
+    results = []
+
+    for s, snap in rows:
+        if s.id in seen:
+            continue
+        seen.add(s.id)
+
+        results.append({
+            "supplier_id": s.id,
+            "name": s.name,
+            "country": s.country,
+            "risk_score": snap.overall_score,
+            "risk_level": snap.overall_level,
+            "primary_driver": snap.primary_driver
+        })
+
+    return {
+        "count": len(results),
+        "suppliers": results
+    }
+
+
+@router.get("/suppliers/risk-trend")
+def get_worsening_suppliers(
+    db: Session = Depends(get_db),
+    session = Depends(get_client_user_session)
+):
+    worsening_count = 0
+
+    suppliers = (
+        db.query(Supplier)
+        .filter(Supplier.client_user_id == session["client_user_id"])
+        .all()
+    )
+
+    for s in suppliers:
+        snapshots = (
+            db.query(SupplierRiskSnapshot)
+            .filter(SupplierRiskSnapshot.supplier_id == s.id)
+            .order_by(SupplierRiskSnapshot.computed_at.desc())
+            .limit(2)
+            .all()
+        )
+
+        if len(snapshots) < 2:
+            continue
+
+        latest, previous = snapshots
+
+        if latest.overall_score > previous.overall_score:
+            worsening_count += 1
+
+    return {
+        "count": worsening_count
+    }
 
 @router.get("/suppliers/{supplier_id}")
 def get_supplier(
@@ -143,14 +238,24 @@ def get_suppliers(
         .filter(Supplier.client_user_id == session["client_user_id"])
         .all()
     )
-    return [
-        {
+    result = []
+
+    for s in suppliers:
+        try:
+            risk = get_supplier_risk_from_db(db, s.id)
+            risk_summary = risk["overall_supplier_risk"]
+        except:
+            risk_summary = None
+
+        result.append({
             "id": s.id,
             "name": s.name,
-            "country": s.country
-        }
-        for s in suppliers
-    ]
+            "country": s.country,
+            "risk": risk_summary
+        })
+
+    return result
+
 
 @router.get("/suppliers/{supplier_id}/dashboard")
 def get_supplier_dashboard(

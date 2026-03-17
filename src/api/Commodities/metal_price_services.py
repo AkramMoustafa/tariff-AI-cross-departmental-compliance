@@ -121,16 +121,16 @@ def fetch_price_data(symbols, weeks=20, base="USD"):
             all_data.append(row)
 
         current_date += relativedelta(weeks=1)
-    print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
+    # print("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX")
 
     
 
     df = pd.DataFrame(all_data)
     if df.empty:
-        print(f"No data returned for symbol: {symbols}")
+        # print(f"No data returned for symbol: {symbols}")
         return df
 
-    print(df)
+    # print(df)
     df["date"] = pd.to_datetime(df["date"])
     df.set_index("date", inplace=True)
 
@@ -277,7 +277,7 @@ def extract_energy_data():
         brent = brent.sort_values("observation_date")
         gas = gas.sort_values("observation_date")
         coal = coal.sort_values("observation_date")
-        print(gas,coal, brent)
+        # print(gas,coal, brent)
         brent = (
             brent.set_index("observation_date")
             .resample("W")
@@ -305,11 +305,11 @@ def extract_energy_data():
             on="observation_date",
             direction="nearest"
         )
-        print("Weekly Brent")
-        print(brent.tail(10))
+        # print("Weekly Brent")
+        # print(brent.tail(10))
 
-        print("Weekly Gas")
-        print(gas.tail(10))
+        # print("Weekly Gas")
+        # print(gas.tail(10))
         # ---- attach coal (monthly → last known price) ----
         merged = pd.merge_asof(
             merged.sort_values("observation_date"),
@@ -320,8 +320,8 @@ def extract_energy_data():
 
         merged = merged.sort_values("observation_date").reset_index(drop=True)
         
-        print("NaN check:")
-        print(merged.isna().sum())
+        # print("NaN check:")
+        # print(merged.isna().sum())
         # ---- INSERT INTO DATABASE ----
         for _, row in merged.iterrows():
             energy = EnergyPrice(
@@ -343,3 +343,94 @@ def extract_energy_data():
 
     finally:
         db.close()
+
+
+from collections import defaultdict
+
+
+def calculate_percentage_change(prices):
+    """
+    Calculates % change between newest and oldest observation.
+    prices = [{"date":..., "price":...}]
+    """
+
+    if not prices or len(prices) < 2:
+        return 0
+
+    newest = prices[0]["price"]
+    oldest = prices[-1]["price"]
+
+    if oldest == 0:
+        return 0
+
+    return ((newest - oldest) / oldest) * 100
+
+
+def calculate_forex_change(rates):
+
+    if not rates or len(rates) < 2:
+        return 0
+
+    newest = rates[0]["rate"]
+    oldest = rates[-1]["rate"]
+
+    if oldest == 0:
+        return 0
+
+    return ((newest - oldest) / oldest) * 100
+
+
+def calculate_energy_change(energy):
+
+    if not energy or len(energy) < 2:
+        return 0
+
+    newest = energy[0]["brent"]
+    oldest = energy[-1]["brent"]
+
+    if oldest == 0:
+        return 0
+
+    return ((newest - oldest) / oldest) * 100
+
+
+def compute_market_pressure(metals, forex, energy, exposures):
+
+    """
+    exposures example:
+    {
+        "metal": 0.45,
+        "energy": 0.25,
+        "forex": 0.20,
+        "transport": 0.10
+    }
+    """
+
+    metal_change = calculate_percentage_change(metals)
+    forex_change = calculate_forex_change(forex)
+    energy_change = calculate_energy_change(energy)
+
+    metal_pressure = exposures["metal"] * metal_change
+    forex_pressure = exposures["forex"] * forex_change
+    energy_pressure = exposures["energy"] * energy_change
+
+    total_pressure = metal_pressure + forex_pressure + energy_pressure
+
+    score = min(100, abs(total_pressure) * 4)
+
+    drivers = []
+
+    if abs(metal_pressure) > 2:
+        drivers.append(f"Metal price change {metal_change:.1f}%")
+
+    if abs(forex_pressure) > 2:
+        drivers.append(f"FX movement {forex_change:.1f}%")
+
+    if abs(energy_pressure) > 2:
+        drivers.append(f"Energy change {energy_change:.1f}%")
+
+    return {
+        "score": round(score, 1),
+        "cost_pressure_percent": round(total_pressure, 2),
+        "drivers": drivers
+    }

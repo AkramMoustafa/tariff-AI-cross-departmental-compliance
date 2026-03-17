@@ -18,6 +18,10 @@ export const getSupplier = async (supplier_id: number) => {
 
   return response.data;
 };
+export const getWorseningSuppliers = async () => {
+  const res = await apiUserClient.get("/suppliers/risk-trend");
+  return res.data;
+};
 export const updateLinkedinCompanyName = async (
   supplierId: number,
   linkedin_company_name: string
@@ -53,6 +57,10 @@ export const saveMetalPrices = async (
 
   return response.data;
 };
+export const getHighRiskSuppliers = async () => {
+  const response = await apiUserClient.get("/suppliers/high-risk");
+  return response.data;
+};
 export const getHiringInsight = async (supplier_id: number) => {
   const response = await apiUserClient.get(
     `/suppliers/${supplier_id}/hiring-insight`
@@ -63,6 +71,13 @@ export const getHiringInsight = async (supplier_id: number) => {
 export const getSupplierIntelligence = async (supplier_id: number) => {
   const response = await apiUserClient.get(
     `/suppliers/${supplier_id}/intelligence`
+  );
+
+  return response.data;
+};
+export const getSupplierRisk = async (supplier_id: number) => {
+  const response = await apiUserClient.get(
+    `/suppliers/${supplier_id}/risk`
   );
 
   return response.data;

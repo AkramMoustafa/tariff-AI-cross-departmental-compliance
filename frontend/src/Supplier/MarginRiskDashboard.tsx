@@ -13,10 +13,6 @@ import {
   ReferenceLine,
 } from "recharts";
 
-// -----------------------------
-// Static Data
-// -----------------------------
-
 const COST_BREAKDOWN = [
   { name: "Product", value: 1800000, category: "Fixed" },
   { name: "Freight", value: 250000, category: "Market-linked" },

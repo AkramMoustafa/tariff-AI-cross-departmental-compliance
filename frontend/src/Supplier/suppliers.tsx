@@ -23,6 +23,7 @@ export default function Suppliers() {
     async function loadSuppliers() {
       try {
         const data = await getSuppliers();
+        console.log("SUPPLIERS API RESPONSE:", data); 
         setSuppliers(data);
       } catch (err) {
         console.error(err);
@@ -68,27 +69,39 @@ export default function Suppliers() {
             <TableRow>
               <TableCell>Supplier</TableCell>
               <TableCell>Country</TableCell>
+                  <TableCell>Risk</TableCell>  
               <TableCell>Actions</TableCell>
             </TableRow>
+            
           </TableHead>
+          
+          
+<TableBody>
+  {suppliers.map((supplier) => (
+    <TableRow key={supplier.id}>
+      <TableCell>{supplier.name}</TableCell>
+      <TableCell>{supplier.country}</TableCell>
 
-          <TableBody>
-            {suppliers.map((supplier) => (
-              <TableRow key={supplier.id}>
-                <TableCell>{supplier.name}</TableCell>
-                <TableCell>{supplier.country}</TableCell>
+      {/* ✅ ADD RISK HERE */}
+      <TableCell>
+        {supplier.risk ? (
+          `${supplier.risk.score} (${supplier.risk.level})`
+        ) : (
+          "N/A"
+        )}
+      </TableCell>
 
-                <TableCell>
-                  <Button
-                    variant="outlined"
-                    onClick={() => navigate(`/suppliers/${supplier.id}`)}
-                  >
-                    View Profile
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
+      <TableCell>
+        <Button
+          variant="outlined"
+          onClick={() => navigate(`/suppliers/${supplier.id}`)}
+        >
+          View Profile
+        </Button>
+      </TableCell>
+    </TableRow>
+  ))}
+</TableBody>
         </Table>
       </Paper>
     </Box>

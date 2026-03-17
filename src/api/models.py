@@ -84,6 +84,30 @@ class SupplierJobPosting(Base):
 
     supplier = relationship("Supplier", back_populates="job_postings")
 
+class SupplierRiskSnapshot(Base):
+    __tablename__ = "supplier_risk_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
+
+    # Overall risk
+    overall_score = Column(Float)
+    overall_level = Column(String)
+    primary_driver = Column(String)
+
+    # Store full breakdown (your sections dict)
+    sections = Column(JSON)
+
+    # Optional: store raw inputs (VERY useful later)
+    input_snapshot = Column(JSON, nullable=True)
+
+    # Metadata
+    computed_at = Column(DateTime, default=datetime.utcnow, index=True)
+    version = Column(String, default="v1")  # if you change scoring logic later
+
+    supplier = relationship("Supplier", backref="risk_snapshots")
+    
 class SupplierHiringInsight(Base):
     __tablename__ = "supplier_hiring_insights"
 
@@ -478,6 +502,7 @@ class SupplierPortSignal(Base):
     captured_at = Column(DateTime, default=datetime.utcnow)
 
     supplier = relationship("Supplier", backref="port_signals")
+    
 class SupplierRegistryInsight(Base):
     __tablename__ = "supplier_registry_insights"
 
@@ -494,7 +519,7 @@ class SupplierRegistryInsight(Base):
     directors_count = Column(Integer)
     filings_count = Column(Integer)
     history_count = Column(Integer)
-    
+
 class SupplierRegistryHealth(Base):
     __tablename__ = "supplier_registry_health"
 

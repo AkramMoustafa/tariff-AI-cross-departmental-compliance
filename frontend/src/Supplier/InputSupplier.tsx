@@ -63,6 +63,7 @@ const commodityMap: Record<string, string[]> = {
   steel: ["IRON", "COAL"],
   electronics: ["XCU", "XAU", "XAG"],
   automotive: ["ALU", "NI", "XCU"],
+  metals: ["XCU", "XAU", "XAG", "ALU", "NI"],
   construction: ["IRON", "ZNC", "ALU"],
   fertilizer: ["NATGAS"],
 };

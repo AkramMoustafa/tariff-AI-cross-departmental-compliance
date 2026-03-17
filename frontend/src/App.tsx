@@ -42,6 +42,7 @@ import SupplierProfile from "./Supplier/supplier"
 import Suppliers from "./Supplier/suppliers"
 import SupplierRiskDashboard from "./Supplier/Trial"
 import SupplierIntelligence from "./Supplier/s"
+import S1 from "./Supplier/insights"
 export default function App() {
   return (
     <Box>
@@ -145,17 +146,19 @@ SupplierIntelligence
   element={
     <ClientSessionProvider>
       <DashboardAppLayout>
-        <SupplierIntelligence supplierId={1} />
+        <SupplierIntelligence supplierId={35} />
       </DashboardAppLayout>
     </ClientSessionProvider>
   }
 />
+
+
 <Route
-  path="/TradeReviewResult"
+  path="/s1"
   element={
     <ClientSessionProvider>
       <DashboardAppLayout>
-          <TradeReviewResult />
+          <S1 />
       </DashboardAppLayout>
     </ClientSessionProvider>
 
@@ -288,10 +291,9 @@ SupplierIntelligence
           <SupplierRiskDashboard />
       </DashboardAppLayout>
     </ClientSessionProvider>
-
-
   }
 />
+
 <Route
   path="/monte"
   element={

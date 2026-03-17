@@ -13,14 +13,11 @@ from src.api.models import User
 from fastapi import APIRouter, Depends, HTTPException
 from src.api.models import ClientUser
 router = APIRouter()
-
 import os
 
 THEIRSTACK_API_KEY = os.getenv("THEIRSTACK_API_KEY")
-
 class SupplierRequest(BaseModel):
     supplier_id: int
-
 
 def calculate_hiring_trend(current_jobs, previous_jobs):
 
@@ -201,26 +198,21 @@ def update_linkedin_name(
         "supplier_id": supplier.id,
         "linkedin_company_name": supplier.linkedin_company_name
     }
-@router.get("/suppliers/{supplier_id}/hiring-insight")
-def get_hiring_insight(
-    supplier_id: int,
-    db: Session = Depends(get_db),
-    session = Depends(get_client_user_session)
-):
-    # Only fetch supplier owned by current user
+
+def get_hiring_insight(supplier_id: int, db, client_user_id: int):
+
     supplier = (
         db.query(Supplier)
         .filter(
             Supplier.id == supplier_id,
-            Supplier.client_user_id == session["client_user_id"]
+            Supplier.client_user_id == client_user_id
         )
         .first()
     )
 
     if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
+        return None
 
-    # Get latest hiring insight
     insight = (
         db.query(SupplierHiringInsight)
         .filter(SupplierHiringInsight.supplier_id == supplier_id)

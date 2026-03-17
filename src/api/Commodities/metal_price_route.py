@@ -44,3 +44,41 @@ def save_energy():
     return {
         "data": data
     }
+
+if __name__ == "__main__":
+
+    # print("Running commodities debug test...\n")
+
+    # print("Testing metal price fetch...")
+    df = fetch_price_data("XAU", weeks=3)
+
+    # print("Metal dataframe:")
+    print(df)
+
+    if not df.empty:
+        # print("Saving metal prices...")
+        result = save_to_metalprice(df, supplier_id=6, symbol="XAU")
+        print("Saved metal records:", result)
+    else:
+        print("No metal data returned!")
+
+    print("\nTesting forex fetch...")
+    df = fetch_price_data("EUR", weeks=3)
+
+    # print("Forex dataframe:")
+    # print(df)
+
+    if not df.empty:
+        # print("Saving forex rates...")
+        result = save_forex_rates(df, supplier_id=6)
+        # print("Saved forex records:", result)
+    else:
+        print("No forex data returned!")
+
+    # print("\nTesting energy extraction...")
+    energy = extract_energy_data()
+
+    # print("Energy data:")
+    # print(energy[:5])
+
+    # print("\nDebug run finished.")

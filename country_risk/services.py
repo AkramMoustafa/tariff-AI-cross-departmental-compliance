@@ -54,53 +54,6 @@ CHOKEPOINTS = {
     ]
 }
 
-def get_news_risk_from_db(country: str, db):
-
-    events = (
-        db.query(NewsEvent)
-        .filter(NewsEvent.country.ilike(country))
-        .order_by(NewsEvent.discovered_at.desc())
-        .limit(10)
-        .all()
-    )
-
-    if not events:
-        return {
-            "country": country,
-            "risk_level": "LOW",
-            "risk_score": 0,
-            "event_count": 0,
-            "events": []
-        }
-
-    severity_map = {"low":1,"medium":2,"high":3}
-
-    scores = [severity_map.get(e.severity.lower(),1) for e in events]
-
-    avg_score = sum(scores)/len(scores)
-    risk_score = round((avg_score/3)*10,2)
-
-    if risk_score >= 7:
-        level = "HIGH"
-    elif risk_score >= 4:
-        level = "MEDIUM"
-    else:
-        level = "LOW"
-
-    return {
-        "country": country,
-        "risk_level": level,
-        "risk_score": risk_score,
-        "event_count": len(events),
-        "events": [
-            {
-                "event": e.event,
-                "location": e.location,
-                "severity": e.severity
-            } for e in events
-        ]
-    }
-
 def extract_events_from_passages(text):
 
     prompt = f"""
@@ -239,6 +192,7 @@ def run_news_pipeline(country: str):
 
     # Normalize score to 10
     risk_score = round((avg_score / 3) * 10, 2)
+
     # Risk level
     if risk_score >= 7:
         risk_level = "HIGH"
@@ -246,23 +200,6 @@ def run_news_pipeline(country: str):
         risk_level = "MEDIUM"
     else:
         risk_level = "LOW"
-
-    # SAVE EVENTS TO DATABASE
-    db = SessionLocal()
-
-    for event in filtered_events:
-        record = NewsEvent(
-            country=country,
-            event=event.get("event"),
-            location=event.get("location"),
-            severity=event.get("severity"),
-            detected_at=datetime.utcnow()
-        )
-
-        db.add(record)
-
-    db.commit()
-    db.close()
 
     return {
         "country": country,
@@ -340,20 +277,17 @@ def get_risk_country(country: str):
 
     country = normalize_country(country)
 
-    master = pd.read_csv("country_master_risk.csv")
+    master = pd.read_csv("country_risk_master.csv")
+    events = pd.read_csv("news_events_structured.csv")
 
     row = master[master["country"].str.lower() == country.lower()]
 
     if row.empty:
         return {"verified": False}
 
-    db = SessionLocal()
-
-    country_events = db.query(NewsEvent).filter(
-        NewsEvent.country.ilike(country)
-    ).all()
-
-    db.close()
+    country_events = events[
+        events["country"].str.lower() == country.lower()
+    ]
 
     return {
         "verified": True,
@@ -380,7 +314,7 @@ def get_country_list():
 
 
 def get_country_risk_simple(country: str):
-    country = normalize_country(country)  
+
     record = risk_map.get(country.lower())
 
     if not record:
