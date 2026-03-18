@@ -154,6 +154,58 @@ def get_high_risk_suppliers(
         "suppliers": results
     }
 
+@router.get("/suppliers/risk-driver-mix")
+def get_risk_driver_mix(
+    db: Session = Depends(get_db),
+    session = Depends(get_client_user_session)
+):
+    # Get latest snapshot per supplier
+    latest_subquery = (
+        db.query(
+            SupplierRiskSnapshot.supplier_id,
+            func.max(SupplierRiskSnapshot.computed_at).label("latest_time")
+        )
+        .group_by(SupplierRiskSnapshot.supplier_id)
+        .subquery()
+    )
+
+    latest_snap = aliased(SupplierRiskSnapshot)
+
+    rows = (
+        db.query(SupplierRiskSnapshot.primary_driver)
+        .join(
+            latest_subquery,
+            (SupplierRiskSnapshot.supplier_id == latest_subquery.c.supplier_id) &
+            (SupplierRiskSnapshot.computed_at == latest_subquery.c.latest_time)
+        )
+        .join(Supplier, Supplier.id == SupplierRiskSnapshot.supplier_id)
+        .filter(Supplier.client_user_id == session["client_user_id"])
+        .all()
+    )
+
+    # Count drivers
+    driver_counts = {}
+    total = 0
+
+    for (driver,) in rows:
+        if not driver:
+            continue
+        driver_counts[driver] = driver_counts.get(driver, 0) + 1
+        total += 1
+
+    # Convert to % format
+    result = []
+    for driver, count in driver_counts.items():
+        pct = round((count / total) * 100)
+        result.append({
+            "label": driver,
+            "value": pct
+        })
+
+    # Sort descending
+    result.sort(key=lambda x: x["value"], reverse=True)
+
+    return result
 
 @router.get("/suppliers/risk-trend")
 def get_worsening_suppliers(

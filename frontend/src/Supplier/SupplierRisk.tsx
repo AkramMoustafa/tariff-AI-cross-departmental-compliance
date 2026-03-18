@@ -409,6 +409,59 @@ useEffect(() => {
   }
 }, [supplierId]);
 
+useEffect(() => {
+  let market = 0;
+  let policy = 0;
+  let operational = 0;
+  let counterparty = 0;
+
+  if (countryRiskScore !== null) {
+    policy = countryRiskScore * 100; // already 0–1 → convert to %
+  }
+
+  if (portRisk?.health_score !== undefined) {
+    operational = 100 - portRisk.health_score; // worse port = higher risk
+  }
+
+  if (hiringInsight?.risk_level) {
+    if (hiringInsight.risk_level === "HIGH") counterparty += 70;
+    if (hiringInsight.risk_level === "MEDIUM") counterparty += 50;
+    if (hiringInsight.risk_level === "LOW") counterparty += 20;
+  }
+
+  if (registryData?.health_score !== undefined) {
+    counterparty += (100 - registryData.health_score);
+    counterparty = counterparty / 2; // normalize
+  }
+
+  market = 25;
+
+  setRiskScores({
+    market,
+    policy,
+    operational,
+    counterparty,
+  });
+
+}, [countryRiskScore, portRisk, hiringInsight, registryData]);
+useEffect(() => {
+  const weights = {
+    market: 0.2,
+    policy: 0.25,
+    operational: 0.3,
+    counterparty: 0.25,
+  };
+
+  const total =
+    riskScores.market * weights.market +
+    riskScores.policy * weights.policy +
+    riskScores.operational * weights.operational +
+    riskScores.counterparty * weights.counterparty;
+
+  setOverallRisk(Math.round(total));
+}, [riskScores]);
+
+
   return (
     <Box sx={{ maxWidth: 1300, mx: "auto", mt: 6, mb: 8, px: 3 }}>
       <Box

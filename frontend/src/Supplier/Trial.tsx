@@ -22,7 +22,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { getSuppliers } from "../api/SupplierIntelligence";
+import { getSuppliers,getWorseningSuppliers, getHighRiskSuppliers ,getRiskDriverMix } from "../api/SupplierIntelligence";
+
 import {
   BarChart,
   Bar,
@@ -37,36 +38,7 @@ import {
   RadialBar,
 } from "recharts";
 
-const kpis = [
-  {
-    title: "Total Suppliers",
-    value: "124",
-    delta: "+8 this month",
-    icon: Factory,
-    accent: "from-slate-900 to-slate-700",
-  },
-  {
-    title: "High Risk Suppliers",
-    value: "17",
-    delta: "+3 vs last week",
-    icon: AlertTriangle,
-    accent: "from-amber-600 to-orange-500",
-  },
-  {
-    title: "Avg. Macro Exposure",
-    value: "62/100",
-    delta: "Moderate elevation",
-    icon: Activity,
-    accent: "from-blue-600 to-cyan-500",
-  },
-  {
-    title: "Critical Countries",
-    value: "5",
-    delta: "Require active watch",
-    icon: Globe,
-    accent: "from-violet-600 to-fuchsia-500",
-  },
-];
+
 
 const topMacroRisks = [
   {
@@ -105,41 +77,21 @@ const trendData = [
   { month: "Jun", risk: 58, oil: 63 },
   { month: "Jul", risk: 62, oil: 68 },
 ];
+const normalizeSupplier = (s: any) => {
+  const levelMap: any = {
+    HIGH: "High",
+    MODERATE: "Medium",
+    LOW: "Low",
+  };
 
-const suppliers = [
-  {
-    name: "SteelCo Anadolu",
-    country: "Turkey",
-    industry: "Steel",
-    fx: "High",
-    commodity: "Very High",
-    score: 92,
-  },
-  {
-    name: "Plastix Norte",
-    country: "Mexico",
-    industry: "Polymers",
-    fx: "Medium",
-    commodity: "High",
-    score: 78,
-  },
-  {
-    name: "NordGlass GmbH",
-    country: "Germany",
-    industry: "Glass",
-    fx: "Low",
-    commodity: "High",
-    score: 67,
-  },
-  {
-    name: "Electra Components",
-    country: "Malaysia",
-    industry: "Electronics",
-    fx: "Medium",
-    commodity: "Medium",
-    score: 58,
-  },
-];
+  return {
+    name: s.name,
+    country: s.country,
+    score: s.risk_score,
+    level: levelMap[s.risk_level],
+    driver: s.primary_driver,
+  };
+};
 
 const radialData = [{ name: "Exposure", value: 62, fill: "currentColor" }];
 
@@ -162,16 +114,63 @@ const badgeClasses: Record<string, string> = {
 export default function SupplierRiskDashboard() {
   const navigate = useNavigate();
 
-  const [suppliers, setSuppliers] = useState<any[]>([]);
-  useEffect(() => {
-  async function loadSuppliers() {
-    const data = await getSuppliers();
-    setSuppliers(data);
+const [totalSuppliers, setTotalSuppliers] = useState(0);
+const [highRiskSuppliers, setHighRiskSuppliers] = useState<any[]>([]);
+const [highRiskCount, setHighRiskCount] = useState(0);
+const [riskDrivers, setRiskDrivers] = useState<any[]>([]);
+const [worseningCount, setWorseningCount] = useState(0);
+const kpis = [
+  {
+    title: "Total Suppliers",
+    value: totalSuppliers.toString(),
+    delta: "All tracked",
+    icon: Factory,
+    accent: "from-slate-900 to-slate-700",
+  },
+  {
+    title: "High Risk Suppliers",
+    value: highRiskCount.toString(),
+    delta: "Needs attention",
+    icon: AlertTriangle,
+    accent: "from-amber-600 to-orange-500",
+  },
+  {
+    title: "Worsening Suppliers",
+    value: worseningCount.toString(),
+    delta: "Trending up",
+    icon: TrendingUp,
+    accent: "from-blue-600 to-cyan-500",
+  },
+  {
+    title: "Top Risk Driver",
+    value: riskDrivers[0]?.label || "-",
+    delta: "Primary factor",
+    icon: Activity,
+    accent: "from-violet-600 to-fuchsia-500",
+  },
+];
+useEffect(() => {
+  async function loadDashboard() {
+    try {
+      const suppliers = await getSuppliers();
+      setTotalSuppliers(suppliers.length);
+
+      const highRisk = await getHighRiskSuppliers();
+      setHighRiskSuppliers(highRisk.suppliers);
+      setHighRiskCount(highRisk.count);
+
+      const worsening = await getWorseningSuppliers();
+      setWorseningCount(worsening.count);
+
+      const drivers = await getRiskDriverMix();
+      setRiskDrivers(drivers);
+    } catch (e) {
+      console.error(e);
+    }
   }
 
-    loadSuppliers();
-  }, []);
-  const [selectedSupplier, setSelectedSupplier] = useState<any | null>(null);
+  loadDashboard();
+}, []);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.12),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(168,85,247,0.10),_transparent_28%),linear-gradient(to_bottom,_#f8fafc,_#eef2ff_40%,_#ffffff_100%)] text-slate-900 dark:bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.16),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(168,85,247,0.14),_transparent_28%),linear-gradient(to_bottom,_#020617,_#0f172a_40%,_#111827_100%)] dark:text-slate-50">
@@ -231,7 +230,7 @@ export default function SupplierRiskDashboard() {
                           {item.title}
                         </p>
                         <p className="mt-2 text-4xl font-semibold tracking-tight">
-                          {item.title === "Total Suppliers" ? suppliers.length : item.value}
+                         {item.value}
                         </p>
                       </div>
                       <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-3 dark:border-white/10 dark:bg-white/5">
@@ -429,64 +428,50 @@ export default function SupplierRiskDashboard() {
                 </Button>
               </CardHeader>
               <CardContent className="space-y-4">
-                {suppliers.map((supplier) => {
-                  const label = riskBadge(supplier.score);
-                  return (
-                      <div
-                        key={supplier.name}
-                        onClick={() => navigate(`/suppliers`)}
-                        className="cursor-pointer rounded-3xl border border-slate-200/70 bg-white/80 p-4 shadow-sm transition-all duration-300 hover:border-slate-300 hover:shadow-md dark:border-white/10 dark:bg-white/5"
-                      >
-                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <div className="flex items-center gap-3">
-                            <p className="text-base font-semibold">{supplier.name}</p>
-                            <span
-                              className={`rounded-full px-2.5 py-1 text-xs font-medium ${badgeClasses[label]}`}
-                            >
-                              {label}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                            {supplier.country} · {supplier.industry}
-                          </p>
-                        </div>
+{highRiskSuppliers.map((s) => {
+  const supplier = normalizeSupplier(s);
+  const label = supplier.level;
 
-                        <div className="grid min-w-[260px] flex-1 grid-cols-2 gap-4 md:max-w-md">
-                          <div>
-                            <div className="mb-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                              <span>FX Exposure</span>
-                              <span>{supplier.fx}</span>
-                            </div>
-                            <Progress value={supplier.fx === "High" ? 84 : supplier.fx === "Medium" ? 58 : 32} />
-                          </div>
-                          <div>
-                            <div className="mb-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                              <span>Commodity Exposure</span>
-                              <span>{supplier.commodity}</span>
-                            </div>
-                            <Progress
-                              value={
-                                supplier.commodity === "Very High"
-                                  ? 92
-                                  : supplier.commodity === "High"
-                                    ? 74
-                                    : 52
-                              }
-                            />
-                          </div>
-                        </div>
+  return (
+    <div
+      key={supplier.name}
+      onClick={() => navigate("/suppliers")}
+      className="cursor-pointer rounded-3xl border border-slate-200/70 bg-white/80 p-4 shadow-sm transition-all duration-300 hover:border-slate-300 hover:shadow-md dark:border-white/10 dark:bg-white/5"
+    >
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className="flex items-center gap-3">
+            <p className="text-base font-semibold">{supplier.name}</p>
+            <span
+              className={`rounded-full px-2.5 py-1 text-xs font-medium ${badgeClasses[label]}`}
+            >
+              {label}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            {supplier.country}
+          </p>
+        </div>
 
-                        <div className="w-24 text-right">
-                          <p className="text-2xl font-semibold">{supplier.score}</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            Risk score
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+        <div className="flex-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Primary driver
+          </p>
+          <p className="mt-1 text-sm font-medium text-slate-900 dark:text-slate-100">
+            {supplier.driver || "No primary driver available"}
+          </p>
+        </div>
+
+        <div className="w-24 text-right">
+          <p className="text-2xl font-semibold">{supplier.score}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Risk score
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+})}
               </CardContent>
             </Card>
           </motion.div>

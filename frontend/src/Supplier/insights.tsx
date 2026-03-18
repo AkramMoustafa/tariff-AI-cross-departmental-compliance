@@ -1,27 +1,18 @@
 import { useEffect, useState } from "react";
-import { getSuppliers, getHighRiskSuppliers,getWorseningSuppliers } from "@/api/SupplierIntelligence";
+import {
+  getSuppliers,
+  getHighRiskSuppliers,
+  getWorseningSuppliers,
+  getRiskDriverMix,
+} from "@/api/SupplierIntelligence";
 
 export default function S1() {
-    const [totalSuppliers, setTotalSuppliers] = useState(0);
-    const [highRiskCount, setHighRiskCount] = useState(0);
-    const [worseningCount, setWorseningCount] = useState(0);
-useEffect(() => {
-  const fetchData = async () => {
-    try {
-      const suppliers = await getSuppliers();
-      setTotalSuppliers(suppliers.length);
-
-      const highRisk = await getHighRiskSuppliers();
-      setHighRiskCount(highRisk.count);
-
-    } catch (err) {
-      console.error("Failed to load dashboard data", err);
-    }
-  };
-
-  fetchData();
-}, []);
+const [totalSuppliers, setTotalSuppliers] = useState(0);
+const [highRiskCount, setHighRiskCount] = useState(0);
+const [worseningCount, setWorseningCount] = useState(0);
 const [highRiskSuppliers, setHighRiskSuppliers] = useState<any[]>([]);
+const [riskDrivers, setRiskDrivers] = useState<any[]>([]);
+
 useEffect(() => {
   const fetchData = async () => {
     try {
@@ -31,11 +22,14 @@ useEffect(() => {
       const highRisk = await getHighRiskSuppliers();
       console.log("HIGH RISK RESPONSE:", highRisk);
       setHighRiskCount(highRisk.count);
-        const worsening = await getWorseningSuppliers();
-        setWorseningCount(worsening.count);
-      // 👇 THIS is what you're missing
       setHighRiskSuppliers(highRisk.suppliers);
 
+      const worsening = await getWorseningSuppliers();
+      setWorseningCount(worsening.count);
+
+      const drivers = await getRiskDriverMix();
+      console.log("RISK DRIVER MIX:", drivers);
+      setRiskDrivers(drivers);
     } catch (err) {
       console.error("Failed to load dashboard data", err);
     }
@@ -43,7 +37,6 @@ useEffect(() => {
 
   fetchData();
 }, []);
-
   const summaryCards = [
     {
     title: "Suppliers Monitored",
@@ -167,15 +160,6 @@ useEffect(() => {
 //       time: "1d ago",
 //     },
 //   ];
-
-  const riskDrivers = [
-    { label: "Port / Logistics", value: 78 },
-    { label: "Negative News", value: 64 },
-    { label: "FX Volatility", value: 59 },
-    { label: "Ownership Changes", value: 52 },
-    { label: "Commodity Pricing", value: 47 },
-    { label: "Hiring / Workforce Signals", value: 41 },
-  ];
 
   const levelClasses: Record<string, string> = {
     Critical: "bg-red-100 text-red-700 border-red-200",
@@ -338,15 +322,6 @@ useEffect(() => {
                 </div>
               ))}
             </div>
-
-            {/* <div className="mt-6 rounded-2xl bg-slate-50 p-4">
-              <p className="text-sm font-medium text-slate-900">Why this matters</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Do not show raw data only. Summarize the strongest drivers so the user
-                immediately understands whether risk comes from operations, macro
-                pressure, ownership changes, or logistics disruption.
-              </p>
-            </div> */}
           </div>
         </section>
 
@@ -359,76 +334,9 @@ useEffect(() => {
                 toward disruption.
               </p>
             </div>
-{/* 
-            <div className="space-y-3">
-              {eventFeed.map((event, index) => (
-                <div
-                  key={`${event.supplier}-${index}`}
-                  className="rounded-2xl border border-slate-200 p-4"
-                >
-                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                          {event.type}
-                        </span>
-                        <span
-                          className={`rounded-full border px-2.5 py-1 text-xs font-medium ${levelClasses[event.severity]}`}
-                        >
-                          {event.severity}
-                        </span>
-                      </div>
-                      <p className="mt-3 font-medium text-slate-900">{event.supplier}</p>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">{event.detail}</p>
-                    </div>
-                    <div className="text-sm text-slate-500">{event.time}</div>
-                  </div>
-                </div>
-              ))}
-            </div> */}
           </div>
 
-          <div className="space-y-6">
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="text-xl font-semibold">What the dashboard must answer</h2>
-              <div className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="font-medium text-slate-900">1. Who is at risk?</p>
-                  <p className="mt-1">Rank suppliers by severity so the user can prioritize attention.</p>
-                </div>
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="font-medium text-slate-900">2. Why are they at risk?</p>
-                  <p className="mt-1">Show the top internal and macro factors behind the score.</p>
-                </div>
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="font-medium text-slate-900">3. Is the risk getting worse?</p>
-                  <p className="mt-1">Display a clear trend so users know whether to watch or escalate.</p>
-                </div>
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="font-medium text-slate-900">4. What should happen next?</p>
-                  <p className="mt-1">Provide light action guidance instead of leaving the user with raw alerts.</p>
-                </div>
-              </div>
-            </div>
 
-            <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="text-xl font-semibold">Recommended MVP Additions</h2>
-              <ul className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-                <li className="rounded-2xl bg-slate-50 p-4">
-                  Add a supplier-level risk score with low / medium / high / critical tags.
-                </li>
-                <li className="rounded-2xl bg-slate-50 p-4">
-                  Add a risk trend indicator so users can detect deterioration early.
-                </li>
-                <li className="rounded-2xl bg-slate-50 p-4">
-                  Add top driver explanations to improve trust and usability.
-                </li>
-                <li className="rounded-2xl bg-slate-50 p-4">
-                  Add a simple recommended action field for each high-risk supplier.
-                </li>
-              </ul>
-            </div>
-          </div>
         </section>
       </div>
     </div>

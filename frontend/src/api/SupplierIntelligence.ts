@@ -33,6 +33,10 @@ export const updateLinkedinCompanyName = async (
 
   return response.data;
 };
+export const getRiskDriverMix = async () => {
+  const response = await apiUserClient.get("/suppliers/risk-driver-mix");
+  return response.data;
+};
 // Fetch supplier dashboard (orders, quality, hiring, financial)
 export const getSupplierDashboard = async (supplier_id: number) => {
   const response = await apiUserClient.get(`/suppliers/${supplier_id}/dashboard`);

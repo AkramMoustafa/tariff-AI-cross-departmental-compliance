@@ -385,11 +385,11 @@ def build_risk_driver_mix(port_signal, news_risk, market_pressure, registry, hir
         "label": "Port / Logistics",
         "value": int(port_score)
     })
-
+    news_score = news_risk.get("risk_score", 0) if isinstance(news_risk, dict) else (news_risk or 0)
     # 2. Negative News
     drivers.append({
         "label": "Negative News",
-        "value": int(news_risk or 0)
+        "value": int(news_score)
     })
 
     # 3. FX Volatility
@@ -400,14 +400,17 @@ def build_risk_driver_mix(port_signal, news_risk, market_pressure, registry, hir
     })
 
     # 4. Ownership Changes
-    ownership_score = registry.get("risk_score", 0) if registry else 0
+    ownership_score = registry.get("risk_score", 0) if isinstance(registry, dict) else 0
     drivers.append({
         "label": "Ownership Changes",
         "value": int(ownership_score)
     })
 
+    print("market_pressure =", market_pressure)
+    print("type =", type(market_pressure))
     # 5. Commodity Pricing
-    commodity_score = int(market_pressure * 100) if market_pressure else 0
+    mp_value = market_pressure.get("score", 0) if isinstance(market_pressure, dict) else (market_pressure or 0)
+    commodity_score = int(mp_value * 100)
     drivers.append({
         "label": "Commodity Pricing",
         "value": commodity_score
