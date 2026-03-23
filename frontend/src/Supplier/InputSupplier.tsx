@@ -76,6 +76,7 @@ type SupplierInput = {
   exportPort: string;
   linkedinCompanyName: string;
   invoicingCurrency: string;
+  companyRegistrationNumber: string;
 
   incoterm: string;
   paymentTermsDays: number | "";
@@ -380,6 +381,7 @@ useEffect(() => {
     manufacturingCountry: "CN",
     exportPort: "",
     invoicingCurrency: "USD",
+    companyRegistrationNumber: "",
 
     incoterm: "FOB",
     paymentTermsDays: 30,
@@ -472,6 +474,7 @@ const commodities = commodityMap[form.materialCategory] || null;
                     placeholder="e.g., Shenzhen Advanced Components Ltd."
                   />
                 </Grid>
+
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
@@ -552,12 +555,16 @@ const commodities = commodityMap[form.materialCategory] || null;
                   onChange={(e) => setField("supplierTier", e.target.value)}
                   helperText="Position in the supply chain"
                 >
+
                   <MenuItem value="tier1">Tier 1 – Direct Supplier</MenuItem>
                   <MenuItem value="tier2">Tier 2 – Sub-supplier</MenuItem>
                   <MenuItem value="tier3">Tier 3 – Raw Material Supplier</MenuItem>
                 </TextField>
+
                 </Grid>
+
                 <Grid item xs={12} md={6}>
+                  
                  <Autocomplete
                     options={ports}
                     value={form.exportPort}
@@ -786,6 +793,7 @@ const commodities = commodityMap[form.materialCategory] || null;
                 </Grid>
 
                 <Grid item xs={12} md={6}>
+                  
                   <TextField
                     fullWidth
                     label="Share of Category Volume (%)"
@@ -798,6 +806,15 @@ const commodities = commodityMap[form.materialCategory] || null;
                     }
                     helperText="How much of this category depends on this supplier?"
                   />
+                                  <TextField
+                  fullWidth
+                  label="Company Registration Number"
+                  size="small"
+                  value={form.companyRegistrationNumber}
+                  sx={inputSx}
+                  onChange={(e) => setField("companyRegistrationNumber", e.target.value)}
+                  helperText="Official company ID (used for registry verification)"
+                />
                 </Grid>
               </Grid><Box
               sx={{
@@ -857,11 +874,7 @@ const commodities = commodityMap[form.materialCategory] || null;
                   ]);
                   
                   // 3️⃣ navigate
-                  navigate(`/SupplierRiskProfile/${supplierId}`, {
-                    state: {
-                      formData: form,
-                    },
-                  });
+                  navigate(`/SupplierRiskProfile/${supplierId}`);
 
                 } catch (error) {
                   console.error("Failed to create supplier or load commodities", error);

@@ -51,12 +51,13 @@ def get_port_coordinates(port_name: str):
         lon = -lon
 
     return lat, lon
+import traceback
 
 async def get_port_activity(port_name: str):
 
     lat, lon = get_port_coordinates(port_name)
 
-    delta = 0.05
+    delta = 0.1
 
     bbox = [
         [lat - delta, lon - delta],
@@ -84,7 +85,10 @@ async def get_port_activity(port_name: str):
 
             while time.time() - start < 40:   # collect AIS data for 8 seconds
 
-                message = await websocket.recv()
+                try:
+                    message = await asyncio.wait_for(websocket.recv(), timeout=2)
+                except asyncio.TimeoutError:
+                    continue
                 data = json.loads(message)
 
                 meta = data.get("MetaData", {})
@@ -111,8 +115,11 @@ async def get_port_activity(port_name: str):
                     "speed": speed
                 }
 
-    except Exception as e:
-        print("AIS connection failed:", e)
+
+
+    except Exception:
+        print(f"AIS failed for {port_name}")
+        traceback.print_exc()
 
         return {
             "port": port_name,
@@ -125,10 +132,24 @@ async def get_port_activity(port_name: str):
             "mobility_ratio": 0,
             "estimated_wait_hours": 0,
             "health_score": 0,
-            "status": "AIS Unavailable"
+            "status": "No Data Available"
         }
 
     ships_in_port = len(ships)
+    if ships_in_port == 0:
+        return {
+                "port": port_name,
+                "ships_in_area": 0,
+                "moving": 0,
+                "anchored": 0,
+                "entering": 0,
+                "leaving": 0,
+                "anchorage_ratio": 0,
+                "mobility_ratio": 0,
+                "estimated_wait_hours": 0,
+                "health_score": 0,
+                "status": "No Data Available"
+            }
 
     moving = 0
     anchored = 0
@@ -244,3 +265,75 @@ async def list_ports():
     )
 
     return {"ports": ports}
+
+
+def get_first_n_ports(n: int = 10):
+    return (
+        ports_df["MAIN_PORT_NAME"]
+        .dropna()
+        .str.upper()
+        .sort_values()
+        .unique()
+        .tolist()[:n]
+    )
+async def analyze_multiple_ports(limit: int = 10):
+    semaphore = asyncio.Semaphore(2)
+    ports = get_first_n_ports(limit)
+
+    print("Ports being analyzed:")
+    for p in ports:
+        print(p)
+
+    async def safe_get_port_activity(port):
+        async with semaphore:
+            return await get_port_activity(port)
+
+    tasks = [safe_get_port_activity(port) for port in ports]
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    clean_results = []
+
+    for port, result in zip(ports, results):
+
+        if isinstance(result, Exception):
+            print(f"Error processing {port}: {result}")
+            continue
+
+        clean_results.append(result)
+
+    return clean_results
+
+from src.api.models import PortSignal  
+
+async def save_ports_to_port_signals(limit: int = 10):
+
+    results = await analyze_multiple_ports(limit)
+
+    db = SessionLocal()
+
+    try:
+        for data in results:
+
+            signal = PortSignal(
+                port_name=data["port"],
+                ships_in_area=data["ships_in_area"],
+                moving=data["moving"],
+                anchored=data["anchored"],
+                entering=data["entering"],
+                leaving=data["leaving"],
+                anchorage_ratio=data["anchorage_ratio"],
+                mobility_ratio=data["mobility_ratio"],
+                estimated_wait_hours=data["estimated_wait_hours"],
+                health_score=data["health_score"],
+                status=data["status"]
+            )
+
+            db.add(signal)
+
+        db.commit()
+
+    finally:
+        db.close()
+
+    return {"saved_ports": len(results)}

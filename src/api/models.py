@@ -559,7 +559,7 @@ class Supplier(Base):
     country = Column(String)
 
     linkedin_company_name = Column(String, nullable=True)
-
+    company_registration_number = Column(String, nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     owner = relationship("ClientUser", backref="suppliers")
@@ -574,6 +574,27 @@ class Supplier(Base):
         "SupplierJobPosting",
         back_populates="supplier"
     )
+class PortSignal(Base):
+    __tablename__ = "port_signals"
+
+    id = Column(Integer, primary_key=True)
+    port_name = Column(String, index=True)
+
+    ships_in_area = Column(Integer)
+    moving = Column(Integer)
+    anchored = Column(Integer)
+    entering = Column(Integer)
+    leaving = Column(Integer)
+
+    anchorage_ratio = Column(Float)
+    mobility_ratio = Column(Float)
+    estimated_wait_hours = Column(Float)
+
+    health_score = Column(Integer)
+    status = Column(String)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
 class UserPayment(Base):
     __tablename__ = "user_supayments"
 

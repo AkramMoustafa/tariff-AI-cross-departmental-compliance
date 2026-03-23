@@ -10,6 +10,7 @@ from src.api.models import SupplierRiskSnapshot
 from sqlalchemy import func
 from sqlalchemy.orm import aliased
 from sqlalchemy import func, desc
+from src.api.Registry.registry import run_registry_scan
 
 router = APIRouter()
 
@@ -18,6 +19,7 @@ class SupplierCreate(BaseModel):
     legalName: str
     linkedinCompanyName: str | None = None
     countryIncorporation: str
+    companyRegistrationNumber: str | None = None
 
     manufacturingCountry: str | None = None
     exportPort: str | None = None
@@ -56,7 +58,8 @@ def create_supplier(
         client_user_id=session["client_user_id"],
         name=data.legalName,
         country=data.countryIncorporation,
-        linkedin_company_name=data.linkedinCompanyName
+        linkedin_company_name=data.linkedinCompanyName,
+        company_registration_number=data.companyRegistrationNumber,
     )
 
 
@@ -96,8 +99,19 @@ def create_supplier(
     db.add(profile)
 
     db.commit()
+        # 🔥 NOW CALL YOUR FUNCTION
+    try:
+        run_registry_scan(
+            supplier_id=supplier.id,
+            url=f"https://ised-isde.canada.ca/cc/lgcy/fdrlCrpDtls.html?corpId={data.companyRegistrationNumber}",
+            db=db
+        )
+    except Exception as e:
+        # Don't break supplier creation if scan fails
+        print("Registry scan failed:", e)
 
     return {"supplier_id": supplier.id}
+
 @router.get("/suppliers/high-risk")
 def get_high_risk_suppliers(
     db: Session = Depends(get_db),

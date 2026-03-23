@@ -119,14 +119,9 @@ export const getPorts = async () => {
   const response = await apiUserClient.get("/api/v1/ports/list");
   return response.data;
 };
-export const verifyCorporateRegistry = async (
-  supplierId: number,
-  companyUrl: string
-) => {
-  const encodedUrl = encodeURIComponent(companyUrl);
-
-  const response = await apiUserClient.post(
-    `/suppliers/${supplierId}/registry-scan?url=${encodedUrl}`
+export const getRegistryInsight = async (supplierId: number) => {
+  const response = await apiUserClient.get(
+    `/suppliers/${supplierId}/registry`
   );
 
   return response.data;

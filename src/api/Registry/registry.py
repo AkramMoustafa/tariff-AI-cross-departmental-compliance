@@ -115,39 +115,25 @@ def evaluate_registry_health(data: dict):
         "history_count": len(history)
     }
 
-
-@router.post("/suppliers/{supplier_id}/registry-scan")
-def scrape_company(
+def run_registry_scan(
     supplier_id: int,
     url: str,
-    db: Session = Depends(get_db),
-    session = Depends(get_client_user_session)
+    db: Session
 ):
-
-    supplier = (
-        db.query(Supplier)
-        .filter(
-            Supplier.id == supplier_id,
-            Supplier.client_user_id == session["client_user_id"]
-        )
-        .first()
-    )
-
-    if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
     headers = {
         "User-Agent": "Mozilla/5.0"
     }
 
-    response = requests.get(url, headers=headers, timeout=15)
+    response = requests.get(url, headers=headers, timeout=90)
 
     if response.status_code != 200:
-        raise HTTPException(status_code=400, detail="Failed to fetch page")
+        raise Exception("Failed to fetch page")
 
     soup = BeautifulSoup(response.text, "html.parser")
 
     data = {}
 
+    # --- Extract key/value fields ---
     for row in soup.select(".panel-body .row"):
         cols = row.find_all("div")
 
@@ -158,49 +144,54 @@ def scrape_company(
             if key.endswith(":"):
                 data[key.replace(":", "")] = val
 
+    # --- Address ---
     addr_section = soup.find("span", string="Registered office address")
 
     if addr_section:
-        panel = addr_section.find_parent("header").find_next("section")
-        address = panel.get_text("\n", strip=True)
-        data["Registered office address"] = address
+        header = addr_section.find_parent("header")
+        if header:
+            section = header.find_next("section")
+            if section:
+                address = section.get_text("\n", strip=True)
+                data["Registered office address"] = address
 
+    # --- Directors ---
     directors = []
-
     for li in soup.select("ul li"):
         name = li.find("b")
-
         if name:
             directors.append(name.get_text(strip=True))
 
     if directors:
         data["Directors"] = directors
 
+    # --- Annual filings ---
     annual = {}
-
     for row in soup.select("#annualfilingId ~ .row"):
         cols = row.find_all("div")
 
         if len(cols) >= 1:
             text = cols[0].get_text(strip=True)
-
             if text:
                 annual.setdefault("details", []).append(text)
 
     if annual:
         data["Annual filings"] = annual
 
+    # --- Corporate history ---
     history = []
-
     for row in soup.select("table tbody tr"):
         cols = [c.get_text(strip=True) for c in row.find_all("td")]
-
         if cols:
             history.append(cols)
 
     if history:
         data["Corporate history"] = history
+
+    # --- Evaluate ---
     analysis = evaluate_registry_health(data)
+
+    # --- Persist ---
     record = db.query(SupplierRegistryInsight).filter_by(
         supplier_id=supplier_id
     ).first()
@@ -229,4 +220,37 @@ def scrape_company(
         db.add(record)
 
     db.commit()
+
     return analysis
+    
+@router.post("/suppliers/{supplier_id}/registry-scan")
+def scrape_company(
+    supplier_id: int,
+    db: Session = Depends(get_db),
+    session = Depends(get_client_user_session)
+):
+    supplier = (
+        db.query(Supplier)
+        .filter(
+            Supplier.id == supplier_id,
+            Supplier.client_user_id == session["client_user_id"]
+        )
+        .first()
+    )
+
+    if not supplier:
+        raise HTTPException(status_code=404, detail="Supplier not found")
+
+    if not supplier.company_registration_number:
+        raise HTTPException(status_code=400, detail="Missing registration number")
+    url = f"https://ised-isde.canada.ca/cc/lgcy/fdrlCrpDtls.html?corpId={supplier.company_registration_number}"
+
+    try:
+        return run_registry_scan(
+            supplier_id=supplier.id,
+            url=url,
+            db=db
+        )
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

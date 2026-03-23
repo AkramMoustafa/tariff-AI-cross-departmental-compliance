@@ -1,6 +1,6 @@
 import { Box } from "@mui/material";
 import { Routes, Route } from "react-router-dom";
-
+import Page from "./Supplier/page1"
 import LandingPage from "./landingpage/landingpage";
 import SignIn from "./dashboard/SignIn";
 import SignUp from "./dashboard/SignUp";
@@ -26,6 +26,7 @@ import HsLookup from "./tariffs_engine/HsLookup"
 import TariffExposureSnapshot from "./tariffs_engine/TariffExposureSnapshot"
 import PrePOReview from "./PO/PrePOReview"
 import TornadoChart from "./PO/TornadoChart"
+import SupplyChainBlogPage from "./blogging/supply_chain_disruption"
 import MonteCarloDashboard from "./PO/MonteCarlo"
 import MarginRiskDashboard from "./Supplier/MarginRiskDashboard"
 import SupplierRiskProfile from "./Supplier/SupplierRisk"
@@ -43,6 +44,8 @@ import Suppliers from "./Supplier/suppliers"
 import SupplierRiskDashboard from "./Supplier/Trial"
 import SupplierIntelligence from "./Supplier/s"
 import S1 from "./Supplier/insights"
+import SupplierAlerts from "./Supplier/notification" 
+import SupplyChainMap from "./Supplier/SupplyChainMap"
 export default function App() {
   return (
     <Box>
@@ -80,12 +83,19 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        
         <Route
           path="/department_owner/*"
           element={
             <ProtectedRoute>
               <DepartmentOwnerApp />
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/supply_chain_disruption/*"
+          element={
+              <SupplyChainBlogPage />
           }
         />
         <Route
@@ -106,7 +116,31 @@ export default function App() {
       </DashboardAppLayout>
     </ClientSessionProvider>
   }
+
 />
+
+        
+  <Route
+  path="/page"
+  element={
+
+        <Page />
+
+  }
+
+/>
+
+        <Route
+  path="/maps"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+        <SupplyChainMap />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+  }
+/>
+
         <Route
   path="/tariffs"
   element={
@@ -141,6 +175,20 @@ SupplierIntelligence
     </ClientSessionProvider>
   }
 />
+
+
+
+<Route
+  path="/alerts"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+        <SupplierAlerts />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+  }
+/>
+
 <Route
   path="/s"
   element={
