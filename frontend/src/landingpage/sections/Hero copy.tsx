@@ -4,8 +4,7 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import ArrowForwardRoundedIcon from "@mui/icons-material/ArrowForwardRounded";
 import { motion, useInView } from "framer-motion";
-import React, { useRef,useState, useEffect } from "react";
-import earth from "../../assets/EARTH.mp4";
+import { useRef } from "react";
 
 // Hero images
 import heroSectionImg from "../../assets/finalherosection.png";
@@ -31,19 +30,6 @@ export default function Hero({ onBookDemo, onWatchDemo, spotlightHref }: Props) 
     const handleGoToSignup = () => {
         navigate("/signin");
     };
-const [step, setStep] = useState(0);
-
-useEffect(() => {
-  const sequence = [0, 1, 2, 3, 4];
-  let i = 0;
-
-  const interval = setInterval(() => {
-    i = (i + 1) % sequence.length;
-    setStep(sequence[i]);
-  }, 1500);
-
-  return () => clearInterval(interval);
-}, []);
 
     return (
         <Box
@@ -101,8 +87,8 @@ useEffect(() => {
                 <Box sx={{ textAlign: "center" }}>
                     {/* Spotlight pill */}
                     <MotionLink
-                        onClick={() => navigate("/supply_chain_disruption")}
-                        
+                        href="https://www.linkedin.com/posts/activity-7411440836309090304-_yiF?utm_source=share&utm_medium=member_desktop&rcm=ACoAADy7kgsBCzDh9cWWeRE0qplqwG841BAqqPQ"
+                        target="_blank"
                         rel="noopener noreferrer"
                         initial={{ opacity: 0, y: 8 }}
                         animate={
@@ -174,7 +160,7 @@ useEffect(() => {
                                 whiteSpace: "nowrap",
                             }}
                         >
-                            Explore Supply Chain Disruption
+                            Spotlight: Why Compliance is Broken
                         </Typography>
 
                         {/* Click-me arrow */}
@@ -204,7 +190,7 @@ useEffect(() => {
                                 mx: "auto",
                             }}
                         >
-                            Real-Time Trade Compliance, Embedded in Procurement
+                            AI-Powered Tariff & Duty Estimation for Global Trade
                         </Typography>
                     </MotionBox>
 
@@ -225,98 +211,16 @@ useEffect(() => {
                                 mb: { xs: 5, md: 8 },
                             }}
                         >
-                            Validate every purchase order against tariffs, sanctions, and global trade rules before approval.
+                            Know your true import costs before you ship. Calculate duties, Section 232/301 tariffs, and landed costs in seconds using traceable, audit-ready logic built on official schedules.
                         </Typography>
                     </MotionBox>
 
-
-               
-
-                    <Box
-                    sx={{
-                        borderRadius: 0,
-                        border: "none",
-                        boxShadow: "none",
-                        bgcolor: "transparent",
-                         mb: { xs: 4, md: 6 } // 👈 add this
-                    }}
-                    ><Box sx={{ position: "relative", mb: { xs: 4, md: 6 } }}>
-                                <Box
-                                component="video"
-                                src={earth}
-                                autoPlay
-                                muted
-                                loop
-                                playsInline
-                                sx={{
-                                    width: "100%",
-                                    height: "100%",          // 🔑 key change
-                                    display: "block",
-                                    objectFit: "cover",      // keeps it cropped nicely
-                                     borderRadius: "12px",
-                                     filter: "brightness(0.85)",
-                                }}
-                                />
-                                  {/* OVERLAY LAYER */}
-  <Box
-    sx={{
-      position: "absolute",
-      inset: 0,
-      pointerEvents: "none",
-    }}
-  >
-    {step >= 1 && (
-  <MotionBox
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    sx={{
-      position: "absolute",
-      top: 20,
-      left: 20,
-      bgcolor: "rgba(255,255,255,0.9)",
-      color: "#1e293b",
-      px: 1.2,
-      py: 0.5,
-      borderRadius: "6px",
-      fontSize: "11px",
-      fontWeight: 500,
-    }}
-  >
-    Route detected: US → EU
-  </MotionBox>
-)}
-    <MotionBox
-  key={step >= 4 ? "approved" : "validating"}
-  initial={{ opacity: 0, y: 10 }}
-  animate={{ opacity: 1, y: 0 }}
-  sx={{
-    position: "absolute",
-    bottom: 20,
-    left: 20,
-    bgcolor: step === 4 ? "#16A34A" : "rgba(15,23,42,0.75)",
-    color: "white",
-    px: 1.5,
-    py: 0.75,
-    borderRadius: "8px",
-    fontSize: "12px",
-    fontWeight: 600,
-    backdropFilter: "blur(6px)",
-    border: "1px solid rgba(255,255,255,0.1)",
-  }}
->
-  {step === 4 ? "✔ Approved" : "Validating tariffs..."}
-</MotionBox>
-</Box>
-                            </Box>
-                           </Box>
-                            
-                        </Box>
-                                            {/* CTA Buttons */}
+                    {/* CTA Buttons */}
                     <MotionBox
                         initial={{ opacity: 0, y: 30 }}
                         animate={heroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
                         transition={{ duration: 0.7, delay: 0.2 }}
-                        >
+                    >
                         <Box
                             sx={{
                                 display: "flex",
@@ -354,12 +258,66 @@ useEffect(() => {
                                     },
                                 }}
                             >
-                                Get Started
+                                Start Tariff Estimator
                             </Button>
                         </Box>
                     </MotionBox>
 
+                    {/* Hero image */}
+                    <MotionBox
+                        initial={{ opacity: 0, y: 50 }}
+                        animate={heroInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
+                        transition={{ duration: 1, delay: 0.3 }}
+                        sx={{
+                            position: "relative",
+                            mt: 0,
+                            width: "100%",
+                            maxWidth: "80rem",
+                            mx: "auto",
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                position: "relative",
+                                borderRadius: { xs: "16px", md: "24px" },
+                                p: { xs: 1, md: 1.5 },
+                                background: "rgba(255, 255, 255, 0.6)",
+                                backdropFilter: "blur(10px)",
+                                WebkitBackdropFilter: "blur(10px)",
+                                border: "1px solid rgba(226, 232, 240, 0.8)",
+                                boxShadow: "0 20px 60px rgba(15, 23, 42, 0.12), 0 8px 16px rgba(15, 23, 42, 0.08)",
+                            }}
+                        >
+                            <Box
+                                sx={{
+                                    borderRadius: { xs: "12px", md: "20px" },
+                                    overflow: "hidden",
+                                    bgcolor: "#fff",
+                                    border: "1px solid rgba(226, 232, 240, 0.6)",
+                                    width: "100%",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.05)",
+                                }}
+                            >
+                                <Box
+                                    component="img"
+                                    src={heroSectionImg}
+                                    alt="ComplianceAI platform preview"
+                                    loading="eager"
+                                    decoding="async"
+                                    sx={{
+                                        width: "100%",
+                                        height: "auto",
+                                        display: "block",
+                                    }}
+                                />
+                            </Box>
+                        </Box>
+                    </MotionBox>
 
+                </Box>
             </Container>
         </Box>
     );
