@@ -37,7 +37,7 @@ export default function LandingPage() {
       <ComplianceWorkflow />
       <Features />
       <Comparison />
-      <Pricing />
+
       <Footer />
 
       <BookDemoDialog open={openBookDemo} onClose={() => setOpenBookDemo(false)} />
