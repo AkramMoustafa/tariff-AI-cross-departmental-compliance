@@ -19,22 +19,22 @@ const CompliancePainPoints: React.FC = () => {
             icon: 'solar:history-linear',
             iconBgColor: 'bg-red-50',
             iconTextColor: 'text-red-600',
-            title: 'Time Wasted',
-            description: 'Compliance teams spend 40% of their time chasing colleagues for documents via email.',
+            title: 'Operational Signals',
+            description: 'Validate what suppliers actually do using activity and behavior data.',
         },
         {
             icon: 'solar:shield-warning-linear',
             iconBgColor: 'bg-amber-50',
             iconTextColor: 'text-amber-600',
-            title: 'Audit Risk',
-            description: 'Evidence is often missing or outdated when the auditor arrives, leading to non-conformities.',
+            title: 'Corporate & Financial Data',
+            description: 'Verify ownership, structure, and financial integrity.',
         },
         {
             icon: 'solar:user-cross-linear',
             iconBgColor: 'bg-slate-200',
             iconTextColor: 'text-slate-600',
-            title: 'Lack of Ownership',
-            description: 'No single person knows the status of every control across Quality, Safety, and IT.',
+            title: 'Real-Time Risk Monitoring',
+            description: 'Track global events, trade flows, and disruptions affecting orders arriving on time.',
         },
     ];
 
@@ -48,7 +48,7 @@ const CompliancePainPoints: React.FC = () => {
                 {/* Header section: Centered text with max width */}
                 <div className="max-w-3xl mx-auto text-center mb-12 md:mb-16">
                     <h2 className="text-3xl md:text-4xl font-semibold text-[#0B2545] tracking-tight mb-4">
-                        Compliance shouldn't live in inboxes and spreadsheets
+                        Track supplier operations, ownership, and global risk factors to ensure every transaction is compliant before approval.
                     </h2>
                 </div>
 

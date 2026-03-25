@@ -330,7 +330,6 @@ useEffect(() => {
 
                             <Button
                                 onClick={handleGoToSignup}
-                                endIcon={<CalculateOutlinedIcon sx={{ fontSize: 18 }} />}
                                 sx={{
                                     textTransform: "none",
                                     fontSize: "1rem",

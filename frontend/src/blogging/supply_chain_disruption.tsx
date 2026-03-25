@@ -11,16 +11,12 @@ export default function SupplyChainBlogPage() {
           </p>
 
           <h1 className="text-4xl font-bold leading-tight tracking-tight md:text-6xl">
-            Why Global Supply Chain Disruption Is Becoming the New Normal
+           
+            We Think we Have Diversified Supply Chain but we don't
           </h1>
 
           <p className="mt-6 max-w-2xl text-lg leading-8 text-zinc-600">
-            Global supply chains once operated as invisible systems that quietly moved
-            goods across borders, through factories, and into stores. Today, that
-            system is under pressure. From geopolitical tensions to shifting trade
-            policies and economic uncertainty, businesses are facing a new reality:
-            disruption is no longer occasional. It is becoming part of everyday
-            operations.
+          When people think of supply chain disruptions, they often picture major global events. Recent geopolitical tensions involving Iran have impacted oil prices, while the COVID-19 pandemic triggered unexpected shortages—most notably toilet paper—leaving many questioning how everyday goods could suddenly become scarce. Similarly, the global semiconductor shortage made it difficult to purchase cars and electronics, demonstrating how the absence of a single component can disrupt entire industries.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
