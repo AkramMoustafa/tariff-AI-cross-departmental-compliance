@@ -450,3 +450,12 @@ def get_supplier_risk_from_db(db: Session, supplier_id: int) -> dict:
         },
         "sections": snapshot.sections,
     }
+
+
+def compute_country_risk(user_input):
+    inflation = user_input.get("Inflation_Rate_Pct", 0)
+
+    # simple normalization
+    inflation_risk = min(100, max(0, inflation * 10))  # 5% → 50 risk
+
+    return inflation_risk

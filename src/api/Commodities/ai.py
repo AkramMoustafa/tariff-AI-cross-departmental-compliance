@@ -91,3 +91,5 @@ def calculate_macro_risks(df):
             "detail": "4-week move"
         }
     ]
+
+

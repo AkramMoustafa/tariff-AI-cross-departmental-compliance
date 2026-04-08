@@ -30,7 +30,8 @@ export default function Login() {
   navigate("/signup");
 };
 const rawEnvBase = import.meta.env.VITE_API_BASE_URL;
- const [mode, setMode] = useState<"company" | "user">("company");
+//  const [mode, setMode] = useState<"company" | "user">("company");
+const mode = "user";
 const BASE_URL =
   rawEnvBase && rawEnvBase.trim() !== ""
     ? rawEnvBase.trim()
@@ -52,11 +53,12 @@ const handleLogin = async () => {
   setError("");
   setSuccess("");
 
-  const endpoint =
-    mode === "company"
-      ? "/api/auth/login"
-      : "/api/client-users/login-user";
+  // const endpoint =
+  //   mode === "company"
+  //     ? "/api/auth/login"
+  //     : "/api/client-users/login-user";
 
+  const endpoint = "/api/client-users/login-user";
   try {
     const response = await fetch(`${BASE_URL}${endpoint}`, {
       method: "POST",
@@ -74,26 +76,31 @@ const handleLogin = async () => {
       throw new Error("Invalid login response");
     }
 
-    if (mode === "user") {
-      // 🔑 CLIENT USER
-      localStorage.setItem("client_user_token", data.access_token);
-      localStorage.removeItem("access_token");
-    } else {
-      // 🔑 CDC USER
-      localStorage.setItem("access_token", data.access_token);
-      localStorage.removeItem("client_user_token");
-    }
+    // if (mode === "user") {
+    //   // 🔑 CLIENT USER
+    //   localStorage.setItem("client_user_token", data.access_token);
+    //   localStorage.removeItem("access_token");
+    // } else {
+    //   // 🔑 CDC USER
+    //   localStorage.setItem("access_token", data.access_token);
+    //   localStorage.removeItem("client_user_token");
+    // }
 
-    localStorage.setItem("login_type", mode);
+    // localStorage.setItem("login_type", mode);
 
-    setSuccess("Login successful");
+    // setSuccess("Login successful");
 
-    if (mode === "company") {
-      await refreshSession();
-      navigate("/redirect", { replace: true });
-    } else {
-      navigate("/tariffs", { replace: true });
-    }
+    // if (mode === "company") {
+    //   await refreshSession();
+    //   navigate("/redirect", { replace: true });
+    // } else {
+    //   navigate("/tariffs", { replace: true });
+    // }
+    localStorage.setItem("client_user_token", data.access_token);
+localStorage.removeItem("access_token");
+
+setSuccess("Login successful");
+navigate("/tariffs", { replace: true });
   } catch (err: any) {
     setError(err.message || "Something went wrong");
   } finally {
@@ -253,12 +260,12 @@ lineHeight: 1.65,
                 lineHeight: 1.65,
               }}
             >
-              Choose how you’re signing in, then enter your credentials.
+             Sign in to access your account
             </Typography>
           </Box>
 
        {/* Mode switch */}
-<Box
+{/* <Box
   sx={{
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
@@ -312,8 +319,47 @@ lineHeight: 1.65,
   >
     TARIFF USERS
   </Button>
-</Box>
+</Box> */}
 
+<Box
+  sx={{
+    display: "flex",
+    justifyContent: "center",
+    p: 0.5,
+    borderRadius: "999px",
+    bgcolor: "#f1f5f9",
+    border: "1px solid #e2e8f0",
+    mb: 2.5,
+  }}
+>
+  <Box
+    sx={{
+      height: 40,
+      borderRadius: "999px",
+      textTransform: "none",
+      fontWeight: 600,
+      fontSize: 13,
+      color: "#0f172a",
+      bgcolor: "#ffffff",
+      width: "100%",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      px: 2,   // 👈 replaces button padding
+      gap:1,  // 👈 space between icon + text
+    }}
+  >
+    <PersonOutlineRoundedIcon
+  sx={{
+    fontSize: 18,        // 👈 match text scale
+    color: "#64748b",    // 👈 softer than text (better hierarchy)
+  }}
+/>
+    <Typography sx={{ fontSize: 13, fontWeight: 600 }}>
+      Client Portal
+    </Typography>
+  </Box>
+</Box>
 
           <Stack spacing={2}>
             <TextField
@@ -389,6 +435,7 @@ sx={{
                   </InputAdornment>
                 ),
               }}
+
 sx={{
   "& .MuiOutlinedInput-root": {
     height: 42,
@@ -421,7 +468,11 @@ sx={{
   },
 }}
 
-            />
+            />{error && (
+  <Typography sx={{ color: "red", fontSize: 12 }}>
+    Invalid email or password
+  </Typography>
+)}
 
 <Button
   fullWidth

@@ -95,3 +95,98 @@ def search_sanctions(
         entity_type=entity_type,
         country=country,
     )
+
+from collections import defaultdict
+from collections import defaultdict
+import numpy as np
+
+def build_country_sanction_scores():
+    entities = get_sanctions_entities()
+    
+    country_counts = defaultdict(int)
+
+    # Step 1: count entities per country
+    HIGH_RISK_PROGRAMS = {
+        "IRAN", "RUSSIA", "SYRIA", "CUBA", "NKOREA"
+    }
+
+    for e in entities:
+        programs = e.get("sanctionsProgram", [])
+        
+        programs = [p.upper() for p in e.get("sanctionsProgram", [])]
+
+        # 🚨 HARD FILTER (not weighting)
+        if not any(p in HIGH_RISK_PROGRAMS for p in programs):
+            continue   # ❌ completely skip this entity
+
+        weight = 1.0  # everything left is real geopolitical
+
+        countries = e.get("countries", [])
+        programs = e.get("sanctionsProgram", [])
+
+        selected_country = None
+
+        # ✅ Step 1: try to match country with sanctions program
+        for c in countries:
+            if any(c.upper() in p.upper() for p in programs):
+                selected_country = c
+                break
+
+        # ✅ Step 2: fallback → ONLY first country
+        if not selected_country and countries:
+            selected_country = countries[0]
+
+        # ✅ Step 3: count ONLY ONE country
+        if selected_country:
+            country_counts[selected_country.strip()] += weight
+
+    if not country_counts:
+        return {}
+
+    # Step 2: log normalization (fixes Russia dominance)
+    max_log = max(np.log1p(v) for v in country_counts.values())
+
+    # Step 3: real-world sanctions severity (CRITICAL)
+    SANCTIONS_SEVERITY = {
+        "Iran": 1.0,
+        "North Korea": 1.0,
+        "Syria": 0.9,
+        "Cuba": 0.9,
+        "Russia": 0.7,
+        "China": 0.4,
+    }
+
+    country_scores = {}
+
+    for country, count in country_counts.items():
+        density = np.log1p(count) / max_log   # ✅ FIX 1
+        severity = SANCTIONS_SEVERITY.get(country, 0.3)  # ✅ FIX 2
+
+        # final score (balanced)
+        score = 0.6 * severity + 0.4 * density  # ✅ FIX 3
+
+        country_scores[country] = score
+
+    return country_scores
+
+if __name__ == "__main__":
+    if os.path.exists(LOCAL_SANCTIONS_FILE):
+        print(f"[Sanctions] Found local file: {LOCAL_SANCTIONS_FILE}")
+        data = LOCAL_SANCTIONS_FILE
+    else:
+        print("[Sanctions] Local file not found. Downloading from S3...")
+        data = load_sanctions_data_from_s3()
+    print("\n=== LOADING SANCTIONS ===")
+    load_sanctions()
+
+    print("\n=== BUILDING COUNTRY SCORES ===")
+    scores = build_country_sanction_scores()
+
+    print("\n=== SAMPLE SCORES ===")
+    for k, v in list(scores.items())[:10]:
+        print(k, ":", round(v, 3))
+
+    print("\n=== TOP 10 COUNTRIES ===")
+    top = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:10]
+    for c, s in top:
+        print(c, ":", round(s, 3))

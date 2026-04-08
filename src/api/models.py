@@ -17,6 +17,7 @@ from datetime import datetime
 import enum
 import uuid
 
+from sqlalchemy import Column, Integer, Text, Boolean, Float, TIMESTAMP, func
 from sqlalchemy.dialects.postgresql import UUID
 from src.api.db import Base
 
@@ -574,6 +575,33 @@ class Supplier(Base):
         "SupplierJobPosting",
         back_populates="supplier"
     )
+
+
+class new_suppliers(Base):
+    __tablename__ = "new_suppliers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(Text, nullable=False)
+    main_category = Column(Text)
+    website = Column(Text)
+    country = Column(Text)
+    state = Column(Text)
+    city = Column(Text)
+    address_line1 = Column(Text)
+    address_line2 = Column(Text)
+    postal_code = Column(Text)
+    contact_first_name = Column(Text)
+    contact_last_name = Column(Text)
+    email = Column(Text)
+    phone = Column(Text)
+    bio = Column(Text)
+    certified_mwbe = Column(Boolean)
+    certified_sdvob = Column(Boolean)
+    us_steel = Column(Boolean)
+    latitude = Column(Float)
+    longitude = Column(Float)
+    created_at = Column(TIMESTAMP, server_default=func.now())
+
 class PortSignal(Base):
     __tablename__ = "port_signals"
 
