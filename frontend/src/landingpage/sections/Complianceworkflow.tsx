@@ -2,6 +2,8 @@ import React from 'react';
 
 // Import Material-UI components for styling and layout
 import { ThemeProvider, createTheme, CssBaseline, Box, Typography, Container } from '@mui/material';
+import { useState } from 'react';
+
 
 // Import Material-UI icons used in the workflow steps
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
@@ -17,6 +19,8 @@ interface WorkflowStep {
     title: string;          // Step title text
     description: string;    // Step description text
 }
+
+
 
 // Theme configuration for Material-UI components
 const theme = createTheme({
@@ -59,25 +63,53 @@ const ComplianceWorkflow: React.FC = () => {
             icon: <BadgeOutlinedIcon sx={{ fontSize: 24 }} />,
             iconBgColor: 'rgba(15, 163, 163, 0.2)',
             iconTextColor: '#0FA3A3',
-            title: 'Assign Owner',
-            description: 'Map controls to people',
+            title: 'Upload PO',
+            description: 'Upload PDF OR manual form and show extracted field',
         },
         {
             icon: <CloudUploadOutlinedIcon sx={{ fontSize: 24 }} />,
             iconBgColor: 'rgba(247, 163, 75, 0.2)',
             iconTextColor: '#F7A34B',
-            title: 'Request Evidence',
-            description: 'Automated collection',
+            title: 'Run Risk Engine',
+            description: 'Analyze disruptions, sanctions, weather, and global events to simulate delay and risk.'
         },
         {
             icon: <VerifiedOutlinedIcon sx={{ fontSize: 24 }} />,
             iconBgColor: 'rgba(16, 185, 129, 0.2)',
             iconTextColor: '#10b981',
-            title: 'Prove Compliance',
-            description: 'Audit-ready reports',
+            title: 'Decision Output',
+            description: 'Receive predicted delay, financial exposure, and recommended mitigation action.'
         },
     ];
 
+const [poData, setPoData] = useState<any>(null);
+const [result, setResult] = useState<any>(null);
+const [loading, setLoading] = useState(false);
+const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // simulate extraction (replace later with API)
+    setPoData({
+        origin: "Shenzhen, CN",
+        destination: "Rotterdam, NL",
+        product: "Pharmaceuticals",
+        value: 1800000
+    });
+};const runSimulation = async () => {
+    setLoading(true);
+
+    // 🔥 Replace this with your backend call later
+    setTimeout(() => {
+        setResult({
+            risk: "HIGH",
+            delay: 15.3,
+            action: "Expedited Air Freight",
+            exposure: 1238135
+        });
+        setLoading(false);
+    }, 1500);
+};
     return (
         // Wrap component in ThemeProvider to apply custom theme
         <ThemeProvider theme={theme}>
@@ -114,7 +146,7 @@ const ComplianceWorkflow: React.FC = () => {
                                 color: '#ffffff',
                             }}
                         >
-                            Complete Compliance Visibility
+                            AI-Powered Purchase Order Risk Simulation
                         </Typography>
 
                         {/* Subheading/description text */}
@@ -125,7 +157,7 @@ const ComplianceWorkflow: React.FC = () => {
                                 lineHeight: 1.6,
                             }}
                         >
-                            See your tariff exposure, documentation, and compliance status in one place. Track decisions, justify classifications, and stay ready for audits without scrambling for records.
+                         Upload a purchase order, simulate disruptions, and receive delay predictions, financial exposure, and recommended actions instantly.
                         </Typography>
                     </Box>
                     <Box

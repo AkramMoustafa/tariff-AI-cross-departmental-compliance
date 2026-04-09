@@ -12,11 +12,11 @@ export default function Features() {
     const featuresRef = useRef(null);
     const featuresInView = useInView(featuresRef, { once: true, margin: "-100px" });
 
-    const docs = [
-        { name: "access_policy.pdf", status: "REVIEWED" },
-        { name: "supplier_report.xlsx", status: "VERIFIED" },
-        { name: "audit_report.pdf", status: "PENDING" },
-    ];
+const purchaseOrders = [
+    { name: "PO-1045.pdf", risk: "HIGH" },
+    { name: "PO-2041.pdf", risk: "MEDIUM" },
+    { name: "PO-3321.pdf", risk: "LOW" },
+];
 
     return (
         <Box
@@ -72,7 +72,7 @@ export default function Features() {
                             lineHeight: 1.1,
                         }}
                     >
-                        Complete compliance visibility
+                       Real-Time Purchase Order Risk Intelligence
                     </Typography>
 
                     <Typography
@@ -83,7 +83,7 @@ export default function Features() {
                             px: { xs: 1, sm: 0 }
                         }}
                     >
-                        Everything you need to understand, manage, and prove compliance — in one intelligence platform.
+                        Upload a purchase order and instantly predict delays, financial exposure, and recommended actions.
                     </Typography>
                 </MotionBox>
 
@@ -144,7 +144,7 @@ export default function Features() {
                                 mb: "0.75rem",
                             }}
                         >
-                            Supplier Onboarding
+                            Purchase Order Risk Analysis
                         </Typography>
 
                         <Typography
@@ -155,12 +155,11 @@ export default function Features() {
                                 lineHeight: 1.7
                             }}
                         >
-                            Risk scored vendor compliance assessment before contract approval and recommends better better-performing
-                            alternative when compliance gaps are detected.
+                            Real-time prediction of delays, financial exposure, and recommended mitigation strategies for each purchase order.
                         </Typography>
 
                         <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: "0.75rem", md: "1rem" } }}>
-                            {docs.map((doc, index) => (
+                           {purchaseOrders.map((po, index) => (
                                 <Box
                                     key={index}
                                     sx={{
@@ -205,29 +204,40 @@ export default function Features() {
                                             whiteSpace: "nowrap",
                                         }}
                                     >
-                                        {doc.name}
+                                        {po.name}
                                     </Typography>
 
                                     <Box sx={{ ml: "auto", flexShrink: 0 }}>
-                                        <Typography
-                                            sx={{
-                                                fontSize: { xs: "0.5625rem", md: "0.625rem" },
-                                                fontWeight: 700,
-                                                color: doc.status === "VERIFIED" ? "#166534" : doc.status === "PENDING" ? "#b45309" : "#1e40af",
-                                                bgcolor: doc.status === "VERIFIED" ? "#dcfce7" : doc.status === "PENDING" ? "#fef3c7" : "#dbeafe",
-                                                px: { xs: "0.375rem", md: "0.5rem" },
-                                                py: "0.25rem",
-                                                borderRadius: "6px",
-                                                letterSpacing: "0.025em",
-                                            }}
-                                        >
-                                            {doc.status}
-                                        </Typography>
+                                     <Typography
+                                        sx={{
+                                            fontSize: "0.625rem",
+                                            fontWeight: 700,
+                                            color:
+                                                po.risk === "HIGH"
+                                                    ? "#dc2626"
+                                                    : po.risk === "MEDIUM"
+                                                    ? "#b45309"
+                                                    : "#166534",
+                                            bgcolor:
+                                                po.risk === "HIGH"
+                                                    ? "#fee2e2"
+                                                    : po.risk === "MEDIUM"
+                                                    ? "#fef3c7"
+                                                    : "#dcfce7",
+                                            px: "0.5rem",
+                                            py: "0.25rem",
+                                            borderRadius: "6px",
+                                        }}
+                                    >
+                                        {po.risk}
+                                    </Typography>
                                     </Box>
                                 </Box>
                             ))}
                         </Box>
                     </MotionBox>
+
+                  
 
                     {/* Small Card - Ownership & Accountability */}
                     <MotionBox
@@ -277,7 +287,7 @@ export default function Features() {
                                 mb: "0.75rem",
                             }}
                         >
-                            Ownership &amp; Accountability
+                           Financial Impact
                         </Typography>
 
                         <Typography
@@ -288,7 +298,7 @@ export default function Features() {
                                 mb: "1rem"
                             }}
                         >
-                            Assign responsibility for controls, documents, and gaps across teams and departments.
+                            Breakdown of financial exposure caused by predicted disruption.
                         </Typography>
                     </MotionBox>
 
@@ -340,7 +350,7 @@ export default function Features() {
                                 mb: "0.75rem",
                             }}
                         >
-                            Cross department
+                           What-If Simulation
                         </Typography>
 
                         <Typography
@@ -350,8 +360,7 @@ export default function Features() {
                                 lineHeight: 1.6,
                                 mb: "1rem"
                             }}
-                        >
-                            Multiple department impact visualization through knowledge graphs.
+                        >Simulate alternative decisions and instantly evaluate risk reduction.
                         </Typography>
                     </MotionBox>
                 </Box>

@@ -14,18 +14,18 @@ export default function Comparison() {
 
     const items = [
         {
-            title: "Fragmented evidence",
-            description: "Compliance data scattered across documents, teams, and suppliers.",
+            title: "Lack of risk visibility",
+            description: "Purchase orders are approved without understanding delays or disruptions.",
             type: "negative",
         },
         {
-            title: "Save 10x Money and Time with NomAI Intelligence Layer",
-            description: "Automated AI auditing finds tariff errors, reduces manual work, and uncovers savings opportunities in minutes instead of weeks.",
+            title: "Instant risk prediction",
+            description: "AI identifies delays, disruptions, and financial exposure in real time.",
             type: "positive",
         },
         {
-            title: "Unified with NomiAI",
-            description: "All compliance data is structured, connected, and visible in one intelligence platform.",
+            title: "Better procurement decisions",
+            description: "Reduce delays, lower costs, and prevent supply chain failures.",
             type: "positive",
         },
     ];
@@ -33,8 +33,8 @@ export default function Comparison() {
     const blurredLineWidths = [100, 75, 83];
 
     const bars = [
-        { label: "Infrastructure", width: "100%" },
-        { label: "Identity", width: "92%" },
+        { label: "Delay Risk", width: "85%" },
+        { label: "Cost Exposure", width: "92%" },
     ];
 
     return (
@@ -67,7 +67,7 @@ export default function Comparison() {
                                     lineHeight: 1.2,
                                 }}
                             >
-                                Stop chasing screenshots
+                                Stop guessing supply chain risk
                             </Typography>
 
                             <Typography
@@ -78,8 +78,7 @@ export default function Comparison() {
                                     mb: { xs: 4, md: 6 }
                                 }}
                             >
-                                The traditional way of compliance involves Data fragmented across spreadsheets, emails, and
-                                applications. <strong>NomiAI</strong> acts as a streamlined platform.
+                                Procurement decisions are made without visibility into delays, disruptions, and financial impact. NomiAI provides real-time intelligence before a purchase order is approved.
                             </Typography>
 
                             <Box sx={{ display: "flex", flexDirection: "column", gap: { xs: 3.5, md: 5 } }}>
@@ -190,7 +189,7 @@ export default function Comparison() {
                                                 color: "#334155"
                                             }}
                                         >
-                                            Audit Risk
+                                           Purchase Order Risk
                                         </Typography>
                                     </Box>
                                     <Typography
@@ -200,7 +199,7 @@ export default function Comparison() {
                                             lineHeight: 1.5,
                                         }}
                                     >
-                                        Evidence missing for 3 controls.
+                                       High risk detected for this purchase order.
                                     </Typography>
                                 </Box>
 
@@ -299,7 +298,7 @@ export default function Comparison() {
                                                     color: "#2C3E50"
                                                 }}
                                             >
-                                                Control Status
+                                                Risk Analysis
                                             </Typography>
 
                                             <Box
@@ -315,7 +314,7 @@ export default function Comparison() {
                                                     whiteSpace: "nowrap",
                                                 }}
                                             >
-                                                98% PASSING
+                                             HIGH RISK
                                             </Box>
                                         </Box>
 
