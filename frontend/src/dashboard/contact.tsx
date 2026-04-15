@@ -56,7 +56,7 @@ const handleSend = async () => {
       message: form.message,
     });
 
-    alert("Request sent successfully");
+
 
     setForm({
       name: "",
@@ -67,7 +67,7 @@ const handleSend = async () => {
     navigate("/success"); 
   } catch (err) {
     console.error(err);
-    alert("Failed to send");
+
   }
 };
   return (
