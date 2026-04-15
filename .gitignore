@@ -42,7 +42,8 @@ scripts/hts_2026_basic.csv
 # Tariff engine data outputs
 src/api/NewTariffEngine/**/output_*.csv
 src/api/NewTariffEngine/**/htsdata.csv
-
+!country_master_risk.csv
+!src/api/country_risk/country_master_risk.csv
 .env
 *.env
 admin-key.json*

@@ -26,6 +26,7 @@ pytesseract
 catalogue==2.0.10
 requests
 reportlab
+opencv-python-headless
 xgboost
 lxml
 pdfplumber
