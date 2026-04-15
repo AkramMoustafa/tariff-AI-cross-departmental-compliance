@@ -4,7 +4,7 @@ from src.api.db import SessionLocal
 from src.api.models import MetalPrice, ForexRate, EnergyPrice
 import pandas as pd
 import torch
-from chronos import ChronosPipeline
+# from chronos import ChronosPipeline
 import os
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -106,37 +106,60 @@ def load_macro_dataset():
 
     return df
 
+# def predict_trend(df, target_feature, weeks_ahead=3):
+
+#     if target_feature not in df.columns:
+#         raise ValueError(f"{target_feature} not found")
+
+#     series = torch.tensor(df[target_feature].values, dtype=torch.float32)
+
+#     pipeline = ChronosPipeline.from_pretrained(
+#         "amazon/chronos-t5-small"
+#     )
+
+#     forecast = pipeline.predict(
+#         series,
+#         prediction_length=weeks_ahead
+#     )
+
+#     forecast_values = forecast[0][0].tolist()
+
+#     last_price = series[-1].item()
+#     future_price = forecast_values[-1]
+
+#     if future_price > last_price:
+#         trend = "UP"
+#     elif future_price < last_price:
+#         trend = "DOWN"
+#     else:
+#         trend = "FLAT"
+
+#     return {
+#         "latest_price": last_price,
+#         "forecast": forecast_values,
+#         "trend": trend
+#     }
+
 def predict_trend(df, target_feature, weeks_ahead=3):
 
     if target_feature not in df.columns:
         raise ValueError(f"{target_feature} not found")
 
-    series = torch.tensor(df[target_feature].values, dtype=torch.float32)
+    series = df[target_feature].dropna()
 
-    pipeline = ChronosPipeline.from_pretrained(
-        "amazon/chronos-t5-small"
-    )
+    last_price = series.iloc[-1]
+    prev_price = series.iloc[-5]  # 4 weeks ago
 
-    forecast = pipeline.predict(
-        series,
-        prediction_length=weeks_ahead
-    )
-
-    forecast_values = forecast[0][0].tolist()
-
-    last_price = series[-1].item()
-    future_price = forecast_values[-1]
-
-    if future_price > last_price:
+    if last_price > prev_price:
         trend = "UP"
-    elif future_price < last_price:
+    elif last_price < prev_price:
         trend = "DOWN"
     else:
         trend = "FLAT"
 
     return {
-        "latest_price": last_price,
-        "forecast": forecast_values,
+        "latest_price": float(last_price),
+        "forecast": [],
         "trend": trend
     }
 
