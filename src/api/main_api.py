@@ -23,7 +23,7 @@ from src.api.sanctions import (
     start_background_refresh,
 )
 
-from src.api.supplier_intelligence.Port.port_insights import router as port_activity_router
+# from src.api.supplier_intelligence.Port.port_insights import router as port_activity_router
 
 import asyncio
 import json
@@ -327,7 +327,7 @@ app.include_router(tariff_pdf_router, prefix="/api")
 app.include_router(po_router, prefix="/api/po", tags=["PO Extraction"])
 app.include_router(news_risk_router)
 app.include_router(supplier_intelligence_router)
-app.include_router(port_activity_router, prefix="/api/v1", tags=["Ports"])
+# app.include_router(port_activity_router, prefix="/api/v1", tags=["Ports"])
 app.include_router(filing_router)
 app.include_router(commodities_router)
 app.include_router(ai_router)
