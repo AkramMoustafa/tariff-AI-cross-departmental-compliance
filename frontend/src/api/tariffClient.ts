@@ -69,3 +69,26 @@ export async function exportTariffPdf(payload: any): Promise<Blob> {
 
   return res.data;
 }
+
+export interface AutoClassifyRequest {
+  description: string;
+}
+
+export interface HSMatch {
+  code: string;
+  description: string;
+  score?: number;
+}
+
+export interface AutoClassifyResponse {
+  suggested: HSMatch | null;
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  alternatives: HSMatch[];
+}
+
+export async function autoClassify(
+  payload: AutoClassifyRequest
+): Promise<AutoClassifyResponse> {
+  const res = await apiClient.post("/hs/auto-classify", payload);
+  return res.data;
+}

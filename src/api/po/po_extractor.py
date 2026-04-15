@@ -1,168 +1,205 @@
-from pdf2image import convert_from_path
-import pytesseract
+
 from openai import OpenAI
+import base64
 import json
 import re
-import cv2
-import numpy as np
+import os
+from openai import OpenAI
 
-# ---------- CONFIGURATION ----------
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-POPPLER_PATH = r"C:\poppler\poppler-25.12.0\Library\bin"
+import os
+print("KEY:", os.getenv("OPENAI_API_KEY")[:])
 
-client = OpenAI()
+def extract_po_with_vision(file_path):
 
-
-# ---------- STEP 1: PDF → Images ----------
-
-def pdf_to_images(pdf_path):
-    return convert_from_path(
-        pdf_path,
-        dpi=400,
-        poppler_path=POPPLER_PATH
-    )
-
-
-# ---------- STEP 2: OCR Extraction ----------
-
-def extract_ocr_text(images):
-
-    ocr_text = ""
-
-    for img in images:
-
-        # Convert PIL → OpenCV
-        img = cv2.cvtColor(np.array(img), cv2.COLOR_BGR2GRAY)
-
-        # Better threshold for boxed text
-        img = cv2.adaptiveThreshold(
-            img,
-            255,
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY,
-            31,
-            2
+    with open(file_path, "rb") as f:
+        uploaded_file = client.files.create(
+            file=f,
+            purpose="assistants"
         )
+    print(f"✅ File uploaded. File ID: {uploaded_file.id}")
 
-        # Pass 1: table layout
-        config_table = r'--oem 3 --psm 6'
-        text_table = pytesseract.image_to_string(img, config=config_table)
+    print("🧠 Sending request to OpenAI...")
 
-        # Pass 2: word detection
-        config_columns = r'--oem 3 --psm 4'
-        data = pytesseract.image_to_data(
-            img,
-            config=config_columns,
-            output_type=pytesseract.Output.DICT
-        )
-
-        text_columns = " ".join([w for w in data["text"] if w.strip() != ""])
-
-        # Combine both OCR passes
-        ocr_text += text_table + "\n" + text_columns + "\n"
-
-    # Fix OCR currency errors
-    ocr_text = re.sub(r'(\d)S', r'\1$', ocr_text)
-
-    print("\n----- OCR TEXT -----")
-    print(ocr_text)
-
-    return ocr_text
-
-
-# ---------- STEP 3: LLM Extraction ----------
-
-def extract_with_llm(ocr_text):
-
-    prompt = f"""
-Extract purchase order data from the text below.
-
-Return ONLY valid JSON.
-Do NOT include markdown.
-
-Numbers must NOT contain commas.
-
-If a field is missing return null.
-
-If total is missing calculate:
-total = subtotal + tax + shipping
-
-Supplier appears under the VENDOR section.
-Origin country appears in the supplier address.
-
-Ship-to information appears under the SHIP TO section.
-Destination country appears in that address.
-
-Shipping terms, shipping method, and delivery date appear under the row:
-
-SHIPPING TERMS | SHIPPING METHOD | DELIVERY DATE
-
-Extract values beneath those headings.
-
-Format example:
-
-{{
- "po_number": "",
- "date": "",
- "supplier": "",
- "origin_country": "",
- "ship_to": "",
- "destination_country": "",
- "shipping_terms": "",
- "shipping_method": "",
- "delivery_date": "",
- "items":[
-   {{"item":"","description":"","hs_code":null,"qty":0,"price":0}}
- ],
- "subtotal":0,
- "tax":0,
- "shipping":0,
- "total":0
-}}
-
-TEXT:
-{ocr_text}
-"""
-
-    response = client.chat.completions.create(
+    response = client.responses.create(
         model="gpt-4o-mini",
-        messages=[{"role": "user", "content": prompt}],
+        input=[{
+            "role": "user",
+
+            "content": [
+                {
+                    "type": "input_text",
+                    "text": """
+                    Extract purchase order data and return ONLY valid JSON.
+
+                    FIELDS TO EXTRACT:
+
+                    {
+                      "origin_city": string or null,
+                      "origin_country": string or null,
+                      "destination_city": string or null,
+                      "destination_country": string or null,
+                      "shipping_method": string or null,
+                      "items": [
+                        {
+                          "description": string,
+                          "quantity": number,
+                          "unit_price": number
+                        }
+                      ],
+                      "subtotal": number or null,
+                      "tax": string or number or null,
+                      "shipping": number or null,
+                      "total": number or null
+                    }
+
+                    IMPORTANT RULES:
+
+                    1. LOCATION:
+                    - Extract origin from "SHIP FROM", "VENDOR", or sender address
+                    - Extract destination from "SHIP TO"
+                    - Extract country if visible, otherwise null
+
+                    2. SHIPPING METHOD:
+                    - Extract values like Air, Sea, Ground, Express
+                    - Return lowercase
+
+                    3. TAX:
+                    - If percentage → keep as string (e.g., "8%")
+
+                    4. SHIPPING:
+                    - Only numeric value
+
+                    5. NEVER guess:
+                    - If unsure → null
+
+                    Return JSON only.
+                    """
+                },
+                {
+                    "type": "input_file",
+                    "file_id": uploaded_file.id
+                }
+            ]
+        }]
     )
 
-    return response.choices[0].message.content
-
-
-# ---------- STEP 4: Clean JSON ----------
+    return response.output_text
 
 def clean_llm_output(result):
-
+    print("🧹 Cleaning LLM output...")
+    print("RAW OUTPUT:", result[:500])  # first 500 chars
+    print("FULL LENGTH:", len(result))
+    print("ENDS WITH:", result[-50:])
     result = re.sub(r"```json|```", "", result).strip()
     result = re.sub(r'(?<=\d),(?=\d)', '', result)
-
     return json.loads(result)
 
+def validate_po(po):
 
-# ---------- MAIN PIPELINE ----------
+    fields = [
+        "origin_city",
+        "origin_country",
+        "destination_city",
+        "destination_country",
+        "shipping_method",
+        "items",
+        "subtotal",
+        "tax",
+        "shipping",
+        "total"
+    ]
 
-def extract_po_data(pdf_path):
+    for f in fields:
+        if f not in po:
+            po[f] = None
 
-    images = pdf_to_images(pdf_path)
+    if not isinstance(po["items"], list):
+        po["items"] = []
 
-    ocr_text = extract_ocr_text(images)
-
-    result = extract_with_llm(ocr_text)
-
-    data = clean_llm_output(result)
-
-    return data
+    return po
 
 
-# ---------- TEST RUN ----------
+# ---------- STEP 5: Fix Financials ----------
+def fix_po_data(po_data):
+
+    subtotal = sum(
+        item["quantity"] * item["unit_price"]
+        for item in po_data.get("items", [])
+    )
+    po_data["subtotal"] = subtotal
+
+    total = po_data.get("total", 0)
+
+    # If total is clearly wrong, ignore it
+    if total < subtotal:
+        total = 0
+
+    tax = po_data.get("tax", 0)
+
+    if isinstance(tax, str) and "%" in tax:
+        percent = float(tax.replace("%", "")) / 100
+        tax = subtotal * percent
+
+    elif isinstance(tax, (int, float)):
+
+        if tax > subtotal:
+            tax = 0
+
+    else:
+        tax = 0
+
+    po_data["tax"] = tax
+
+    shipping = po_data.get("shipping", 0)
+
+    if shipping > total:
+        shipping = 0
+
+    if total > 0:
+        derived_shipping = total - subtotal - tax
+
+        if derived_shipping >= 0 and derived_shipping < subtotal:
+            shipping = derived_shipping
+
+    po_data["shipping"] = shipping
+
+    po_data["total"] = subtotal + tax + shipping
+
+    return po_data
+
+
+def process_po(file_path):
+    print("🚀 Starting PO processing...")
+    raw_output = extract_po_with_vision(file_path)
+
+    po_data = clean_llm_output(raw_output)
+
+    if "purchase_order" in po_data:
+        po_data = po_data["purchase_order"]
+
+    po_data = validate_po(po_data)
+
+    po_data = fix_po_data(po_data)
+
+    return {
+        "po": po_data,
+        "financials": {
+            "subtotal": po_data.get("subtotal", 0),
+            "tax": po_data.get("tax", 0),
+            "shipping": po_data.get("shipping", 0),
+            "total": po_data.get("total", 0),
+            "tax_rate": (
+                po_data["tax"] / po_data["subtotal"]
+                if po_data.get("subtotal", 0) > 0 else 0
+            ),
+            "shipping_ratio": (
+                po_data["shipping"] / po_data["subtotal"]
+                if po_data.get("subtotal", 0) > 0 else 0
+            )
+        }
+}
 
 if __name__ == "__main__":
-
-    data = extract_po_data("po.pdf")
-
-    print("\n----- PARSED JSON -----")
-    print(json.dumps(data, indent=2))
+    process_po()

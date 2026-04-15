@@ -1,10 +1,9 @@
 # api/routes/hs.py
-from fastapi import APIRouter, Query,Depends
-from src.api.New.loader import hybrid_search
-import src.api.New.tariffmodel as tariffmodel
-from src.api.New.loader import get_10_digit_children
+from fastapi import APIRouter, Query
+from src.api.New1.loader import hybrid_search
+import src.api.New1.tariffmodel as tariffmodel
+from src.api.New1.loader import get_10_digit_children
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/hs", tags=["HS Lookup"])
 
@@ -72,19 +71,3 @@ def auto_classify(req: AutoClassifyRequest):
             for r in top_results[1:5]
             ]
     }
-
-from src.api.models import DemoRequest 
-from src.api.db import get_db
-@router.post("/contact")
-def create_demo_request(data: dict, db: Session = Depends(get_db)):
-    new_request = DemoRequest(
-        full_name=data["name"],
-        email=data["email"],
-        company_name=data["company"],
-        phone="N/A"
-    )
-
-    db.add(new_request)
-    db.commit()
-
-    return {"success": True}

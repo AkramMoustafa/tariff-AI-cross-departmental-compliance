@@ -829,11 +829,44 @@ class InventoryEvent(Base):
     supplier = relationship("Supplier", backref="inventory_events")
     user = relationship("User", backref="inventory_events")
 
+class PurchaseOrder(Base):
+    __tablename__ = "purchase_orders"
 
-# ======================
-# Financial Health / Rating Jobs
-# ======================
+    id = Column(Integer, primary_key=True, index=True)
 
+    client_user_id = Column(UUID(as_uuid=True), ForeignKey("client_users.id"), index=True)
+
+    supplier = Column(String)
+
+    origin_city = Column(String)
+    origin_country = Column(String)
+
+    destination_city = Column(String)
+    destination_country = Column(String)
+
+    shipping_method = Column(String)
+
+    # store line items as JSON (simple + flexible)
+    items = Column(JSON)
+
+    delay_days = Column(Float, nullable=True)
+    recommended_action = Column(String, nullable=True)
+
+    # --- RISK FEATURES ---
+    geo_risk = Column(Float, nullable=True)
+    weather_risk = Column(Float, nullable=True)
+    macro_risk = Column(Float, nullable=True)
+
+    subtotal = Column(Float)
+    tax = Column(Float)
+    shipping = Column(Float)
+    total = Column(Float)
+
+    weight = Column(Float)
+    route_type = Column(String)
+    product_category = Column(String)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
 class SupplierFinancialHealth(Base):
     __tablename__ = "supplier_financial_health"
 

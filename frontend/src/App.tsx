@@ -2,6 +2,7 @@ import { Box } from "@mui/material";
 import { Routes, Route } from "react-router-dom";
 import Page from "./Supplier/page1"
 import LandingPage from "./landingpage/landingpage";
+import Dashboard from "./landingpage/output"
 import SignIn from "./dashboard/SignIn";
 import SignUp from "./dashboard/SignUp";
 import SignIn1 from "./dashboard/SignIn1";
@@ -43,9 +44,13 @@ import SupplierProfile from "./Supplier/supplier"
 import Suppliers from "./Supplier/suppliers"
 import SupplierRiskDashboard from "./Supplier/Trial"
 import SupplierIntelligence from "./Supplier/s"
+import ConfirmActionPage from "./PO/ConfirmActionPage"
 import S1 from "./Supplier/insights"
+import PurchaseOrderRiskPage from "./PO/new"
 import SupplierAlerts from "./Supplier/notification" 
 import SupplyChainMap from "./Supplier/SupplyChainMap"
+import ContactPage from "./dashboard/contact"
+import SuccessPage from "./dashboard/SuccessPage"
 export default function App() {
   return (
     <Box>
@@ -67,6 +72,23 @@ export default function App() {
             </ProtectedRoute>
           }
 
+        />
+        <Route
+          path="/success/*"
+          element={
+       
+              <SuccessPage />
+    
+          }
+        />
+        
+        <Route
+          path="/pilot/*"
+          element={
+       
+              <ContactPage />
+    
+          }
         /><Route
           path="/executive/*"
           element={
@@ -84,6 +106,37 @@ export default function App() {
           }
         />
         
+        <Route
+  path="/newpo"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+        <PurchaseOrderRiskPage />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
+  }
+/>
+
+
+          <Route
+            path="/confirm"
+            element={
+              <ClientSessionProvider>
+                <DashboardAppLayout>
+                  <ConfirmActionPage />
+                </DashboardAppLayout>
+              </ClientSessionProvider>
+            }
+
+          />
+
+                <Route
+          path="/FinalOutputUI"
+          element={
+ 
+              <Dashboard />
+          }
+        />
         <Route
           path="/department_owner/*"
           element={

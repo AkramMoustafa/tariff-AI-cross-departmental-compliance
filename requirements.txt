@@ -26,6 +26,7 @@ pytesseract
 catalogue==2.0.10
 requests
 reportlab
+xgboost
 lxml
 pdfplumber
 certifi==2025.11.12

@@ -157,6 +157,7 @@ export async function fetchStateRegulations(state: string, query: string) {
   return res.data.results; // backend returns { results: [...] }
 }
 
+
 export async function wizardSearch(params: {
   sourceType: "government" | "state";
   mode: "topic" | "packageId" | "ruleNumber";
@@ -174,6 +175,18 @@ export async function wizardSearch(params: {
   }
 
   return [];
+}
+
+export interface ContactPayload {
+  name: string
+  email: string
+  company: string
+  message: string
+}
+
+export const submitContact = async (payload: ContactPayload) => {
+  const { data } = await apiClient.post("/hs/contact", payload)
+  return data
 }
 
 export async function getLocalPackages() {

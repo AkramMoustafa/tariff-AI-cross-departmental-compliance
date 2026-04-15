@@ -7,7 +7,7 @@ from src.core.SANCTIONS.sanctions_service import (
     extract_entities,
     search_entities,
 )
-
+_SANCTION_SCORES = None
 _SANCTIONS_ENTITIES: list[Dict[str, Any]] = []
 _SANCTIONS_CACHE: Dict[str, Any] = {}
 _LAST_REFRESH: float | None = None
@@ -169,6 +169,51 @@ def build_country_sanction_scores():
 
     return country_scores
 
+
+
+def get_country_sanctions_risk(scores, country_name):
+
+    country = country_name.strip()
+    if country in scores:
+        return {
+            "country": country,
+            "sanctions_risk": round(scores[country], 3),
+            "found": True
+        }
+
+    for c in scores:
+        if c.lower() == country.lower():
+            return {
+                "country": c,
+                "sanctions_risk": round(scores[c], 3),
+                "found": True
+            }
+
+    return {
+        "country": country,
+        "sanctions_risk": 0.0,
+        "found": False
+    }
+
+def get_sanctions_risk_for_country(country: str):
+
+    global _SANCTION_SCORES
+
+    # 🔥 Step 1: ensure data loaded
+    if not get_sanctions_entities():
+        load_sanctions()
+
+    # 🔥 Step 2: compute scores ONCE
+    if _SANCTION_SCORES is None:
+        _SANCTION_SCORES = build_country_sanction_scores()
+
+    # 🔥 Step 3: lookup
+    result = get_country_sanctions_risk(
+        _SANCTION_SCORES,
+        country
+    )
+
+    return result
 if __name__ == "__main__":
     if os.path.exists(LOCAL_SANCTIONS_FILE):
         print(f"[Sanctions] Found local file: {LOCAL_SANCTIONS_FILE}")

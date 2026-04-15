@@ -9,6 +9,7 @@ from src.api.models import NewsEvent
 from datetime import datetime
 from pathlib import Path
 from fastapi import HTTPException
+import pandas as pd
 
 severity_map = {
     "low": 1,
@@ -370,14 +371,8 @@ def get_risk_country(country: str):
 BASE_DIR = Path(__file__).resolve().parent
 DATA_PATH = BASE_DIR / "country_master_risk.csv"
 
-df = pd.read_csv(DATA_PATH)
-
-risk_map = df.set_index(df["country"].str.lower()).to_dict("index")
-
-
 def get_country_list():
     return {"countries": sorted(df["country"].unique().tolist())}
-
 
 def get_country_risk_simple(country: str):
     country = normalize_country(country)  
@@ -394,3 +389,110 @@ def get_country_risk_simple(country: str):
         "risk_score": float(record["final_risk_score"]),
         "risk_level": record["risk_level"]
     }
+
+def load_country_risk_data(path):
+    df = pd.read_csv(path)
+
+    df = df[[
+        "country",
+        "disaster_risk",
+        "governance_risk",
+        "logistics_risk"
+    ]]
+
+    for col in ["disaster_risk", "governance_risk", "logistics_risk"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    df = df.fillna(0.5)
+
+    return df
+
+def compute_country_risk(df):
+
+    # Step 1: raw weighted score
+    df["raw_risk_score"] = (
+        0.3 * df["disaster_risk"] +
+        0.4 * df["governance_risk"] +
+        0.3 * df["logistics_risk"]
+    )
+
+    # Step 2: MIN-MAX NORMALIZATION (THIS IS THE KEY FIX)
+    min_val = df["raw_risk_score"].min()
+    max_val = df["raw_risk_score"].max()
+
+    range_val = max_val - min_val
+
+    if range_val == 0:
+        df["final_risk_score"] = 0.5
+    else:
+        df["final_risk_score"] = (
+            (df["raw_risk_score"] - min_val) / range_val
+        )
+
+    return df
+
+def assign_risk_level(df):
+
+    def level(score):
+        if score >= 0.66:
+            return "HIGH"
+        elif score >= 0.33:
+            return "MEDIUM"
+        else:
+            return "LOW"
+
+    df["risk_level"] = df["final_risk_score"].apply(level)
+
+    return df
+
+def build_risk_map(df):
+    return df.set_index(df["country"].str.lower()).to_dict("index")
+
+ISO_TO_COUNTRY = {
+    "US": "United States of America",  # important fix
+    "CN": "China",
+    "IN": "India",
+    "DE": "Germany",
+    "FR": "France",
+}
+
+def normalize_country(country):
+    return ISO_TO_COUNTRY.get(country.upper(), country)
+
+def build_country_risk_pipeline(path):
+    df = load_country_risk_data(path)
+    df = compute_country_risk(df)
+    df = assign_risk_level(df)
+
+    risk_map = build_risk_map(df)
+
+    return df, risk_map
+
+df, risk_map = build_country_risk_pipeline(DATA_PATH)
+
+def get_country_score(country):
+    country = normalize_country(country)
+
+    record = risk_map.get(country.lower())
+
+    if not record:
+        return {
+            "found": False,
+            "message": f"{country} not found"
+        }
+
+    return {
+        "found": True,
+        "country": country,
+        "risk_score": float(record["final_risk_score"]),
+        "risk_level": record["risk_level"],
+        "components": {
+            "disaster": float(record["disaster_risk"]),
+            "governance": float(record["governance_risk"]),
+            "logistics": float(record["logistics_risk"])
+        }
+    }
+
+def get_all_country_risks(df):
+    return df[["country", "final_risk_score"]] \
+        .sort_values(by="final_risk_score", ascending=False)

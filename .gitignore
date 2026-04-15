@@ -97,7 +97,7 @@ desktop.ini
 !Canada.json
 !Mexico.json
 !china.json
-
+!forex_currencies_cleaned.csv
 sample_regulations.json
 admin-key.json
 src/core/files_metadata.json
