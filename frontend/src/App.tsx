@@ -26,6 +26,7 @@ import TariffImpactMaterials from "./tariffs_engine/TariffHistory"
 import HsLookup from "./tariffs_engine/HsLookup"
 import TariffExposureSnapshot from "./tariffs_engine/TariffExposureSnapshot"
 import PrePOReview from "./PO/PrePOReview"
+import FinalAnalysisCard from "./PO/FinalAnalysisCard"
 import TornadoChart from "./PO/TornadoChart"
 import SupplyChainBlogPage from "./blogging/supply_chain_disruption"
 import MonteCarloDashboard from "./PO/MonteCarlo"
@@ -409,11 +410,11 @@ SupplierIntelligence
 />
 
 <Route
-  path="/TornadoChart"
+  path="/TradeReviewResult"
   element={
     <ClientSessionProvider>
       <DashboardAppLayout>
-          <TornadoChart />
+          <TradeReviewResult />
       </DashboardAppLayout>
     </ClientSessionProvider>
 

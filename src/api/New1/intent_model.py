@@ -13,13 +13,12 @@ def generate():
     vectors = {}
 
     for name, text in INTENT_TEXTS.items():
-        print(f"Embedding intent: {name}")
+ 
         vectors[name] = embed(text)
 
     with open("intent_vectors.json", "w") as f:
         json.dump(vectors, f)
 
-    print("Intent vectors saved to intent_vectors.json")
 
 if __name__ == "__main__":
     generate()

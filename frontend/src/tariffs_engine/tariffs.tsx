@@ -23,6 +23,7 @@ import NextActionsPanel from "./NextActionsPanel"
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { useNavigate } from "react-router-dom";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+
 import { explainTariff } from "@/api/client";
 export default function TariffCalculator() {
   const { paid, loading: paymentLoading } = usePaymentStatus();

@@ -69,7 +69,7 @@ export default function Suppliers() {
             <TableRow>
               <TableCell>Supplier</TableCell>
               <TableCell>Country</TableCell>
-                  <TableCell>Risk</TableCell>  
+        
               <TableCell>Actions</TableCell>
             </TableRow>
             

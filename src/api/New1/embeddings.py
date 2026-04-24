@@ -12,7 +12,6 @@ if not DATABASE_URL:
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY not set")
 
-print("Connecting to DB:", DATABASE_URL.split("@")[-1])
 
 engine = create_engine(DATABASE_URL)
 client = OpenAI(api_key=OPENAI_API_KEY)
@@ -113,7 +112,7 @@ def generate_embeddings(batch_size=100):
 
         # sanity check
         total = conn.execute(text("SELECT COUNT(*) FROM tariffs_basic_data")).scalar()
-        print("Total rows in DB:", total)
+
 
         rows = conn.execute(text("""
             SELECT clean_hs
@@ -122,10 +121,9 @@ def generate_embeddings(batch_size=100):
             AND LENGTH(clean_hs) >= 4
         """)).fetchall()
 
-        print(f"Rows missing embeddings: {len(rows)}")
 
         if not rows:
-            print("Nothing to embed.")
+
             return
 
         data = preload_hierarchy(conn)
@@ -157,9 +155,7 @@ def generate_embeddings(batch_size=100):
 
             conn.commit()  # ← IMPORTANT
 
-            print(f"[{min(i+batch_size, len(clean_codes))}/{len(clean_codes)}] embedded")
 
-    print("Done.")
 
 
 if __name__ == "__main__":

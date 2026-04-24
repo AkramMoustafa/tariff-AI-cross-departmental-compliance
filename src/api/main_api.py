@@ -35,7 +35,9 @@ import math
 from src.api.country_risk.services import run_news_pipeline
 from src.api.country_risk.routes import router as news_risk_router
 from src.api.New.newRoute import router as hs_router
-from src.api.New.newRoute import router as hs_router
+
+from src.api.New.tariffmodel import init_hs
+from src.api.New1.newRoute import router as hs_router1
 from src.api.New.tariffmodel import init_hs
 
 from cfr_data.normalize import extract_cfr_references, is_definition_section
@@ -425,6 +427,7 @@ app.include_router(cfr_router)
 app.include_router(order_router)
 
 app.include_router(hs_router)
+app.include_router(hs_router1)
 app.include_router(linkedin_router)
 
 router = APIRouter()

@@ -7,15 +7,17 @@ import {
   Button,
   Grid,
   Stack,
+  Divider,
   MenuItem,
 } from "@mui/material";
 import { extractPO, savePO } from "@/api/po";
+import { predictPO } from "@/api/po";
 import { useNavigate } from "react-router-dom";
 import { COUNTRIES } from "@/constants/countries";
 import { Collapse } from "@mui/material";
 import RunRiskAnalysisCard from "@/PO/RunRiskAnalysisCard";
 import FinalAnalysisCard from "@/PO/FinalAnalysisCard";
-import { predictPO } from "@/api/po";
+import StaticDecisionCard from "@/PO/TariffEstimator"
 import ProductValidationCard from "./ProductValidationCard";
 import RiskDecisionCard from "@/PO/RiskDecisionCard";
 
@@ -25,21 +27,42 @@ function getCountryCode(name: string) {
   );
   return match ? match.code : "";
 }
+
 export default function PrePOIntake() {
-  const [weight, setWeight] = useState("");
+  const baseButton = {
+  textTransform: "none",
+  borderRadius: "12px",
+  fontWeight: 600,
+  px: 2,
+  py: 1,
+  fontSize: 13,
+};
+
+
+const primaryButton = {...baseButton,background: "linear-gradient(135deg, #1d4ed8, #2563eb)",color: "#fff",};
+const secondaryButton = {
+  ...baseButton,
+  border: "1px solid #e2e8f0",
+  color: "#0f172a",
+  backgroundColor: "#f8fafc",
+  "&:hover": {
+    backgroundColor: "#f1f5f9",
+  },
+};
+const [weight, setWeight] = useState("");
 const [routeType, setRouteType] = useState("");
 const [productCategory, setProductCategory] = useState("");
 const [poId, setPoId] = useState<number | null>(null);
 const [total, setTotal] = useState("");
-const [showDetails, setShowDetails] = useState(false);
+const [showDetails, setShowDetails] = useState(true);
 const [prediction, setPrediction] = useState<any>(null);
-  const navigate = useNavigate();
-  const [supplier, setSupplier] = useState("");
-  const [origin, setOrigin] = useState("");
-  const [destination, setDestination] = useState("");
-  const [currency, setCurrency] = useState("USD");
-  const [incoterm, setIncoterm] = useState("");
-  const [aiExtracted, setAiExtracted] = useState(false);
+const navigate = useNavigate();
+const [supplier, setSupplier] = useState("");
+const [origin, setOrigin] = useState("");
+const [destination, setDestination] = useState("");
+const [currency, setCurrency] = useState("USD");
+const [incoterm, setIncoterm] = useState("");
+const [aiExtracted, setAiExtracted] = useState(false);
 const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 const [originCity, setOriginCity] = useState("");
 const [destinationCity, setDestinationCity] = useState("");
@@ -50,7 +73,8 @@ const [showResult, setShowResult] = useState(false);
 const [lineItems, setLineItems] = useState([
   { description: "", quantity: "", unitPrice: "" },
 ]);
-
+const [validatedItems, setValidatedItems] = useState([]);
+const [showStep3, setShowStep3] = useState(false);
 const [loading, setLoading] = useState(false);
 const [freight, setFreight] = useState("");
 const [insurance, setInsurance] = useState("");
@@ -204,7 +228,10 @@ if (po.items && Array.isArray(po.items)) {
     throw err;
   }
 };
+const canProceedToTariff = aiExtracted;
 
+const [showTariff, setShowTariff] = useState(false);
+const [showStep4, setShowStep4] = useState(false);
   return (
     <Box sx={{ maxWidth: 1200, mx: "auto", mt: 6, mb: 8, px: 3 }}>
       <Box
@@ -295,9 +322,9 @@ if (po.items && Array.isArray(po.items)) {
       </Typography>
 
       <Button
-        variant="outlined"
+
         component="label"
-        sx={{ borderRadius: "10px", textTransform: "none" }}
+      sx={secondaryButton}
       >
         Upload File
         <input hidden type="file" onChange={handleFileChange} />
@@ -318,21 +345,8 @@ if (po.items && Array.isArray(po.items)) {
       </Typography>
 
       <Stack direction="row" spacing={2} justifyContent="center">
-        <Button
-          variant="outlined"
-          component="label"
-          sx={{ borderRadius: "10px", textTransform: "none" }}
-        >
-          Replace File
-          <input hidden type="file" onChange={handleFileChange} />
-        </Button>
-
-        <Button
-          variant="text"
-          color="error"
-          onClick={() => setUploadedFile(null)}
-          sx={{ textTransform: "none" }}
-        >
+      <Button  component="label" sx={secondaryButton}>Replace File<input hidden type="file" onChange={handleFileChange} /></Button>
+      <Button onClick={() => setUploadedFile(null)}sx={{...secondaryButton,color: "#dc2626",borderColor: "#fecaca",}}>
           Remove
         </Button>
       </Stack>
@@ -366,20 +380,17 @@ if (po.items && Array.isArray(po.items)) {
 
   {/* Right Side - Button */}
 <Button
-  variant="contained"
   onClick={handleAIExtract}
-  disabled={!uploadedFile}
+  disabled={!uploadedFile || loading}
   sx={{
-    borderRadius: "12px",
-    textTransform: "none",
-    fontWeight: 600,
+    ...primaryButton,
     px: 4,
     py: 1.2,
     fontSize: 14,
-    background: "linear-gradient(135deg, #1e3a8a, #2563eb)",
+    opacity: !uploadedFile ? 0.6 : 1,
   }}
 >
-{loading ? "Extracting..." : "Extract with AI"}
+  {loading ? "Extracting..." : "Extract with AI"}
 </Button>
 </Box>
         {/* Pre-PO Details */}
@@ -549,10 +560,10 @@ if (po.items && Array.isArray(po.items)) {
             </Box>
           ))}
 
-          <Button
-            onClick={addLineItem}
-            sx={{ textTransform: "none", fontWeight: 600, color: "#1e3a8a" }}
-          >
+<Button
+  onClick={addLineItem}
+  sx={secondaryButton}
+>
             + Add Line Item
           </Button>
         </Paper>
@@ -661,76 +672,130 @@ if (po.items && Array.isArray(po.items)) {
 
 </Grid>
 
+
 </Paper>
 </Collapse>
 
-{/* Run Risk Analysis */}
-<RunRiskAnalysisCard
-onRun={async () => {
-  const res = await handleSavePO();
-
-  const id = res.po_id;
-  setPoId(id);
-
-  const pred = await predictPO(id);
-
-  setPrediction(pred.prediction);   // 🔥 STORE REAL DATA
-
-  setShowResult(true);
-}}
-/>
-{/* {showResult && prediction && (
-  <FinalAnalysisCard
-    delay={prediction.delay}
-    action={prediction.action}
-    riskLevel={
-      prediction.delay > 10
-        ? "HIGH"
-        : prediction.delay > 5
-        ? "MEDIUM"
-        : "LOW"
-    }
-    exposure={prediction.delay * 50000}
-  />
-)} */}
-{/* <RiskDecisionCard /> */}
-
-
       </Box>
-      <Box
-  sx={{
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    mt: 4,
-    mb: 1,
-  }}
->
-  <Typography sx={{ fontWeight: 600 }}>
-    Product Validation
+<Box sx={{ mt: 4 }}>
+  <Divider sx={{ mb: 2 }} />
+
+  <Typography sx={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+    STEP 2
   </Typography>
 
-  <Button
-    variant="text"
-    onClick={() => setShowValidation(!showValidation)}
-    sx={{
-      textTransform: "none",
-      fontSize: 13,
-      color: "#64748b",
-    }}
-  >
-    {showValidation ? "Hide ▲" : "Review ▼"}
-  </Button>
+  <Typography sx={{ fontSize: 20, fontWeight: 700 }}>
+    Verify your prodcuts
+  </Typography>
+
+  <Typography sx={{ fontSize: 13, color: "#64748b", mt: 0.5 }}>
+   Verify your products before running tariff analysis.
+  </Typography>
+
+<Button
+  disabled={!canProceedToTariff}
+  onClick={() => setShowValidation(!showValidation)}
+  sx={{
+    ...primaryButton,
+    mt: 2,
+    px: 3,
+    py: 1.2,
+    fontSize: 14,
+    opacity: !canProceedToTariff ? 0.6 : 1,
+  }}
+>
+  Verify Products →
+</Button>
 </Box>
 
 <Collapse in={showValidation}>
   <Box sx={{ mt: 2 }}>
-   <ProductValidationCard 
+<ProductValidationCard 
   lineItems={lineItems}
-  onUpdate={setLineItems}
+  onUpdate={setValidatedItems}
 />
   </Box>
+
+  
+  
 </Collapse>
+<Box sx={{ mt: 4 }}>
+  <Divider sx={{ mb: 2 }} />
+
+  <Typography sx={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+    STEP 3
+  </Typography>
+
+  <Typography sx={{ fontSize: 20, fontWeight: 700 }}>
+    Tariff & Cost Analysis
+  </Typography>
+
+  <Typography sx={{ fontSize: 13, color: "#64748b", mt: 0.5 }}>
+   Calculate tariffs for your product.
+  </Typography>
+
+<Button
+  disabled={!canProceedToTariff}
+  onClick={() => setShowStep3(!showStep3)}
+  sx={{
+    ...primaryButton,
+    mt: 2,
+    px: 3,
+    py: 1.2,
+    fontSize: 14,
+    opacity: !canProceedToTariff ? 0.6 : 1,
+  }}
+>
+  Run Tariff Analysis →
+</Button>
+</Box>
+<Box sx={{ mt: 4 }}>
+  <Divider sx={{ mb: 2 }} />
+
+  <Typography sx={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>
+    STEP 4
+  </Typography>
+
+  <Typography sx={{ fontSize: 20, fontWeight: 700 }}>
+    Trade Risk Analysis
+  </Typography>
+
+  <Typography sx={{ fontSize: 13, color: "#64748b", mt: 0.5 }}>
+    Analyze geopolitical, weather, and supplier risk before approval.
+  </Typography>
+
+  <Button
+    disabled={!showStep3}
+    onClick={() => setShowStep4(!showStep4)}
+  sx={{
+    ...primaryButton,
+    mt: 2,
+    px: 3,
+    py: 1.2,
+    fontSize: 14,
+    opacity: !canProceedToTariff ? 0.6 : 1,
+  }}
+  >
+    Run Risk Analysis →
+  </Button>
+</Box>
+<Collapse in={showStep4}>
+  <Box sx={{ mt: 2 }}>
+    <RiskDecisionCard />
+  </Box>
+</Collapse>
+<Collapse in={showStep3}>
+  <Box sx={{ mt: 2 }}>
+<StaticDecisionCard 
+  items={validatedItems} 
+  origin={origin}
+/>
+  </Box>
+
+  
+
+</Collapse>
+ 
 
     </Box>
     

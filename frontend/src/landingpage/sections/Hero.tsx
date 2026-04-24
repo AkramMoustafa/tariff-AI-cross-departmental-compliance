@@ -204,7 +204,7 @@ useEffect(() => {
                                 mx: "auto",
                             }}
                         >
-                            Real-Time Trade Compliance, Embedded in Procurement
+                            Turn delay risk into cost savings—before it’s too late.
                         </Typography>
                     </MotionBox>
 

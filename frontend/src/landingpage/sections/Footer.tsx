@@ -52,7 +52,7 @@ export default function Footer() {
                         </Box>
 
                         <Typography sx={{ fontSize: "0.95rem", lineHeight: 1.7, color: "#64748b", maxWidth: "32rem" }}>
-                            AI-powered tariff intelligence that helps enterprises cut duty costs and avoid overpayment.
+                            Your Trade Risk Platform
                         </Typography>
 
                         <Typography sx={{ fontSize: "0.875rem", color: "#94a3b8" }}>
