@@ -17,13 +17,18 @@ import { getSuppliers } from "../api/SupplierIntelligence";
 
 export default function Suppliers() {
   const navigate = useNavigate();
-  const [suppliers, setSuppliers] = useState<any[]>([]);
+  type Supplier = {
+  id: number;
+  name: string;
+  country: string;
+};
+
+const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   useEffect(() => {
     async function loadSuppliers() {
       try {
         const data = await getSuppliers();
-        console.log("SUPPLIERS API RESPONSE:", data); 
         setSuppliers(data);
       } catch (err) {
         console.error(err);
@@ -77,19 +82,19 @@ export default function Suppliers() {
           
           
 <TableBody>
-  {suppliers.map((supplier) => (
+ {suppliers.length === 0 ? (
+  <TableRow>
+    <TableCell colSpan={3} align="center">
+      No suppliers yet
+    </TableCell>
+  </TableRow>
+) : (
+  suppliers.map((supplier) => (
     <TableRow key={supplier.id}>
       <TableCell>{supplier.name}</TableCell>
       <TableCell>{supplier.country}</TableCell>
 
-      {/* ✅ ADD RISK HERE */}
-      <TableCell>
-        {supplier.risk ? (
-          `${supplier.risk.score} (${supplier.risk.level})`
-        ) : (
-          "N/A"
-        )}
-      </TableCell>
+     
 
       <TableCell>
         <Button
@@ -100,7 +105,8 @@ export default function Suppliers() {
         </Button>
       </TableCell>
     </TableRow>
-  ))}
+))
+)}
 </TableBody>
         </Table>
       </Paper>

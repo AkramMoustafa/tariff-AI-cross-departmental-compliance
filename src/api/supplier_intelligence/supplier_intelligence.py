@@ -4,48 +4,17 @@ from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException
 from src.api.db import get_db
 from src.api.API_USER.client_user_tokens import get_client_user_session
-from src.api.models import Supplier, SupplierProfile, SupplierHiringInsight
-from src.api.intelligence.service import get_supplier_risk_from_db
-from src.api.models import SupplierRiskSnapshot
-from sqlalchemy import func
-from sqlalchemy.orm import aliased
-from sqlalchemy import func, desc
-from src.api.Registry.registry import run_registry_scan
+from src.api.models import Supplier
 
 router = APIRouter()
 
 class SupplierCreate(BaseModel):
-
     legalName: str
-    linkedinCompanyName: str | None = None
     countryIncorporation: str
-    companyRegistrationNumber: str | None = None
-
-    manufacturingCountry: str | None = None
-    exportPort: str | None = None
-    invoicingCurrency: str | None = None
-
-    materialCategory: str | None = None
-    supplierTier: str | None = None
-    
-    incoterm: str | None = None
-    paymentTermsDays: int | None = None
-
-    yearsInOperation: int | None = None
-    revenueBand: str | None = None
-
-    hasTradeComplianceCerts: bool | None = None
-    hasInsurance: bool | None = None
-
-    singleSite: bool | None = None
-    backupFacility: bool | None = None
-
-    avgLeadTimeDays: int | None = None
-    onTimeDeliveryPct: float | None = None
-    qualityIssuesPct: float | None = None
-
-    categoryVolumeSharePct: float | None = None
-    commodityLinkedPricing: bool | None = None
+    manufacturingCountry: str
+    invoicingCurrency: str
+    materialCategory: str
+    products: list[str]  # 🔥 CRITICAL
 
 @router.post("/suppliers")
 def create_supplier(
@@ -57,203 +26,16 @@ def create_supplier(
     supplier = Supplier(
         client_user_id=session["client_user_id"],
         name=data.legalName,
-        country=data.countryIncorporation,
-        linkedin_company_name=data.linkedinCompanyName,
-        company_registration_number=data.companyRegistrationNumber,
+        country=data.manufacturingCountry,
+        products=data.products   # 🔥 THIS IS THE FIX
     )
-
 
     db.add(supplier)
-    db.flush()  # gives supplier.id without committing
-
-    profile = SupplierProfile(
-        supplier_id=supplier.id,
-
-        country_incorporation=data.countryIncorporation,
-        manufacturing_country=data.manufacturingCountry,
-        export_port=data.exportPort,
-        invoicing_currency=data.invoicingCurrency,
-
-        material_category=data.materialCategory,
-        supplier_tier=data.supplierTier,
-
-        incoterm=data.incoterm,
-        payment_terms_days=data.paymentTermsDays,
-        years_in_operation=data.yearsInOperation,
-        revenue_band=data.revenueBand,
-
-        has_trade_compliance_certs=data.hasTradeComplianceCerts,
-        has_insurance=data.hasInsurance,
-
-        single_site=data.singleSite,
-        backup_facility=data.backupFacility,
-
-        avg_lead_time_days=data.avgLeadTimeDays,
-        on_time_delivery_pct=data.onTimeDeliveryPct,
-        quality_issues_pct=data.qualityIssuesPct,
-
-        category_volume_share_pct=data.categoryVolumeSharePct,
-        commodity_linked_pricing=data.commodityLinkedPricing
-    )
-
-    db.add(profile)
+    
 
     db.commit()
-        # 🔥 NOW CALL YOUR FUNCTION
-    try:
-        run_registry_scan(
-            supplier_id=supplier.id,
-            url=f"https://ised-isde.canada.ca/cc/lgcy/fdrlCrpDtls.html?corpId={data.companyRegistrationNumber}",
-            db=db
-        )
-    except Exception as e:
-        # Don't break supplier creation if scan fails
-        print("Registry scan failed:", e)
 
     return {"supplier_id": supplier.id}
-
-@router.get("/suppliers/high-risk")
-def get_high_risk_suppliers(
-    db: Session = Depends(get_db),
-    session = Depends(get_client_user_session)
-):
-    # 👇 Step 1: get latest snapshot per supplier
-    latest_subquery = (
-        db.query(
-            SupplierRiskSnapshot.supplier_id,
-            func.max(SupplierRiskSnapshot.computed_at).label("latest_time")
-        )
-        .group_by(SupplierRiskSnapshot.supplier_id)
-        .subquery()
-    )
-
-    latest_snap = aliased(SupplierRiskSnapshot)
-
-    # 👇 Step 2: join ONLY latest snapshot
-    rows = (
-        db.query(Supplier, SupplierRiskSnapshot)
-        .join(
-            SupplierRiskSnapshot,
-            Supplier.id == SupplierRiskSnapshot.supplier_id
-        )
-        .filter(
-            Supplier.client_user_id == session["client_user_id"],
-            SupplierRiskSnapshot.overall_level == "HIGH"
-        )
-        .order_by(
-            SupplierRiskSnapshot.computed_at.desc()
-        )
-        .all()
-    )
-
-    seen = set()
-    results = []
-
-    for s, snap in rows:
-        if s.id in seen:
-            continue
-        seen.add(s.id)
-
-        results.append({
-            "supplier_id": s.id,
-            "name": s.name,
-            "country": s.country,
-            "risk_score": snap.overall_score,
-            "risk_level": snap.overall_level,
-            "primary_driver": snap.primary_driver
-        })
-
-    return {
-        "count": len(results),
-        "suppliers": results
-    }
-
-@router.get("/suppliers/risk-driver-mix")
-def get_risk_driver_mix(
-    db: Session = Depends(get_db),
-    session = Depends(get_client_user_session)
-):
-    # Get latest snapshot per supplier
-    latest_subquery = (
-        db.query(
-            SupplierRiskSnapshot.supplier_id,
-            func.max(SupplierRiskSnapshot.computed_at).label("latest_time")
-        )
-        .group_by(SupplierRiskSnapshot.supplier_id)
-        .subquery()
-    )
-
-    latest_snap = aliased(SupplierRiskSnapshot)
-
-    rows = (
-        db.query(SupplierRiskSnapshot.primary_driver)
-        .join(
-            latest_subquery,
-            (SupplierRiskSnapshot.supplier_id == latest_subquery.c.supplier_id) &
-            (SupplierRiskSnapshot.computed_at == latest_subquery.c.latest_time)
-        )
-        .join(Supplier, Supplier.id == SupplierRiskSnapshot.supplier_id)
-        .filter(Supplier.client_user_id == session["client_user_id"])
-        .all()
-    )
-
-    # Count drivers
-    driver_counts = {}
-    total = 0
-
-    for (driver,) in rows:
-        if not driver:
-            continue
-        driver_counts[driver] = driver_counts.get(driver, 0) + 1
-        total += 1
-
-    # Convert to % format
-    result = []
-    for driver, count in driver_counts.items():
-        pct = round((count / total) * 100)
-        result.append({
-            "label": driver,
-            "value": pct
-        })
-
-    # Sort descending
-    result.sort(key=lambda x: x["value"], reverse=True)
-
-    return result
-
-@router.get("/suppliers/risk-trend")
-def get_worsening_suppliers(
-    db: Session = Depends(get_db),
-    session = Depends(get_client_user_session)
-):
-    worsening_count = 0
-
-    suppliers = (
-        db.query(Supplier)
-        .filter(Supplier.client_user_id == session["client_user_id"])
-        .all()
-    )
-
-    for s in suppliers:
-        snapshots = (
-            db.query(SupplierRiskSnapshot)
-            .filter(SupplierRiskSnapshot.supplier_id == s.id)
-            .order_by(SupplierRiskSnapshot.computed_at.desc())
-            .limit(2)
-            .all()
-        )
-
-        if len(snapshots) < 2:
-            continue
-
-        latest, previous = snapshots
-
-        if latest.overall_score > previous.overall_score:
-            worsening_count += 1
-
-    return {
-        "count": worsening_count
-    }
 
 @router.get("/suppliers/{supplier_id}")
 def get_supplier(
@@ -278,19 +60,7 @@ def get_supplier(
         "id": supplier.id,
         "name": supplier.name,
         "country": supplier.country,
-        
-        "profile": {
-            "material_category": supplier.profile.material_category if supplier.profile else None,
-            "supplier_tier": supplier.profile.supplier_tier if supplier.profile else None,
-            "country_incorporation": supplier.profile.country_incorporation if supplier.profile else None,
-            "manufacturing_country": supplier.profile.manufacturing_country if supplier.profile else None,
-            "export_port": supplier.profile.export_port if supplier.profile else None,
-            "invoicing_currency": supplier.profile.invoicing_currency if supplier.profile else None,
-            "incoterm": supplier.profile.incoterm if supplier.profile else None,
-            "payment_terms_days": supplier.profile.payment_terms_days if supplier.profile else None,
-            "years_in_operation": supplier.profile.years_in_operation if supplier.profile else None,
-            "revenue_band": supplier.profile.revenue_band if supplier.profile else None,
-        }
+
     }
 
 @router.get("/suppliers")
@@ -307,164 +77,11 @@ def get_suppliers(
     result = []
 
     for s in suppliers:
-        try:
-            risk = get_supplier_risk_from_db(db, s.id)
-            risk_summary = risk["overall_supplier_risk"]
-        except:
-            risk_summary = None
 
         result.append({
             "id": s.id,
             "name": s.name,
-            "country": s.country,
-            "risk": risk_summary
+            "country": s.country
         })
 
     return result
-
-
-@router.get("/suppliers/{supplier_id}/dashboard")
-def get_supplier_dashboard(
-    supplier_id: int,
-    db: Session = Depends(get_db),
-    session = Depends(get_client_user_session)
-):
-
-    supplier = (
-    db.query(Supplier)
-    .filter(
-        Supplier.id == supplier_id,
-        Supplier.client_user_id == session["client_user_id"]
-    )
-    .first()
-)
-
-    if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
-
-    return {
-        "id": supplier.id,
-        "name": supplier.name,
-        "country": supplier.country,
-        "profile": {
-            "country_incorporation": supplier.profile.country_incorporation,
-            "manufacturing_country": supplier.profile.manufacturing_country,
-            "export_port": supplier.profile.export_port,
-            "invoicing_currency": supplier.profile.invoicing_currency,
-            "incoterm": supplier.profile.incoterm,
-            "payment_terms_days": supplier.profile.payment_terms_days,
-            "years_in_operation": supplier.profile.years_in_operation,
-            "revenue_band": supplier.profile.revenue_band,
-
-            "has_trade_compliance_certs": supplier.profile.has_trade_compliance_certs,
-            "has_insurance": supplier.profile.has_insurance,
-            "single_site": supplier.profile.single_site,
-            "backup_facility": supplier.profile.backup_facility,
-            "avg_lead_time_days": supplier.profile.avg_lead_time_days,
-            "on_time_delivery_pct": supplier.profile.on_time_delivery_pct,
-            "quality_issues_pct": supplier.profile.quality_issues_pct,
-            "category_volume_share_pct": supplier.profile.category_volume_share_pct,
-            "commodity_linked_pricing": supplier.profile.commodity_linked_pricing
-        }
-    }
-
-@router.get("/suppliers/{supplier_id}/hiring-insights/history")
-def get_hiring_insight_history(
-    supplier_id: int,
-    db: Session = Depends(get_db),
-    session = Depends(get_client_user_session)
-):
-
-    supplier = (
-        db.query(Supplier)
-        .filter(
-            Supplier.id == supplier_id,
-            Supplier.client_user_id == session["client_user_id"]
-        )
-        .first()
-    )
-
-    if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
-
-    insights = (
-        db.query(SupplierHiringInsight)
-        .filter(SupplierHiringInsight.supplier_id == supplier_id)
-        .order_by(SupplierHiringInsight.snapshot_date.desc())
-        .limit(12)
-        .all()
-    )
-
-    return [
-    {
-        "snapshot_date": i.snapshot_date,
-        "current_jobs": i.current_jobs,
-        "previous_jobs": i.previous_jobs,
-        "trend": i.trend,
-        "risk_level": i.risk_level,
-        "insight": i.insight
-    }
-    for i in insights
-]
-
-@router.get("/suppliers/{supplier_id}/hiring-insight")
-def get_latest_hiring_insight(
-    supplier_id: int,
-    db: Session = Depends(get_db),
-    session = Depends(get_client_user_session)
-):
-
-    insight = (
-        db.query(SupplierHiringInsight)
-        .filter(SupplierHiringInsight.supplier_id == supplier_id)
-        .order_by(SupplierHiringInsight.snapshot_date.desc())
-        .first()
-    )
-
-    supplier = (
-    db.query(Supplier)
-    .filter(
-        Supplier.id == supplier_id,
-        Supplier.client_user_id == session["client_user_id"]
-    )
-    .first()
-)
-
-    if not insight:
-        return {"message": "No hiring insights available"}
-
-    return {
-        "supplier_id": supplier.id,
-        "linkedin_company_name": supplier.linkedin_company_name,
-        "snapshot_date": insight.snapshot_date,
-        "current_jobs": insight.current_jobs,
-        "previous_jobs": insight.previous_jobs,
-        "trend": insight.trend,
-        "risk_level": insight.risk_level,
-        "insight": insight.insight
-    }
-
-@router.post("/suppliers/{supplier_id}/linkedin")
-def set_linkedin_company(
-    supplier_id: int,
-    name: str,
-    db: Session = Depends(get_db),
-    session = Depends(get_client_user_session)
-):
-
-    supplier = (
-        db.query(Supplier)
-        .filter(
-            Supplier.id == supplier_id,
-            Supplier.client_user_id == session["client_user_id"]
-        )
-        .first()
-    )
-
-    if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
-
-    supplier.linkedin_company_name = name
-    db.commit()
-
-    return {"status": "saved"}

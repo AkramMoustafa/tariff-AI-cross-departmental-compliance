@@ -9,7 +9,7 @@ from src.api.auth_backend import get_current_user
 from src.api.models import User
 from src.api.models import (
     SupplierOrder, QualityIncident, InventoryEvent,
-    SupplierFinancialHealth, OrderStatus, QualityIncidentType,
+    OrderStatus, QualityIncidentType,
     QualityIncidentSeverity, Supplier, RatingRecalculationLog
 )
 from src.api.rating_engine import SupplierRatingEngine
@@ -556,72 +556,6 @@ def create_inventory_event(
     }
 
 
-@router.post("/financial-health")
-def update_financial_health(
-    health: FinancialHealthUpdate,
-    background_tasks: BackgroundTasks,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Update supplier financial health record"""
-
-    supplier = db.query(Supplier).filter(
-        Supplier.id == health.supplier_id,
-        Supplier.user_uid == current_user.uid
-    ).first()
-    if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
-
-    db_health = SupplierFinancialHealth(
-        supplier_id=health.supplier_id,
-        credit_score=health.credit_score,
-        credit_rating=health.credit_rating,
-        payment_behavior=health.payment_behavior,
-        annual_revenue=health.annual_revenue,
-        employee_count=health.employee_count,
-        years_in_business=health.years_in_business,
-        bankruptcy_risk=health.bankruptcy_risk,
-        legal_issues=health.legal_issues,
-        data_source=health.data_source,
-        last_updated=datetime.utcnow()
-    )
-
-    db.add(db_health)
-    db.commit()
-    db.refresh(db_health)
-
-    background_tasks.add_task(trigger_score_update, health.supplier_id)
-
-    return {
-        "status": "success",
-        "supplier_id": db_health.supplier_id,
-        "score_update_triggered": True
-    }
-
-
-@router.post("/recalculate-scores/{supplier_id}")
-def manual_score_recalculation(
-    supplier_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Manually trigger score recalculation for a supplier"""
-
-    supplier = db.query(Supplier).filter(
-        Supplier.id == supplier_id,
-        Supplier.user_uid == current_user.uid
-    ).first()
-    if not supplier:
-        raise HTTPException(status_code=404, detail="Supplier not found")
-
-    engine = SupplierRatingEngine(db)
-    scores = engine.update_all_supplier_scores(supplier_id)
-
-    return {
-        "status": "success",
-        "supplier_id": supplier_id,
-        "updated_scores": scores
-    }
 
 
 @router.post("/recalculate-all-scores")

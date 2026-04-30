@@ -53,80 +53,7 @@ class NewsEvent(Base):
     discovered_at = Column(DateTime, default=datetime.utcnow)
 
     created_at = Column(DateTime, default=datetime.utcnow)
-    
-class SupplierJobPosting(Base):
-    __tablename__ = "supplier_job_postings"
 
-    id = Column(Integer, primary_key=True)
-
-    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
-
-    external_job_id = Column(String, index=True)
-    job_title = Column(String)
-    location = Column(String)
-    country = Column(String)
-
-    date_posted = Column(DateTime)
-    discovered_at = Column(DateTime)
-
-    employment_status = Column(String)
-    seniority = Column(String)
-
-    technologies = Column(JSON)
-
-    remote = Column(Boolean)
-
-    job_url = Column(String)
-    source_url = Column(String)
-
-    snapshot_date = Column(DateTime, index=True)
-
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    supplier = relationship("Supplier", back_populates="job_postings")
-
-class SupplierRiskSnapshot(Base):
-    __tablename__ = "supplier_risk_snapshots"
-
-    id = Column(Integer, primary_key=True, index=True)
-
-    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
-
-    # Overall risk
-    overall_score = Column(Float)
-    overall_level = Column(String)
-    primary_driver = Column(String)
-
-    # Store full breakdown (your sections dict)
-    sections = Column(JSON)
-
-    # Optional: store raw inputs (VERY useful later)
-    input_snapshot = Column(JSON, nullable=True)
-
-    # Metadata
-    computed_at = Column(DateTime, default=datetime.utcnow, index=True)
-    version = Column(String, default="v1")  # if you change scoring logic later
-
-    supplier = relationship("Supplier", backref="risk_snapshots")
-    
-class SupplierHiringInsight(Base):
-    __tablename__ = "supplier_hiring_insights"
-
-    id = Column(Integer, primary_key=True)
-
-    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
-
-    snapshot_date = Column(DateTime, index=True)
-
-    current_jobs = Column(Integer)
-    previous_jobs = Column(Integer)
-
-    trend = Column(String)
-    risk_level = Column(String)
-
-    insight = Column(String)
-
-    created_at = Column(DateTime, default=datetime.utcnow)
 
 class FileExtraction(Base):
     __tablename__ = "file_extractions"
@@ -225,7 +152,6 @@ class AuthToken(Base):
 
     user = relationship("User", backref="tokens")
 
-# CDC Core: Departments / Controls
 
 
 class Department(Base):
@@ -260,7 +186,6 @@ class Control(Base):
     department_id = Column(Integer, ForeignKey("departments.id"), nullable=False)
     owner_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
 
-    regulation_id = Column(Integer, ForeignKey("regulations.id"), nullable=True)
 
     status = Column(
         SQLEnum(ControlStatus, name="control_status"),
@@ -273,7 +198,6 @@ class Control(Base):
 
     department = relationship("Department", backref="controls")
     owner = relationship("User", backref="owned_controls")
-    regulation = relationship("Regulation", backref="controls")
 
 
 class ControlAssignmentStatus(str, enum.Enum):
@@ -313,30 +237,9 @@ class ControlAssignment(Base):
     )
 
 
-# ======================
-# Audit Log
-# ======================
-
-class AuditLog(Base):
-    __tablename__ = "audit_logs"
-
-    id = Column(Integer, primary_key=True)
-    entity_type = Column(String)
-    entity_id = Column(Integer)
-    action = Column(String)
-
-    actor_label = Column(String)  # e.g., email or name
-    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-
-    timestamp = Column(DateTime, default=datetime.utcnow)
-    detail = Column(String)
-
-    user = relationship("User", backref="audit_logs")
 
 
-# ======================
-# Demo Requests
-# ======================
+
 
 class DemoRequest(Base):
     __tablename__ = "demo_requests"
@@ -350,201 +253,6 @@ class DemoRequest(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-
-class Regulation(Base):
-    __tablename__ = "regulations"
-
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)
-    agency = Column(String, nullable=True)
-    cfr_title = Column(String, nullable=True)
-    cfr_part = Column(String, nullable=True)
-    document_number = Column(String, unique=True, nullable=True, index=True)
-    publication_date = Column(String, nullable=True)
-    effective_date = Column(String, nullable=True)
-    regulation_type = Column(String, nullable=True)  # "final_rule", "proposed_rule", "notice"
-    summary = Column(Text, nullable=True)
-    full_text = Column(Text, nullable=True)
-    pdf_url = Column(String, nullable=True)
-    html_url = Column(String, nullable=True)
-
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-class WorkspaceRegulation(Base):
-    __tablename__ = "workspace_regulations"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    regulation_id = Column(String, index=True)
-    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
-
-    workspace_status = Column(String, default="added")
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    name = Column(String, nullable=True)
-    code = Column(String, nullable=True)
-    region = Column(String, nullable=True)
-    category = Column(String, nullable=True)
-    risk = Column(String, nullable=True)
-    description = Column(String, nullable=True)
-    recommended = Column(Boolean, default=False)
-    source = Column(String, nullable=True)
-    full_text = Column(Text, nullable=True)
-
-    user = relationship("User", backref="workspace_regulations")
-
-
-# ======================
-# CFR Regulations Schema (New Postgres Graph)
-# ======================
-
-class CFRTitle(Base):
-    __tablename__ = "cfr_titles"
-    id = Column(Integer, primary_key=True)
-    title_number = Column(Integer, unique=True, index=True)
-    name = Column(String)
-    amendment_date = Column(String)
-    
-    chapters = relationship("CFRChapter", back_populates="title")
-
-class CFRChapter(Base):
-    __tablename__ = "cfr_chapters"
-    id = Column(Integer, primary_key=True)
-    title_id = Column(Integer, ForeignKey("cfr_titles.id"))
-    chapter_id_code = Column(String) # e.g. "IV"
-    heading = Column(String)
-
-    title = relationship("CFRTitle", back_populates="chapters")
-    parts = relationship("CFRPart", back_populates="chapter")
-
-class CFRPart(Base):
-    __tablename__ = "cfr_parts"
-    id = Column(Integer, primary_key=True)
-    chapter_id = Column(Integer, ForeignKey("cfr_chapters.id"))
-    part_number = Column(String, index=True) # e.g. "164"
-    heading = Column(String)
-
-    chapter = relationship("CFRChapter", back_populates="parts")
-    sections = relationship("CFRSection", back_populates="part")
-
-class CFRSection(Base):
-    __tablename__ = "cfr_sections"
-    id = Column(Integer, primary_key=True)
-    part_id = Column(Integer, ForeignKey("cfr_parts.id"))
-    
-    # This matches the ID used in your system: "45-164-164.312"
-    full_id = Column(String, unique=True, index=True) 
-    section_number = Column(String) # e.g. "164.312"
-    heading = Column(String)
-    full_text = Column(Text) # The regulation text
-    citations = Column(JSON) # List of citations
-
-    part = relationship("CFRPart", back_populates="sections")
-
-
-# ======================
-# Compliance Audits (Replaces Neo4j AuditRun)
-# ======================
-
-class ComplianceAudit(Base):
-    __tablename__ = "compliance_audits"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    
-    user_uid = Column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
-    file_id = Column(String, index=True)
-    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
-    
-    timestamp = Column(DateTime, default=datetime.utcnow)
-    compliance_score = Column(Float)
-    total_requirements = Column(Integer)
-    high_risk_gaps = Column(Integer)
-    
-    summary_json = Column(JSON) # Store full RAG summary
-    
-    findings = relationship("AuditFinding", back_populates="audit")
-
-class AuditFinding(Base):
-    __tablename__ = "audit_findings"
-    id = Column(Integer, primary_key=True)
-    audit_id = Column(UUID(as_uuid=True), ForeignKey("compliance_audits.id"))
-    
-    regulation_id = Column(String) # Links to CFRSection.full_id
-    status = Column(String) # "Compliant", "Non-Compliant"
-    score = Column(Float)
-    risk_rating = Column(String)
-    narrative = Column(Text)
-    evidence_chunk = Column(Text)
-    
-    audit = relationship("ComplianceAudit", back_populates="findings")
-class SupplierPortSignal(Base):
-    __tablename__ = "supplier_port_signals"
-
-    id = Column(Integer, primary_key=True)
-
-    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
-
-    port_name = Column(String)
-
-    ships_in_area = Column(Integer)
-    moving = Column(Integer)
-    anchored = Column(Integer)
-    entering = Column(Integer)
-    leaving = Column(Integer)
-
-    anchorage_ratio = Column(Float)
-    mobility_ratio = Column(Float)
-
-    estimated_wait_hours = Column(Float)
-
-    health_score = Column(Integer)
-    status = Column(String)
-
-    captured_at = Column(DateTime, default=datetime.utcnow)
-
-    supplier = relationship("Supplier", backref="port_signals")
-    
-class SupplierRegistryInsight(Base):
-    __tablename__ = "supplier_registry_insights"
-
-    supplier_id = Column(Integer, ForeignKey("suppliers.id"), primary_key=True)
-
-    snapshot_date = Column(DateTime)
-
-    health_score = Column(Integer)
-    status = Column(String)
-
-    signals = Column(JSON)
-    risks = Column(JSON)
-
-    directors_count = Column(Integer)
-    filings_count = Column(Integer)
-    history_count = Column(Integer)
-
-class SupplierRegistryHealth(Base):
-    __tablename__ = "supplier_registry_health"
-
-    id = Column(Integer, primary_key=True)
-
-    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
-
-    health_score = Column(Integer)
-    status = Column(String)
-
-    signals = Column(JSON)
-    risks = Column(JSON)
-
-    directors = Column(JSON)
-    filings = Column(JSON)
-
-    history_count = Column(Integer)
-
-    source_url = Column(String)
-
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    supplier = relationship("Supplier", backref="registry_health")
-    
 class Supplier(Base):
     __tablename__ = "suppliers"
 
@@ -558,24 +266,9 @@ class Supplier(Base):
 
     name = Column(String, index=True)
     country = Column(String)
-
-    linkedin_company_name = Column(String, nullable=True)
-    company_registration_number = Column(String, nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     owner = relationship("ClientUser", backref="suppliers")
-
-    profile = relationship(
-        "SupplierProfile",
-        back_populates="supplier",
-        uselist=False
-    )
-
-    job_postings = relationship(
-        "SupplierJobPosting",
-        back_populates="supplier"
-    )
-
 
 class new_suppliers(Base):
     __tablename__ = "new_suppliers"
@@ -601,27 +294,6 @@ class new_suppliers(Base):
     latitude = Column(Float)
     longitude = Column(Float)
     created_at = Column(TIMESTAMP, server_default=func.now())
-
-class PortSignal(Base):
-    __tablename__ = "port_signals"
-
-    id = Column(Integer, primary_key=True)
-    port_name = Column(String, index=True)
-
-    ships_in_area = Column(Integer)
-    moving = Column(Integer)
-    anchored = Column(Integer)
-    entering = Column(Integer)
-    leaving = Column(Integer)
-
-    anchorage_ratio = Column(Float)
-    mobility_ratio = Column(Float)
-    estimated_wait_hours = Column(Float)
-
-    health_score = Column(Integer)
-    status = Column(String)
-
-    created_at = Column(DateTime, default=datetime.utcnow)
     
 class UserPayment(Base):
     __tablename__ = "user_supayments"
@@ -696,10 +368,6 @@ class TariffRate(Base):
     source = Column(String)
 
 
-# ======================
-# Orders / Incidents / Inventory
-# ======================
-
 class OrderStatus(str, enum.Enum):
     PENDING = "PENDING"
     IN_TRANSIT = "IN_TRANSIT"
@@ -744,7 +412,6 @@ class SupplierOrder(Base):
     is_on_time = Column(Boolean, nullable=True)
     days_delayed = Column(Integer, default=0)
 
-    # Financial details
     item_count = Column(Integer)
     total_value = Column(Float)
     currency = Column(String, default="USD")
@@ -762,11 +429,7 @@ class SupplierOrder(Base):
     # Tariff calculation details
     estimated_duty = Column(Float, nullable=True)
     duty_effective_rate = Column(Float, nullable=True)
-    tariff_log_id = Column(
-        Integer,
-        ForeignKey("tariff_calculation_logs.id"),
-        nullable=True,
-    )
+
 
     supplier = relationship("Supplier", backref="orders")
     quality_incidents = relationship(
@@ -867,65 +530,8 @@ class PurchaseOrder(Base):
     product_category = Column(String)
 
     created_at = Column(DateTime, default=datetime.utcnow)
-class SupplierFinancialHealth(Base):
-    __tablename__ = "supplier_financial_health"
 
-    id = Column(Integer, primary_key=True, index=True)
-    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
 
-    credit_score = Column(Integer, nullable=True)
-    credit_rating = Column(String, nullable=True)  # e.g., "A+", "B", "C"
-    payment_behavior = Column(String, nullable=True)  # "ON_TIME", "LATE", etc.
-
-    annual_revenue = Column(Float, nullable=True)
-    employee_count = Column(Integer, nullable=True)
-    years_in_business = Column(Integer, nullable=True)
-
-    bankruptcy_risk = Column(String, nullable=True)
-    legal_issues = Column(Boolean, default=False)
-
-    data_source = Column(String)
-    last_updated = Column(DateTime, default=datetime.utcnow)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    supplier = relationship("Supplier", backref="financial_records")
-
-class SupplierProfile(Base):
-    __tablename__ = "supplier_profiles"
-
-    id = Column(Integer, primary_key=True)
-
-    supplier_id = Column(Integer, ForeignKey("suppliers.id"), index=True)
-
-    country_incorporation = Column(String)
-    manufacturing_country = Column(String)
-    export_port = Column(String)
-    invoicing_currency = Column(String)
-
-    incoterm = Column(String)
-    payment_terms_days = Column(Integer)
-    years_in_operation = Column(Integer)
-    revenue_band = Column(String)
-    
-    material_category = Column(String)
-    supplier_tier = Column(String)
-
-    has_trade_compliance_certs = Column(Boolean)
-    has_insurance = Column(Boolean)
-
-    single_site = Column(Boolean)
-    backup_facility = Column(Boolean)
-
-    avg_lead_time_days = Column(Integer)
-    on_time_delivery_pct = Column(Float)
-    quality_issues_pct = Column(Float)
-
-    category_volume_share_pct = Column(Float)
-    commodity_linked_pricing = Column(Boolean)
-
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    supplier = relationship("Supplier", back_populates="profile")
     
 class MetalPrice(Base):
     __tablename__ = "metal_prices"
