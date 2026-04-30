@@ -17,7 +17,7 @@ export default function Navbar({ scrolled }: Props) {
   const navItems = [
     { label: "Solutions", href: "#solutions" },
     { label: "Products", href: "#features" },
-    { label: "pilot", href: "#pilot" },
+    { label: "Be Our Pilot", href: "#pilot" },
   ];
 
   // Email template for contact sales
