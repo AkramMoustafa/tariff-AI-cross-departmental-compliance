@@ -141,9 +141,9 @@ def save_po(
         delay_days=0,
         recommended_action="pending",
         
-        geo_risk=geo_val,
-        weather_risk=weather_risk,
-        macro_risk=macro_val,
+        geo_risk=float(geo_val),
+        weather_risk=float(weather_risk),
+        macro_risk=float(macro_val),
     )
 
     db.add(po)

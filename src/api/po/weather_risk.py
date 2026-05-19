@@ -170,13 +170,3 @@ def compute_weather_from_shipment(user_input):
 
     return round(route_max, 3), route_key
 
-user_input = {
-    "Origin_City": "Tokyo, JP",
-    "Destination_City": "Los Angeles, US"
-}
-
-weather_risk, route_used = compute_weather_from_shipment(user_input)
-
-
-print("Route Selected:", route_used)
-print("Weather Risk:", weather_risk)

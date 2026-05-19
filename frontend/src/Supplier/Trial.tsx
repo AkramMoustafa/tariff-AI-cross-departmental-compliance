@@ -112,13 +112,14 @@ const badgeClasses: Record<string, string> = {
 };
 
 export default function SupplierRiskDashboard() {
-  const navigate = useNavigate();
 
+  const navigate = useNavigate();
 const [totalSuppliers, setTotalSuppliers] = useState(0);
 const [highRiskSuppliers, setHighRiskSuppliers] = useState<any[]>([]);
 const [highRiskCount, setHighRiskCount] = useState(0);
 const [riskDrivers, setRiskDrivers] = useState<any[]>([]);
 const [worseningCount, setWorseningCount] = useState(0);
+
 const kpis = [
   {
     title: "Total Suppliers",

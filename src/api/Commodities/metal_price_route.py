@@ -58,11 +58,11 @@ if __name__ == "__main__":
     if not df.empty:
         # print("Saving metal prices...")
         result = save_to_metalprice(df, supplier_id=6, symbol="XAU")
-        print("Saved metal records:", result)
+        # print("Saved metal records:", result)
     else:
         print("No metal data returned!")
 
-    print("\nTesting forex fetch...")
+    # print("\nTesting forex fetch...")
     df = fetch_price_data("EUR", weeks=3)
 
     # print("Forex dataframe:")

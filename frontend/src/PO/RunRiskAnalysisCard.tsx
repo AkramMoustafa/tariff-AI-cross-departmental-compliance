@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { Box, Typography, Button, CircularProgress } from "@mui/material";
-import { predictPO } from "@/api/po";
+
 
 type Props = {
   onRun?: () => void;
+  buttonSx?: object;
 };
 
-export default function RunRiskAnalysisCard({ onRun }: Props) {
+export default function RunRiskAnalysisCard({ onRun, buttonSx }: Props) {
   const [loading, setLoading] = useState(false);
 
 const handleClick = async () => {
@@ -22,7 +23,7 @@ const handleClick = async () => {
   return (
     <Box
       sx={{
-        p: 4,
+        p: 3,
         borderRadius: "16px",
         border: "1px solid #e5e7eb",
         backgroundColor: "#f9fafb",
@@ -30,8 +31,8 @@ const handleClick = async () => {
         alignItems: "center",
         justifyContent: "space-between",
         flexWrap: "wrap",
-        gap: 3,
-        mb: 5,
+        gap: 2,
+        mb: 2,
       }}
     >
       {/* LEFT SIDE */}
@@ -47,23 +48,13 @@ const handleClick = async () => {
 
       {/* BUTTON */}
       <Button
-        variant="contained"
         onClick={handleClick}
         disabled={loading}
         sx={{
-          borderRadius: "12px",
-          textTransform: "none",
-          fontWeight: 600,
-          px: 4,
-          py: 1.2,
-          fontSize: 14,
-          background: "linear-gradient(135deg, #1e3a8a, #2563eb)",
+          ...buttonSx,
           display: "flex",
           alignItems: "center",
           gap: 1,
-          "&:hover": {
-            background: "linear-gradient(135deg, #1e40af, #1d4ed8)",
-          },
         }}
       >
         {loading ? (
