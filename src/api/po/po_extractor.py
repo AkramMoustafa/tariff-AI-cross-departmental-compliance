@@ -9,7 +9,6 @@ from openai import OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 import os
-print("KEY:", os.getenv("OPENAI_API_KEY")[:])
 
 def extract_po_with_vision(file_path):
 

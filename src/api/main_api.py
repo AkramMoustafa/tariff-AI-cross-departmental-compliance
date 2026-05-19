@@ -117,6 +117,7 @@ from src.api.API_CLIENT.api_client_router import router as api_client_router
 from src.api.API_USER.client_users import router as client_user_routes
 from src.api.public.v1 import router as public_v1_router
 from src.api.NewTariffEngine.tariff_pdf import router as tariff_pdf_router
+from src.api.agents.agent_routes import router as agent_router
 
 
 def cache_refresher():
@@ -229,6 +230,7 @@ app.include_router(api_client_router)
 app.include_router(client_user_routes)
 app.include_router(tariff_pdf_router, prefix="/api")
 app.include_router(po_router, prefix="/api/po", tags=["PO Extraction"])
+app.include_router(agent_router, prefix="/api/po", tags=["PO Agent"])
 app.include_router(news_risk_router)
 
 # app.include_router(port_activity_router, prefix="/api/v1", tags=["Ports"])

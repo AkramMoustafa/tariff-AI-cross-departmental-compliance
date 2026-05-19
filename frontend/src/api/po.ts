@@ -27,3 +27,11 @@ export const predictPO = async (poId: number) => {
 
   return response.data;
 };
+
+export const analyzePOAgent = async (poId: number) => {
+  const response = await apiUserClient.post("/api/po/agent/analyze-po", {
+    po_id: poId,
+  });
+
+  return response.data;
+};

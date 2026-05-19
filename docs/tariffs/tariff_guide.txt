@@ -1,0 +1,102 @@
+TARIFF AND TRADE COMPLIANCE GUIDE
+
+=== US SECTION 301 TARIFFS (CHINA) ===
+Authority: Trade Act of 1974, Section 301. USTR-administered.
+
+List 1 ($34B): 25% tariff. Industrial machinery, aerospace components, electronics.
+List 2 ($16B): 25% tariff. Semiconductors, chemicals, motorcycles.
+List 3 ($200B): 7.5%–25% tariff. Consumer goods, furniture, automotive parts.
+List 4A ($120B): 7.5% tariff. Apparel, footwear, consumer electronics.
+List 4B: Suspended (laptops, phones temporarily excluded).
+
+2024–2025 Section 301 Escalation:
+- EVs: 100% (up from 25%)
+- Solar panels: 50% (up from 25%)
+- Steel/aluminum products: 25%
+- Ship-to-shore cranes: 25%
+- Medical gloves/syringes: 50%–100%
+- Lithium-ion batteries: 25% (rising to 50% by 2026)
+
+IMPACT ON POs: Chinese-origin goods must check HS code against Section 301 schedule.
+Total landed cost = customs value × (1 + MFN rate + 301 rate + any antidumping rate).
+
+=== SECTION 232 TARIFFS (STEEL/ALUMINUM) ===
+Steel: 25% on all imports; quotas for some countries (South Korea, Brazil, EU).
+Aluminum: 10% base; 25% for some countries (China, Russia).
+Derivatives: Steel/aluminum derivative products also covered (nails, wire, pipes).
+Exemptions: USMCA partners (Canada, Mexico) exempt with TRQ limits.
+
+=== RECIPROCAL TARIFFS (2025) ===
+Universal baseline tariff: 10% on all US imports.
+Country-specific rates announced but subject to 90-day pause for most countries.
+China: 145% total tariff rate (baseline + Section 301 + retaliatory).
+EU: 20% proposed rate (paused during negotiations).
+Vietnam: 46% proposed (paused).
+India: 26% proposed (paused).
+Mexico/Canada: USMCA goods exempt; non-USMCA goods subject to 25%.
+
+=== EU TARIFFS ===
+Common External Tariff (CET):
+- Electronics: 0%–14%
+- Automotive: 6.5%–10%
+- Textiles/apparel: 6%–12%
+- Agricultural products: High tariffs, quotas apply.
+
+EU-China: No FTA. MFN rates apply plus potential antidumping duties.
+EU-US: No FTA. Sector-specific tariffs. Steel/aluminum tariffs retaliatory.
+EU-UK: TCA (Trade and Cooperation Agreement). Goods: 0% tariff if rules of origin met.
+
+CBAM (Carbon Border Adjustment Mechanism):
+Applies to: Steel, aluminum, cement, fertilizers, electricity, hydrogen.
+Reporting obligation started October 2023. Financial payments from January 2026.
+Affects Chinese steel and aluminum imports significantly.
+
+=== ANTIDUMPING AND COUNTERVAILING DUTIES ===
+These stack on top of MFN and Section 301 tariffs.
+
+Common on Chinese goods:
+- Solar panels: ADD 11.45%–244.69%
+- Steel pipes: ADD up to 265%
+- Aluminum extrusions: ADD up to 376%
+- Hardwood plywood: ADD 183.36%
+
+Check: USITC and Commerce AMCO database for active AD/CVD orders.
+
+=== USMCA (US-MEXICO-CANADA AGREEMENT) ===
+Replaces NAFTA since July 2020.
+Requirements for 0% tariff:
+- Rules of Origin: Must satisfy product-specific RoO (typically 75% North American content).
+- Regional Value Content (RVC): Varies by product (50%–75%).
+- Automotive: 75% RVC requirement for passenger vehicles.
+
+High-risk area: Transshipment through Mexico to circumvent China tariffs.
+CBP actively investigates and penalizes Section 321 abuse.
+
+=== TARIFF IMPACT ON PO RISK ===
+HIGH TARIFF RISK indicators:
+- Origin: China
+- HS codes in Section 301 lists 1–4
+- Steel/aluminum content
+- Electronics, semiconductors, solar
+
+MITIGATION OPTIONS:
+1. Country of origin change: Manufacturing in Vietnam, India, Mexico
+2. First Sale Valuation: Use factory price rather than middleman price
+3. Tariff engineering: Modify product to change HS classification
+4. Foreign Trade Zones (FTZ): Defer/avoid duty on re-exported goods
+5. Chapter 98 provisions: US goods returned, duty-free on US-content portion
+6. Bonded Warehouse: Delay payment; useful if tariff rates expected to change
+
+=== HS CODE CLASSIFICATION ===
+HS codes determine applicable tariff rate.
+First 6 digits: International standard (World Customs Organization)
+7–10 digits: Country-specific (HTS for US, Combined Nomenclature for EU)
+
+Misclassification risk: Customs penalties up to 4× underpaid duties.
+Binding Ruling: Request from CBP or HMRC for certainty before importing.
+
+=== LANDED COST FORMULA ===
+Landed Cost = Product Cost + Freight + Insurance + Customs Duty + Harbor Fees + Broker Fees
+Customs Duty = Customs Value × (MFN Rate + AD/CVD Rate + Section 301 Rate)
+Customs Value (US) = Transaction value (FOB price + packing)
+Customs Value (EU) = CIF value (Cost + Insurance + Freight to EU border)

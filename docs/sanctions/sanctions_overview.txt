@@ -1,0 +1,130 @@
+SANCTIONS AND TRADE COMPLIANCE GUIDE
+
+=== US SANCTIONS PROGRAMS ===
+Administered by: OFAC (Office of Foreign Assets Control), US Treasury
+
+Key Lists:
+1. SDN List (Specially Designated Nationals): Hard block. US persons cannot transact.
+2. Consolidated Sanctions List: Comprehensive blocked parties.
+3. BIS Entity List: Export license required; often effectively prohibited.
+4. BIS Denied Persons List: Complete denial of export privileges.
+5. OFAC Non-SDN Lists: Sectoral sanctions; partial restrictions.
+
+Country Programs (Comprehensive Embargo):
+- Iran: Near-total embargo. Oil, financial transactions, arms prohibited. OFAC ITSR.
+- Cuba: Embargo since 1962. Limited exceptions for humanitarian goods.
+- North Korea: Comprehensive. UN Security Council resolutions reinforce.
+- Russia (2022+): Broad sectoral sanctions. Energy, financial, defense sectors.
+- Syria: Comprehensive embargo.
+
+Sectoral Sanctions (Russia):
+- Finance: Major Russian banks sanctioned (Sberbank, VTB, Gazprombank).
+- Energy: Prohibition on new investment in Russian energy sector.
+- Defense: Prohibition on goods/services to Russian defense sector.
+- Luxury goods: Prohibition on export of luxury items to Russia.
+
+Secondary Sanctions Risk:
+- Non-US companies can face sanctions for doing business with sanctioned entities.
+- "SDN Plus 50": Entities 50%+ owned by SDN are also effectively sanctioned.
+
+=== EU SANCTIONS ===
+Administered by: European Council, implemented by member states.
+
+Russia Sanctions (14 packages as of 2024):
+- Asset freezes on Russian oligarchs, officials.
+- Import bans: Russian oil cap ($60/barrel), coal, steel, luxury goods.
+- Export bans: Dual-use goods, aviation, advanced technology.
+- SWIFT exclusion: Major Russian banks cut from SWIFT.
+- Trade value restrictions: No transactions over €100K with listed entities.
+
+Iran: Arms embargo, nuclear-related sanctions aligned with US.
+Belarus: Sanctions on regime officials and sectors supporting Russia.
+
+=== UK SANCTIONS (POST-BREXIT) ===
+UK maintains own autonomous sanctions regime via OFSI.
+Closely mirrors EU/US but with UK-specific additions.
+UK Global Anti-Corruption Sanctions targeting kleptocracy.
+
+=== SUPPLY CHAIN COMPLIANCE ===
+
+UFLPA (Uyghur Forced Labor Prevention Act) - Effective June 2022:
+- Rebuttable presumption: All goods from Xinjiang, China presumed made with forced labor.
+- Applies to: Cotton, polysilicon (solar panels), tomatoes, and derivatives.
+- Enforcement: CBP holds shipments. Importer must prove no forced labor link.
+- High-risk suppliers: Check UFLPA Entity List.
+- Due diligence: Map supply chain to sub-tier suppliers in Xinjiang.
+
+Conflict Minerals (Section 1502, Dodd-Frank):
+- Applies to: Tin, tantalum, tungsten, gold (3TG) from DRC conflict zones.
+- Requirement: Annual disclosure to SEC for public companies.
+- RCOI (Reasonable Country of Origin Inquiry) required.
+
+Child Labor / Forced Labor (TVPA):
+- CBP Withhold Release Orders (WRO): Block goods from specific suppliers.
+- Key WROs: Malaysian glove manufacturers, Chinese fishing vessels, Brazilian beef.
+
+=== SANCTIONS SCREENING REQUIREMENTS ===
+
+When to screen:
+- All new supplier relationships.
+- All PO counterparties (buyer, seller, intermediaries).
+- Banks and financial institutions involved in transaction.
+- Freight forwarders, customs brokers, carriers.
+- Any party receiving >5% of transaction value.
+
+Screening frequency:
+- Onboarding: Full screen before first transaction.
+- Ongoing: Minimum annual rescreening; real-time for high-risk.
+- Trigger events: Ownership changes, news alerts, geography changes.
+
+Red flags requiring enhanced due diligence:
+- Payment via high-risk jurisdiction (BVI, Cayman, Panama, UAE).
+- Unusual payment terms (advance payment, non-standard amounts).
+- Reluctance to disclose beneficial ownership.
+- Goods inconsistent with buyer's stated business.
+- Routing through multiple intermediaries with no apparent business purpose.
+- Price significantly below market (may indicate sanctions evasion).
+
+=== GEOPOLITICAL RISK FACTORS ===
+
+China-Taiwan:
+- Military tensions increasing. Insurance premiums rising for Taiwan Strait transits.
+- Scenario planning: Conflict would disrupt 50%+ of global semiconductor supply.
+- TSMC, ASML, Foxconn supply chain disruption risk.
+- Mitigation: Dual-sourcing, safety stock, reshoring/nearshoring.
+
+Russia-Ukraine:
+- Neon gas (used in chip manufacturing): 90% sourced from Ukraine pre-war.
+- Wheat, sunflower oil: Black Sea grain corridor disrupted periodically.
+- Energy: European manufacturers face higher energy costs.
+
+Middle East (Iran/Houthis):
+- Red Sea attacks by Houthi forces: Significant freight cost increase (2024+).
+- Gulf of Oman: Iranian harassment of shipping. Dual-use goods at risk.
+- Israel-Gaza: Regional instability affecting Aqaba port, Israeli exports.
+
+=== RISK SCORING FOR POs ===
+HIGH GEOPOLITICAL RISK:
+- Origin/destination: Russia, Iran, North Korea, Myanmar, Belarus, Cuba
+- Transit through: Strait of Hormuz, Red Sea/Gulf of Aden, Taiwan Strait
+- Counterparty: Entity on any denied party list
+
+MEDIUM GEOPOLITICAL RISK:
+- Origin: China (tariff risk, UFLPA risk for Xinjiang-linked goods)
+- Transit through: Suez Canal, South China Sea
+- Counterparty: Entities in sanctioned sectors (Russian energy, Iranian banking)
+
+LOW GEOPOLITICAL RISK:
+- Origin: USMCA countries, EU members, Australia, Japan, South Korea
+- Transit: Atlantic, stable Pacific routes
+- Counterparty: Well-established multinational with clean compliance history
+
+=== MITIGATION RECOMMENDATIONS ===
+1. Denied Party Screening: Automated real-time screening of all counterparties.
+2. Country of origin documentation: Certificates of origin, preferential origin declarations.
+3. Supply chain mapping: Tier 1, 2, 3 supplier identification.
+4. Trade finance: Letters of credit reduce counterparty risk.
+5. Trade credit insurance: Protect against buyer default, political risk.
+6. Bonding and customs guarantees: Reduce customs duty exposure.
+7. Legal review: Export control classification (EAR99, ECCN) for dual-use goods.
+8. Freight insurance: War risk, political risk riders for high-risk routes.

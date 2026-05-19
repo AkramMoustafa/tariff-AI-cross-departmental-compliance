@@ -56,99 +56,346 @@ def save_po(
     db: Session = Depends(get_db),
     session = Depends(get_client_user_session),
 ):
+
     if not session:
-            raise HTTPException(status_code=401, detail="User not authenticated")
-    origin_country = payload.get("origin_country")
-    sanctions_result = get_sanctions_risk_for_country(origin_country)
+        raise HTTPException(
+            status_code=401,
+            detail="User not authenticated"
+        )
+
+    print("\n" + "="*70)
+    print("🚀 SAVE PO START")
+    print("="*70)
+
+    print("\n===== FULL FRONTEND PAYLOAD =====")
+    print(payload)
+
+    origin_country = payload.get(
+        "origin_country"
+    )
+
+    sanctions_result = (
+        get_sanctions_risk_for_country(
+            origin_country
+        )
+    )
 
     country_risks = get_country_risks()
+
     geo_result = compute_geopolitical_risk(
         origin_country,
         country_risks,
         risk_map
     )
 
-    print("🌍 GEO RISK:", geo_result)
-    news_result = get_news_risk(origin_country, country_risks)
+    print(
+        "\n🌍 GEO RISK:",
+        geo_result
+    )
 
-    print("NEWS RESULT:", news_result)
-    print("SANCTIONS RESULT:", sanctions_result)
+    news_result = get_news_risk(
+        origin_country,
+        country_risks
+    )
 
-    origin_city = payload.get("origin_city")
-    origin_country = payload.get("origin_country")
+    print(
+        "📰 NEWS RESULT:",
+        news_result
+    )
 
-    destination_city = payload.get("destination_city")
-    destination_country = payload.get("destination_country")
+    print(
+        "🚫 SANCTIONS RESULT:",
+        sanctions_result
+    )
 
-    origin_code = COUNTRY_TO_ISO.get(origin_country.lower(), "US")
-    dest_code = COUNTRY_TO_ISO.get(destination_country.lower(), "US")
+    origin_city = payload.get(
+        "origin_city"
+    )
+
+    origin_country = payload.get(
+        "origin_country"
+    )
+
+    destination_city = payload.get(
+        "destination_city"
+    )
+
+    destination_country = payload.get(
+        "destination_country"
+    )
+
+    origin_code = COUNTRY_TO_ISO.get(
+        origin_country.lower(),
+        "US"
+    )
+
+    dest_code = COUNTRY_TO_ISO.get(
+        destination_country.lower(),
+        "US"
+    )
 
     weather_input = {
-        "Origin_City": f"{origin_city}, {origin_code}",
-        "Destination_City": f"{destination_city}, {dest_code}"
+
+        "Origin_City":
+        f"{origin_city}, {origin_code}",
+
+        "Destination_City":
+        f"{destination_city}, {dest_code}"
     }
 
-    weather_risk, route_used = compute_weather_from_shipment(weather_input)
+    weather_risk, route_used = (
+        compute_weather_from_shipment(
+            weather_input
+        )
+    )
 
-    print("🌦️ WEATHER INPUT:", weather_input)
-    print("🌦️ WEATHER ROUTE:", route_used)
-    print("🌦️ WEATHER RISK:", weather_risk)
-    origin_structural = get_country_score(origin_country)
-    origin_macro = get_combined_country_risk(origin_country)
-    print("GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG")
+    print(
+        "\n🌦️ WEATHER INPUT:",
+        weather_input
+    )
+
+    print(
+        "🌦️ WEATHER ROUTE:",
+        route_used
+    )
+
+    print(
+        "🌦️ WEATHER RISK:",
+        weather_risk
+    )
+
+    origin_structural = (
+        get_country_score(
+            origin_country
+        )
+    )
+
+    origin_macro = (
+        get_combined_country_risk(
+            origin_country
+        )
+    )
+
+    print(
+        "\n===== MACRO RESULT ====="
+    )
+
     print(origin_macro)
-    # print(origin_structural)
+
     try:
-        forex_result = get_country_risk_score(
-            origin_country,
-            path,
-            currency_to_country
+
+        forex_result = (
+            get_country_risk_score(
+                origin_country,
+                path,
+                currency_to_country
+            )
         )
 
-        # print("💱 FOREX RISK RESULT:", forex_result)
-        geo_val = geo_result.get("geopolitical_risk", 0)
+        geo_val = geo_result.get(
+            "geopolitical_risk",
+            0
+        )
 
+        macro_val = origin_macro.get(
+            "combined_risk_score",
+            0
+        )
 
-        macro_val = origin_macro.get("combined_risk_score", 0)
-        print(geo_val, weather_risk, macro_val )
+        print(
+            "\n===== FINAL RISKS ====="
+        )
+
+        print(
+            "geo:",
+            geo_val
+        )
+
+        print(
+            "weather:",
+            weather_risk
+        )
+
+        print(
+            "macro:",
+            macro_val
+        )
+
     except Exception as e:
-        print("❌ FOREX ERROR:", str(e))
+
+        print(
+            "❌ FOREX ERROR:",
+            str(e)
+        )
+
+        geo_val = 0
+        macro_val = 0
+
+    print(
+        "\n===== MODEL FEATURES FROM FRONTEND ====="
+    )
+
+    print(
+        "supplier:",
+        payload.get(
+            "supplier"
+        )
+    )
+
+    print(
+        "weight:",
+        payload.get(
+            "weight"
+        )
+    )
+
+    print(
+        "route_type:",
+        payload.get(
+            "route_type"
+        )
+    )
+
+    print(
+        "product_category:",
+        payload.get(
+            "product_category"
+        )
+    )
+
+    print(
+        "shipping_method:",
+        payload.get(
+            "shipping_method"
+        )
+    )
+
+    print(
+        "shipping:",
+        payload.get(
+            "shipping"
+        )
+    )
+
+    print(
+        "items:",
+        payload.get(
+            "items"
+        )
+    )
+
     po = PurchaseOrder(
-        client_user_id=session["client_user_id"],
 
-        supplier=payload.get("supplier"),
+        client_user_id=
+        session[
+            "client_user_id"
+        ],
 
-        origin_city=payload.get("origin_city"),
-        origin_country=payload.get("origin_country"),
+        supplier=
+        payload.get(
+            "supplier"
+        ),
 
-        destination_city=payload.get("destination_city"),
-        destination_country=payload.get("destination_country"),
+        origin_city=
+        payload.get(
+            "origin_city"
+        ),
 
-        shipping_method=payload.get("shipping_method"),
+        origin_country=
+        payload.get(
+            "origin_country"
+        ),
 
-        items=payload.get("items"),
+        destination_city=
+        payload.get(
+            "destination_city"
+        ),
 
-        subtotal=payload.get("subtotal"),
-        tax=payload.get("tax"),
-        shipping=payload.get("shipping"),
-        total=payload.get("total"),
+        destination_country=
+        payload.get(
+            "destination_country"
+        ),
 
-        weight=payload.get("weight"),
-        route_type=payload.get("route_type"),
-        product_category=payload.get("product_category"),
+        shipping_method=
+        payload.get(
+            "shipping_method"
+        ),
 
-        # 🔥 ADD THESE (even if temporary)
+        items=
+        payload.get(
+            "items"
+        ),
+
+        subtotal=
+        payload.get(
+            "subtotal"
+        ),
+
+        tax=
+        payload.get(
+            "tax"
+        ),
+
+        shipping=
+        payload.get(
+            "shipping"
+        ),
+
+        total=
+        payload.get(
+            "total"
+        ),
+
+        weight=
+        payload.get(
+            "weight"
+        ),
+
+        route_type=
+        payload.get(
+            "route_type"
+        ),
+
+        product_category=
+        payload.get(
+            "product_category"
+        ),
+
         delay_days=0,
-        recommended_action="pending",
-        
-        geo_risk=float(geo_val),
-        weather_risk=float(weather_risk),
-        macro_risk=float(macro_val),
+
+        recommended_action=
+        "pending",
+
+        geo_risk=
+        float(
+            geo_val
+        ),
+
+        weather_risk=
+        float(
+            weather_risk
+        ),
+
+        macro_risk=
+        float(
+            macro_val
+        )
     )
 
     db.add(po)
+
     db.commit()
+
     db.refresh(po)
+
+    print(
+        "\n✅ SAVED PO ID:",
+        po.id
+    )
+
+    print(
+        "="*70
+    )
 
     return {
         "status": "saved",

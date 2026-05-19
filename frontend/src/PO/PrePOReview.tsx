@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Paper,
@@ -10,9 +11,11 @@ import {
   Divider,
   MenuItem,
   Skeleton,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { Collapse } from "@mui/material";
-import { extractPO, savePO, predictPO } from "@/api/po";
+import { extractPO, savePO, predictPO, analyzePOAgent } from "@/api/po";
 import { COUNTRIES } from "@/constants/countries";
 import StaticDecisionCard from "@/PO/TariffEstimator";
 import ProductValidationCard from "./ProductValidationCard";
@@ -26,6 +29,7 @@ function getCountryCode(name: string) {
 }
 
 export default function PrePOIntake() {
+  const navigate = useNavigate();
   const baseButton = {
     textTransform: "none",
     borderRadius: "12px",
@@ -89,6 +93,11 @@ export default function PrePOIntake() {
   const [isValidating, setIsValidating] = useState(false);
   const [isTariffLoading, setIsTariffLoading] = useState(false);
   const [isRiskLoading, setIsRiskLoading] = useState(false);
+  const [agentAnalysis, setAgentAnalysis] = useState<any>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({
+    open: false, message: "", severity: "success",
+  });
 
   const canProceedToTariff = aiExtracted;
 
@@ -214,16 +223,35 @@ export default function PrePOIntake() {
     setTimeout(() => setIsTariffLoading(false), 800);
   };
 
+  const handleExplicitSave = async () => {
+    setIsSaving(true);
+    try {
+      await handleSavePO();
+      setSnackbar({ open: true, message: "PO Saved Successfully", severity: "success" });
+    } catch (err) {
+      setSnackbar({ open: true, message: "Failed to save purchase order", severity: "error" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleRunAnalysis = async () => {
+    if (!poId) {
+      setSnackbar({ open: true, message: "Please save the purchase order first", severity: "error" });
+      return;
+    }
     setIsRiskLoading(true);
     try {
-      let id = poId;
-      if (!id) {
-        const res = await handleSavePO();
-        id = res.po_id;
-      }
-      const result = await predictPO(id!);
+      const result = await predictPO(poId);
       setPrediction(result.prediction);
+
+      try {
+        const agentResult = await analyzePOAgent(poId);
+        setAgentAnalysis(agentResult);
+      } catch (agentErr) {
+        console.error("Agent analysis failed", agentErr);
+      }
+
       setShowStep4(true);
     } catch (err) {
       console.error("Prediction failed", err);
@@ -537,6 +565,22 @@ export default function PrePOIntake() {
               </Grid>
             </Grid>
           </Paper>
+
+          {/* Save Purchase Order */}
+          <Box sx={{ mt: 3, display: "flex", alignItems: "center", gap: 2 }}>
+            <Button
+              onClick={handleExplicitSave}
+              disabled={isSaving}
+              sx={{ ...primaryButton, px: 4, py: 1.2, fontSize: 14 }}
+            >
+              {isSaving ? "Saving..." : "Save Purchase Order"}
+            </Button>
+            {poId && (
+              <Typography sx={{ fontSize: 13, color: "#15803d", fontWeight: 500 }}>
+                ✓ PO #{poId} saved
+              </Typography>
+            )}
+          </Box>
         </Collapse>
       </Box>
 
@@ -584,7 +628,7 @@ export default function PrePOIntake() {
         </Button>
       </Box>
 
-      <Collapse in={showStep3}>
+      <Collapse in={isTariffLoading || showStep3}>
         <Box sx={{ mt: 2 }}>
           {isTariffLoading ? (
             <Skeleton variant="rounded" height={200} sx={{ borderRadius: "16px" }} />
@@ -616,15 +660,175 @@ export default function PrePOIntake() {
           {isRiskLoading ? (
             <Skeleton variant="rounded" height={160} sx={{ borderRadius: "16px" }} />
           ) : prediction && (
-            <RiskDecisionCard
-              riskLevel={prediction.delay > 20 ? "HIGH" : prediction.delay > 10 ? "MEDIUM" : "LOW"}
-              delay={prediction.delay}
-              exposure={Number(total) || 0}
-              action={prediction.action}
-            />
+            <>
+              <RiskDecisionCard
+                riskLevel={prediction.delay > 20 ? "HIGH" : prediction.delay > 10 ? "MEDIUM" : "LOW"}
+                delay={prediction.delay}
+                exposure={Number(total) || 0}
+                action={prediction.action}
+                onReviewClick={() =>
+                  navigate("/po/review", {
+                    state: {
+                      poId,
+                      supplier,
+                      origin: originCity ? `${originCity}, ${origin}` : origin,
+                      destination: destinationCity ? `${destinationCity}, ${destination}` : destination,
+                      exposure: Number(total) || 0,
+                      delay: prediction.delay,
+                      riskLevel: prediction.delay > 20 ? "HIGH" : prediction.delay > 10 ? "MEDIUM" : "LOW",
+                      aiRecommendation: prediction.action,
+                      agentReasoning: agentAnalysis?.decision?.reasoning,
+                      agentUrgency: agentAnalysis?.decision?.urgency,
+                    },
+                  })
+                }
+              />
+
+              {agentAnalysis && (
+                <Paper
+                  elevation={0}
+                  sx={{
+                    mt: 3,
+                    p: 3,
+                    borderRadius: "16px",
+                    border: "1px solid #e5e7eb",
+                    backgroundColor: "#ffffff",
+                    boxShadow: "0 6px 20px rgba(0,0,0,0.04)",
+                  }}
+                >
+                  <Typography sx={{ fontSize: 16, fontWeight: 700, mb: 0.5 }}>
+                    Agent Recommendation
+                  </Typography>
+                  <Typography sx={{ fontSize: 12, color: "#64748b", mb: 2 }}>
+                    LangGraph agentic analysis — sanctions · geopolitical · weather · macro · ML
+                  </Typography>
+                  <Divider sx={{ mb: 2 }} />
+
+                  {/* Recommendation + urgency */}
+                  <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1.5 }}>
+                    <Box
+                      sx={{
+                        px: 1.5,
+                        py: 0.5,
+                        borderRadius: "8px",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: "0.5px",
+                        textTransform: "uppercase",
+                        backgroundColor:
+                          agentAnalysis.decision?.urgency === "CRITICAL" ? "#fef2f2" :
+                          agentAnalysis.decision?.urgency === "HIGH"     ? "#fff7ed" :
+                          agentAnalysis.decision?.urgency === "MEDIUM"   ? "#fefce8" : "#f0fdf4",
+                        color:
+                          agentAnalysis.decision?.urgency === "CRITICAL" ? "#dc2626" :
+                          agentAnalysis.decision?.urgency === "HIGH"     ? "#ea580c" :
+                          agentAnalysis.decision?.urgency === "MEDIUM"   ? "#ca8a04" : "#15803d",
+                        border: "1px solid",
+                        borderColor:
+                          agentAnalysis.decision?.urgency === "CRITICAL" ? "#fecaca" :
+                          agentAnalysis.decision?.urgency === "HIGH"     ? "#fed7aa" :
+                          agentAnalysis.decision?.urgency === "MEDIUM"   ? "#fef08a" : "#bbf7d0",
+                      }}
+                    >
+                      {agentAnalysis.decision?.urgency ?? "—"}
+                    </Box>
+                    <Typography sx={{ fontSize: 13, fontWeight: 700, color: "#0f172a", textTransform: "capitalize" }}>
+                      {(agentAnalysis.decision?.recommendation ?? "").replace(/_/g, " ")}
+                    </Typography>
+                  </Stack>
+
+                  {/* Reasoning */}
+                  <Box
+                    sx={{
+                      p: 2,
+                      backgroundColor: "#eff6ff",
+                      borderRadius: "12px",
+                      border: "1px solid #bfdbfe",
+                      mb: 3,
+                    }}
+                  >
+                    <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#1e40af", mb: 0.5 }}>
+                      Reasoning
+                    </Typography>
+                    <Typography sx={{ fontSize: 13, color: "#1e3a8a", lineHeight: 1.6 }}>
+                      {agentAnalysis.decision?.reasoning ?? "—"}
+                    </Typography>
+                  </Box>
+
+                  {/* Risk scores — real engine data, kept unchanged */}
+                  <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", mb: 1.5 }}>
+                    Risk Scores
+                  </Typography>
+                  <Grid container spacing={2} sx={{ mb: 3 }}>
+                    {[
+                      { label: "Geopolitical", value: agentAnalysis.risks?.geo_risk, color: "#dc2626" },
+                      { label: "Weather",      value: agentAnalysis.risks?.weather_risk, color: "#d97706" },
+                      { label: "Macro",        value: agentAnalysis.risks?.macro_risk, color: "#7c3aed" },
+                    ].map(({ label, value, color }) => (
+                      <Grid item xs={4} key={label}>
+                        <Box
+                          sx={{
+                            p: 2,
+                            backgroundColor: "#f8fafc",
+                            borderRadius: "12px",
+                            border: "1px solid #e5e7eb",
+                            textAlign: "center",
+                          }}
+                        >
+                          <Typography sx={{ fontSize: 11, color: "#64748b", mb: 0.5 }}>{label}</Typography>
+                          <Typography sx={{ fontSize: 20, fontWeight: 700, color }}>
+                            {value != null ? `${(value * 100).toFixed(0)}%` : "—"}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    ))}
+                  </Grid>
+
+                  {/* Alternatives */}
+                  {agentAnalysis.decision?.alternatives?.length > 0 && (
+                    <>
+                      <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.5px", mb: 1.5 }}>
+                        Alternative Actions
+                      </Typography>
+                      <Stack spacing={1}>
+                        {agentAnalysis.decision.alternatives.map((alt: string, i: number) => (
+                          <Box
+                            key={i}
+                            sx={{
+                              p: 1.5,
+                              backgroundColor: "#f8fafc",
+                              borderRadius: "10px",
+                              border: "1px solid #e5e7eb",
+                            }}
+                          >
+                            <Typography sx={{ fontSize: 13, color: "#475569" }}>{alt}</Typography>
+                          </Box>
+                        ))}
+                      </Stack>
+                    </>
+                  )}
+                </Paper>
+              )}
+            </>
           )}
         </Box>
       </Collapse>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar(s => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnackbar(s => ({ ...s, open: false }))}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ borderRadius: "12px", fontSize: 13 }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

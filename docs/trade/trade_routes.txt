@@ -1,0 +1,60 @@
+GLOBAL TRADE ROUTES AND RISK GUIDE
+
+=== CHINA TO EUROPE (CN → EU) ===
+Primary Routes:
+- Suez Canal route: 20–25 days transit. Most common. High traffic, moderate piracy risk in Red Sea.
+- Trans-Siberian Rail: 14–18 days. Higher cost. Disrupted by Russia-Ukraine conflict sanctions.
+- Cape of Good Hope: 30–35 days. Avoids Suez surcharges. Used during canal disruptions.
+
+Key Risks on China–EU Routes:
+- Red Sea/Houthi attacks (2024–2025): Significant disruption. 30–40% increase in shipping costs.
+  Many carriers rerouting via Cape of Good Hope, adding 10–14 days and $1,000–$3,000 per TEU.
+- Port congestion: Rotterdam, Hamburg, Felixstowe frequently congested.
+- China export controls on critical minerals and dual-use goods.
+- EU Carbon Border Adjustment Mechanism (CBAM) affecting imports of steel, aluminum, cement, fertilizers.
+- Sanctions on Russian intermediaries disrupting overland routes.
+
+=== CHINA TO USA (CN → US) ===
+Transpacific Routes:
+- West Coast (LA/Long Beach): 14–18 days. High volume. Port congestion risk.
+- East Coast (New York, Savannah): 28–32 days via Panama Canal.
+
+Key Risks:
+- Section 301 tariffs: 25% on $360B+ of Chinese goods; up to 100% on EVs, solar panels, medical devices.
+- Section 232 steel/aluminum tariffs: 25% steel, 10% aluminum.
+- Xinjiang import restrictions (UFLPA): Presumptive ban on goods from Xinjiang.
+- Panama Canal drought restrictions: Reduced vessel transits since 2023, added delays.
+
+=== INCOTERMS RISK ALLOCATION ===
+- EXW: Maximum risk on buyer. Seller not responsible beyond factory gate.
+- FOB: Risk transfers at origin port. Buyer arranges freight and insurance.
+- CIF: Seller provides cost, insurance, freight. Buyer takes risk at destination port.
+- DDP: Maximum seller responsibility. Seller handles all duties, taxes, delivery.
+
+=== PORT RISK RATINGS ===
+HIGH RISK PORTS:
+- Aden (Yemen): Active conflict zone. Avoid.
+- Bandar Abbas (Iran): Sanctions risk. US persons prohibited.
+- Vladivostok (Russia): Sanctioned. EU and US carriers restricted.
+
+MEDIUM RISK PORTS:
+- Shanghai/Ningbo: Periodic congestion, COVID-era disruption history.
+- Colombo (Sri Lanka): Transit hub, financial instability risk.
+
+LOW RISK PORTS:
+- Rotterdam (Netherlands): World-class infrastructure.
+- Singapore: Major transshipment hub. Low corruption.
+- Los Angeles/Long Beach: Largest US import gateway.
+
+=== DELAY RISK FACTORS ===
+- Seasonal typhoons: July–November, South China Sea/Western Pacific. 2–5 day delays.
+- Lunar New Year: January–February. Chinese factories close 2–4 weeks. Pre-holiday surge.
+- Geopolitical escalation: Taiwan Strait tensions increase insurance premiums by 10–25%.
+- Labor strikes: US West Coast ILWU, European port strikes historically cause 5–30 day delays.
+
+=== ROUTE RISK SCORING ===
+China → Germany: HIGH RISK (Red Sea rerouting, EU sanctions complexity, CBAM)
+China → USA: HIGH RISK (Section 301 tariffs, UFLPA, transpacific congestion)
+Mexico → USA: LOW RISK (USMCA preferential access, short transit times)
+Vietnam → USA: MEDIUM RISK (Section 232 circumvention scrutiny, GSP eligibility questions)
+India → EU: LOW-MEDIUM RISK (EU-India FTA negotiations, stable route via Suez or Oman)

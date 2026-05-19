@@ -26,10 +26,10 @@ import TariffImpactMaterials from "./tariffs_engine/TariffHistory"
 import HsLookup from "./tariffs_engine/HsLookup"
 import TariffExposureSnapshot from "./tariffs_engine/TariffExposureSnapshot"
 import PrePOReview from "./PO/PrePOReview"
+import POReviewPage from "./PO/POReviewPage"
 import FinalAnalysisCard from "./PO/FinalAnalysisCard"
 import TornadoChart from "./PO/TornadoChart"
 import SupplyChainBlogPage from "./blogging/supply_chain_disruption"
-import MonteCarloDashboard from "./PO/MonteCarlo"
 import MarginRiskDashboard from "./Supplier/MarginRiskDashboard"
 import SupplierRiskProfile from "./Supplier/SupplierRisk"
 import SupplierRiskDirectory from "./Supplier/SupplierRiskDirectory"
@@ -39,8 +39,7 @@ import SupplierIntake from "./Supplier/InputSupplier"
 import SupplierMarginImpact from "./Supplier/SupplierMarginImpact"
 import SupplierRiskInsights from "./Supplier/AdvancedSupplier"
 import SupplierPortfolioAnalysis from "./Supplier/SupplierPortfolioAnalysis"
-import TradeReviewResult from "./PO/TradeReviewResult"
-import TradeAuthorization from "./PO/TradeAuthorization"
+
 import SupplierProfile from "./Supplier/supplier"
 import Suppliers from "./Supplier/suppliers"
 import SupplierRiskDashboard from "./Supplier/Trial"
@@ -161,17 +160,7 @@ export default function App() {
           }
         />
         
-  <Route
-  path="/TradeAuthorization"
-  element={
-    <ClientSessionProvider>
-      <DashboardAppLayout>
-        <TradeAuthorization />
-      </DashboardAppLayout>
-    </ClientSessionProvider>
-  }
 
-/>
 
         
   <Route
@@ -211,11 +200,20 @@ SupplierIntelligence
   element={
     <ClientSessionProvider>
       <DashboardAppLayout>
-          <PrePOReview />
+        <PrePOReview />
       </DashboardAppLayout>
     </ClientSessionProvider>
+  }
+/>
 
-
+<Route
+  path="/po/review"
+  element={
+    <ClientSessionProvider>
+      <DashboardAppLayout>
+        <POReviewPage />
+      </DashboardAppLayout>
+    </ClientSessionProvider>
   }
 />
 
@@ -395,33 +393,6 @@ SupplierIntelligence
     </ClientSessionProvider>
   }
 />
-
-<Route
-  path="/monte"
-  element={
-    <ClientSessionProvider>
-      <DashboardAppLayout>
-          <MonteCarloDashboard />
-      </DashboardAppLayout>
-    </ClientSessionProvider>
-
-
-  }
-/>
-
-<Route
-  path="/TradeReviewResult"
-  element={
-    <ClientSessionProvider>
-      <DashboardAppLayout>
-          <TradeReviewResult />
-      </DashboardAppLayout>
-    </ClientSessionProvider>
-
-
-  }
-/>
-
 
 <Route
   path="/tariffs_history"
