@@ -8,7 +8,6 @@ import CompliancePainPoints from "./sections/CompliancePainPoints";
 import ComplianceWorkflow from "./sections/Complianceworkflow";
 import Features from "./sections/Features";
 import Comparison from "./sections/Comparison";
-import Pricing from "./sections/PricingPage";
 import Footer from "./sections/Footer";
 
 

@@ -1,28 +1,39 @@
-class HSNode:
-    def __init__(self, code, description, level, parent_code):
-        self.code = code
-        self.description = description
-        self.level = level
-        self.parent_code = parent_code
-        self.children = []
+"""
+hs_classify/loader.py
 
+Attribute-aware HS code classification.
+Pipeline: LLM attribute extraction → hybrid semantic+keyword search
+→ family ranking → 10-digit resolution.
 
-from src.api.hs_classify.embeddings import embed
-from sqlalchemy import text
-from src.api.db import get_db, engine, SessionLocal
+Differs from hs_search (simple semantic lookup) by accepting structured
+product attributes (domain, CNC flag, process type, etc.) to narrow the
+prefix before vector search.
+"""
+
 import json
 import numpy as np
+from openai import OpenAI
+from sqlalchemy import text
 
-machinery_schema = {
+from src.api.db import engine
+from src.api.hs_classify.embeddings import embed
+
+
+# ---------------------------------------------------------------------------
+# Domain schemas
+# ---------------------------------------------------------------------------
+
+MACHINERY_SCHEMA = {
     "product_type": ["machining_center", "milling_machine", "lathe", "grinder"],
     "process": ["milling", "drilling", "turning", "grinding"],
     "cnc": [True, False],
     "axes": ["3", "4", "5", "unknown"],
     "material": ["metal", "wood", "plastic", "unknown"],
     "condition": ["new", "used", "rebuilt", "unknown"],
-    "size_mm": "number_or_null"
+    "size_mm": "number_or_null",
 }
-food_schema = {
+
+FOOD_SCHEMA = {
     "category": ["fruit", "vegetable", "meat", "fish", "dairy", "grain", "beverage", "prepared_food"],
     "subtype": None,  # free text
     "state": ["fresh", "frozen", "dried", "chilled", "live"],
@@ -31,9 +42,10 @@ food_schema = {
     "preservation_method": ["none", "salt", "sugar", "vinegar", "oil", "brine"],
     "packaging": ["bulk", "retail", "vacuum", "canned"],
     "organic": [True, False],
-    "mixture": [True, False]
+    "mixture": [True, False],
 }
-apparel_schema = {
+
+APPAREL_SCHEMA = {
     "type": ["shirt", "pants", "jacket", "dress", "coat", "suit", "underwear", "sweater"],
     "material": ["cotton", "wool", "polyester", "silk", "synthetic", "blended"],
     "knit_or_woven": ["knit", "woven"],
@@ -42,14 +54,18 @@ apparel_schema = {
     "use": ["casual", "formal", "sportswear", "protective"],
     "coated": [True, False],
     "contains_elastane": [True, False],
-    "set": [True, False]
+    "set": [True, False],
 }
 
-SCHEMAS = {
-    "machinery": machinery_schema,
-    "apparel": apparel_schema,
-    "food": food_schema
+DOMAIN_SCHEMAS = {
+    "machinery": MACHINERY_SCHEMA,
+    "apparel": APPAREL_SCHEMA,
+    "food": FOOD_SCHEMA,
 }
+
+# ---------------------------------------------------------------------------
+# Intent anchors + chapter map
+# ---------------------------------------------------------------------------
 
 with open("intent_vectors.json") as f:
     INTENT_ANCHORS = json.load(f)
@@ -62,70 +78,187 @@ INTENT_CHAPTER_MAP = {
     "food": {"01", "02", "03", "04", "07", "08", "09", "16", "19"},
 }
 
-def detect_domain_prefix(query: str):
-    q = query.lower()
+STOPWORDS = {"machine", "machines", "industrial", "equipment", "device"}
 
-    if "mill" in q:
-        return "8459"
-    if "lathe" in q or "turning" in q:
-        return "8458"
-    if "drill" in q:
-        return "8459"
+# ---------------------------------------------------------------------------
+# OpenAI client (shared within this module)
+# ---------------------------------------------------------------------------
 
+_openai_client = OpenAI()
+
+
+# ---------------------------------------------------------------------------
+# Tree node
+# ---------------------------------------------------------------------------
+
+class HSNode:
+    """Single node in the HS code hierarchy tree."""
+
+    def __init__(self, code: str, description: str, level: int, parent_code: str | None):
+        self.code = code
+        self.description = description
+        self.level = level
+        self.parent_code = parent_code
+        self.children: list["HSNode"] = []
+
+
+# ---------------------------------------------------------------------------
+# Utility helpers
+# ---------------------------------------------------------------------------
+
+def cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Return cosine similarity between two embedding vectors."""
+    a_arr = np.array(a)
+    b_arr = np.array(b)
+    return float(np.dot(a_arr, b_arr) / (np.linalg.norm(a_arr) * np.linalg.norm(b_arr)))
+
+
+def normalize_tokens(text: str) -> list[str]:
+    """Lowercase-tokenize a string, removing stopwords and short tokens."""
+    return [
+        t.lower()
+        for t in text.split()
+        if len(t) > 2 and t.lower() not in STOPWORDS
+    ]
+
+
+def keyword_score(query: str, description: str) -> float:
+    """Score a description by keyword overlap with the query."""
+    tokens = normalize_tokens(query)
+    desc = description.lower()
+    score = 5.0 if query.lower() in desc else 0.0
+    score += sum(1 for t in tokens if t in desc)
+    return score
+
+
+def detect_gender(query_lower: str) -> str | None:
+    """Return 'male', 'female', 'infant', or None based on query terms."""
+    if any(x in query_lower for x in ["men", "man", "male", "boys"]):
+        return "male"
+    if any(x in query_lower for x in ["women", "woman", "female", "girls"]):
+        return "female"
+    if any(x in query_lower for x in ["infant", "baby", "babies"]):
+        return "infant"
     return None
 
-def cosine_similarity(a, b):
-    a = np.array(a)
-    b = np.array(b)
-    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+
+def expand_query(query: str) -> str:
+    """Expand abbreviations in the query for better embedding coverage."""
+    q = query.lower()
+    if "cnc" in q:
+        q += " numerically controlled"
+    return q
 
 
-def detect_intent(query_embedding):
+def safe_json_parse(text: str) -> dict:
+    """Parse JSON from a string, with a fallback substring search."""
+    try:
+        return json.loads(text)
+    except Exception:
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        try:
+            return json.loads(text[start:end])
+        except Exception:
+            return {}
+
+
+# ---------------------------------------------------------------------------
+# Domain / prefix detection
+# ---------------------------------------------------------------------------
+
+def detect_domain(query: str) -> str:
+    """Return a domain key ('machinery', 'apparel', 'food') for the query."""
+    q = query.lower()
+    if any(x in q for x in ["cnc", "machine", "lathe", "mill"]):
+        return "machinery"
+    if any(x in q for x in ["shirt", "jacket", "pants"]):
+        return "apparel"
+    if any(x in q for x in ["apple", "meat", "fish", "rice"]):
+        return "food"
+    return "machinery"  # default
+
+
+def detect_domain_prefix(query: str) -> str | None:
+    """Return a hard-coded HS chapter prefix for known machinery keywords."""
+    q = query.lower()
+    if "lathe" in q or "turning" in q:
+        return "8458"
+    if "mill" in q or "drill" in q:
+        return "8459"
+    return None
+
+
+def choose_prefix_from_attributes(attrs: dict) -> str | None:
+    """Map structured product attributes to a chapter/heading prefix."""
+    if attrs.get("cnc") and attrs.get("process") == "milling":
+        return "8457"  # machining center
+    if attrs.get("process") == "milling":
+        return "8459"
+    if attrs.get("process") == "turning":
+        return "8458"
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Intent detection
+# ---------------------------------------------------------------------------
+
+def detect_intent(query_embedding: list[float]) -> str:
+    """Return the intent label whose anchor vector is closest to the query."""
     best_intent = None
-    best_score = -1
+    best_score = -1.0
     for intent, anchor_vec in INTENT_ANCHORS.items():
         score = cosine_similarity(query_embedding, anchor_vec)
         if score > best_score:
             best_score = score
             best_intent = intent
     return best_intent
-from openai import OpenAI
 
-client = OpenAI()
 
-def improve_description_llm(description: str) -> str:
-    prompt = f"""
-    Rewrite the product description into a precise commercial description.
+# ---------------------------------------------------------------------------
+# DB helpers
+# ---------------------------------------------------------------------------
 
-    RULES:
-    - One sentence only
-    - Include product type + function + use
-    - NO HS codes
-    - NO hierarchy (no arrows, no categories)
-    - Keep it factual, no guessing
+def load_hs_tree() -> dict[str, HSNode]:
+    """Load the full HS hierarchy from the DB and return a code→HSNode map."""
+    nodes: dict[str, HSNode] = {}
 
-    INPUT:
-    {description}
-    """
+    sql = text("""
+        SELECT clean_hs, description, level
+        FROM tariffs_basic_data
+        WHERE clean_hs IS NOT NULL
+    """)
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You write clean commercial product descriptions."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0
-        )
+    # Pass 1: create all nodes
+    with engine.connect() as conn:
+        for r in conn.execute(sql):
+            code = str(r.clean_hs).replace(".", "").strip()
+            nodes[code] = HSNode(
+                code=code,
+                description=r.description,
+                level=r.level,
+                parent_code=None,
+            )
 
-        return response.choices[0].message.content.strip()
+    # Pass 2: link parents (longest matching prefix)
+    for code, node in nodes.items():
+        for length in [8, 6, 4, 2]:
+            parent_code = code[:length]
+            if parent_code != code and parent_code in nodes:
+                node.parent_code = parent_code
+                nodes[parent_code].children.append(node)
+                break
 
-    except Exception as e:
-        print("LLM ERROR:", e)
-        return description  # fallback
+    return nodes
 
-def retrieve_candidates(query_embedding, prefix=None, limit=120):
 
+def retrieve_candidates(
+    query_embedding: list[float],
+    prefix: str | None = None,
+    limit: int = 120,
+) -> list:
+    """Fetch the top-N most semantically similar HS rows from the DB."""
     embedding_str = "[" + ",".join(map(str, query_embedding)) + "]"
 
     if prefix:
@@ -158,74 +291,10 @@ def retrieve_candidates(query_embedding, prefix=None, limit=120):
 
     with engine.connect() as conn:
         return conn.execute(sql, params).fetchall()
-def load_hs_tree():
-    nodes = {}
-
-    sql = text("""
-        SELECT clean_hs, description, level
-        FROM tariffs_basic_data
-        WHERE clean_hs IS NOT NULL
-    """)
-
-    # PASS 1: create all nodes first
-    with engine.connect() as conn:
-        for r in conn.execute(sql):
-            code = str(r.clean_hs).replace(".", "").strip()
-
-            nodes[code] = HSNode(
-                code=code,
-                description=r.description,
-                level=r.level,
-                parent_code=None
-            )
-
-    # PASS 2: link parents after all nodes exist
-    for code, node in nodes.items():
-        for length in [8, 6, 4, 2]:
-            parent_code = code[:length]
-
-            if parent_code != code and parent_code in nodes:
-                node.parent_code = parent_code
-                nodes[parent_code].children.append(node)
-                break
-
-    return nodes
-
-STOPWORDS = {"machine", "machines", "industrial", "equipment", "device"}
-
-def normalize(text: str) -> list[str]:
-    return [
-        t.lower()
-        for t in text.split()
-        if len(t) > 2 and t.lower() not in STOPWORDS
-    ]
 
 
-def keyword_score(query: str, description: str) -> float:
-    tokens = normalize(query)
-    desc = description.lower()
-    score = 0
-
-    if query.lower() in desc:
-        score += 5
-
-    for t in tokens:
-        if t in desc:
-            score += 1
-
-    return score
-
-
-def detect_gender(query_lower: str):
-    if any(x in query_lower for x in ["men", "man", "male", "boys"]):
-        return "male"
-    if any(x in query_lower for x in ["women", "woman", "female", "girls"]):
-        return "female"
-    if any(x in query_lower for x in ["infant", "baby", "babies"]):
-        return "infant"
-    return None
-
-def get_10_digit_children(family_code: str):
+def get_10_digit_children(family_code: str) -> list[dict]:
+    """Return all 10-digit HS codes that start with *family_code*."""
     sql = text("""
         SELECT clean_hs, description
         FROM tariffs_basic_data
@@ -233,62 +302,131 @@ def get_10_digit_children(family_code: str):
           AND LENGTH(clean_hs) = 10
         ORDER BY clean_hs
     """)
-
     with engine.connect() as conn:
-        rows = conn.execute(
-            sql,
-            {"prefix": f"{family_code}%"}
-        ).fetchall()
+        rows = conn.execute(sql, {"prefix": f"{family_code}%"}).fetchall()
+    return [{"hs_code": r.clean_hs, "description": r.description} for r in rows]
 
-    return [
-        {
-            "hs_code": r.clean_hs,
-            "description": r.description
-        }
-        for r in rows
-    ]
 
-def detect_domain(query):
-    q = query.lower()
+# ---------------------------------------------------------------------------
+# Hierarchy helpers
+# ---------------------------------------------------------------------------
 
-    if any(x in q for x in ["cnc", "machine", "lathe", "mill"]):
-        return "machinery"
+def get_full_chain(node: HSNode, hs_tree: dict[str, HSNode]) -> list[dict]:
+    """Walk the parent chain from *node* to root and return an ordered list."""
+    chain = []
+    current = node
+    while current:
+        chain.append({
+            "hs_code": current.code,
+            "description": current.description,
+            "level": current.level,
+        })
+        if not current.parent_code:
+            break
+        current = hs_tree.get(current.parent_code)
+    return list(reversed(chain))
 
-    if any(x in q for x in ["shirt", "jacket", "pants"]):
-        return "apparel"
 
-    if any(x in q for x in ["apple", "meat", "fish", "rice"]):
-        return "food"
+def build_full_description(node: HSNode, hs_tree: dict[str, HSNode]) -> str:
+    """Concatenate all ancestor descriptions into a single search string."""
+    chain = get_full_chain(node, hs_tree)
+    return " ".join(c["description"] for c in chain if c["description"])
 
-    return "machinery"  # fallback
 
-def expand_query(query: str):
-    q = query.lower()
-    if "cnc" in q:
-        q += " numerically controlled"
-    return q
+# ---------------------------------------------------------------------------
+# LLM helpers
+# ---------------------------------------------------------------------------
 
-def choose_prefix_from_attributes(attrs: dict):
-    # machinery logic
+def improve_description_llm(description: str) -> str:
+    """Rewrite a raw HS description into a concise commercial product description."""
+    prompt = (
+        "Rewrite the product description into a precise commercial description.\n\n"
+        "RULES:\n"
+        "- One sentence only\n"
+        "- Include product type + function + use\n"
+        "- NO HS codes\n"
+        "- NO hierarchy (no arrows, no categories)\n"
+        "- Keep it factual, no guessing\n\n"
+        f"INPUT:\n{description}"
+    )
+    try:
+        response = _openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You write clean commercial product descriptions."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception:
+        return description  # fallback to original
 
-    if attrs.get("cnc") and attrs.get("process") == "milling":
-        return "8457"   # machining center (CORRECT)
 
-    if attrs.get("process") == "milling":
-        return "8459"
+def validate_attributes(attrs: dict, schema: dict) -> dict:
+    """Filter/normalise *attrs* so every value conforms to *schema*."""
+    validated = {}
+    for key, allowed in schema.items():
+        value = attrs.get(key)
+        if isinstance(allowed, list):
+            validated[key] = value if value in allowed else "unknown"
+        else:
+            validated[key] = value  # free-text or numeric — pass through
+    return validated
 
-    if attrs.get("process") == "turning":
-        return "8458"
-    
 
-    return None
+def ai_extract_attributes(query: str, schema: dict) -> dict:
+    """Use OpenAI to extract structured product attributes from *query*."""
+    schema_lines = []
+    for key, val in schema.items():
+        if isinstance(val, list):
+            schema_lines.append(f"{key}: {val}")
+        else:
+            schema_lines.append(f"{key}: free value ({val})")
+    schema_description = "\n".join(schema_lines)
 
-def hybrid_search(query: str, hs_tree: dict, attrs: dict):
+    prompt = (
+        "Extract structured attributes from the product description.\n\n"
+        "STRICT RULES:\n"
+        "- Return ONLY valid JSON\n"
+        "- Use ONLY values from the schema where applicable\n"
+        "- If unknown, use \"unknown\" or null\n"
+        "- Do NOT add extra fields\n\n"
+        f"SCHEMA:\n{schema_description}\n\n"
+        f"INPUT:\n\"{query}\""
+    )
+    try:
+        response = _openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a strict data extraction engine."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0,
+        )
+        raw = response.choices[0].message.content.strip()
+        attrs = safe_json_parse(raw)
+        return validate_attributes(attrs, schema)
+    except Exception:
+        return {}
+
+
+# ---------------------------------------------------------------------------
+# Core search
+# ---------------------------------------------------------------------------
+
+def hybrid_search(query: str, hs_tree: dict[str, HSNode], attrs: dict) -> dict:
+    """
+    Attribute-aware hybrid search.
+
+    Combines semantic similarity, keyword overlap, level specificity, intent
+    chapter boosting, and gender filtering.  Returns top-5 HS families.
+    """
     query = expand_query(query)
     ql = query.lower()
     gender_intent = detect_gender(ql)
 
-    # Numeric shortcut
+    # Fast path for direct HS code lookups
     if query.replace(".", "").isdigit():
         node = hs_tree.get(query)
         if node:
@@ -298,365 +436,165 @@ def hybrid_search(query: str, hs_tree: dict, attrs: dict):
                     "hs_code": node.code,
                     "description": node.description,
                     "level": node.level,
-                    "hierarchy": get_full_chain(node, hs_tree)
-                }]
+                    "hierarchy": get_full_chain(node, hs_tree),
+                }],
             }
 
-    # STEP 1: expand query
-
-    # STEP 2: embed
     query_embedding = embed(query)
-
-    # STEP 3: detect intent
     intent = detect_intent(query_embedding)
-
-    # STEP 4: detect domain (CRITICAL)
     prefix = choose_prefix_from_attributes(attrs)
-
-    print("DEBUG PREFIX:", prefix)  # ← add this
-
-    # STEP 5: restrict search space
     rows = retrieve_candidates(query_embedding, prefix=prefix, limit=200)
 
-    results = []
-    tokens = normalize(query)
+    tokens = normalize_tokens(query)
     main_token = max(tokens, key=len) if tokens else None
 
+    scored_results = []
     for r in rows:
         node = hs_tree.get(r.clean_hs)
-
-        if node:
-            full_desc = build_full_description(node, hs_tree)
-        else:
-            full_desc = r.description or ""
-
+        full_desc = build_full_description(node, hs_tree) if node else (r.description or "")
         desc_lower = full_desc.lower()
 
-        kw = keyword_score(query, full_desc)
-        kw_norm = min(kw / 10, 1)
-
+        kw_norm = min(keyword_score(query, full_desc) / 10, 1.0)
         level_boost = (r.level or 0) * 0.25
 
-        semantic_part = 0.75 * (r.semantic_score or 0)
-        keyword_part = 0.20 * kw_norm
-        specificity_part = 0.05 * level_boost
-
-        final = semantic_part + keyword_part + specificity_part
+        score = (
+            0.75 * (r.semantic_score or 0)
+            + 0.20 * kw_norm
+            + 0.05 * level_boost
+        )
 
         if "milling" in ql and "milling" in desc_lower:
-            final += 0.8
-        chapter = r.clean_hs[:2]
+            score += 0.8
 
+        chapter = r.clean_hs[:2]
         if intent in INTENT_CHAPTER_MAP:
             if chapter in INTENT_CHAPTER_MAP[intent]:
-                final += 0.35
+                score += 0.35
             else:
-                final -= 0.6
+                score -= 0.6
 
-
-        # Gender logic
+        # Gender boosting
         if gender_intent == "male":
-            if any(x in desc_lower for x in ["men", "boys"]):
-                final += 0.35
-            else:
-                final -= 0.15
-
+            score += 0.35 if any(x in desc_lower for x in ["men", "boys"]) else -0.15
         elif gender_intent == "female":
-            if any(x in desc_lower for x in ["women", "girls"]):
-                final += 0.35
-            else:
-                final -= 0.15
-
+            score += 0.35 if any(x in desc_lower for x in ["women", "girls"]) else -0.15
         elif gender_intent == "infant":
-            if "infant" in desc_lower:
-                final += 0.35
-            else:
-                final -= 0.15
-
+            score += 0.35 if "infant" in desc_lower else -0.15
         else:
             if any(x in desc_lower for x in ["men", "women", "boys", "girls", "infant"]):
-                final += 0.15
+                score += 0.15
 
         if "parts" in desc_lower and "parts" not in ql:
-            final -= 0.1
-
+            score -= 0.1
         if len(desc_lower.split()) <= 3:
-            final -= 0.5
-
+            score -= 0.5
         if main_token and main_token in desc_lower:
-            final += 0.2
+            score += 0.2
 
-        results.append({
+        scored_results.append({
             "hs_code": r.clean_hs,
             "description": full_desc,
             "level": r.level,
-            "score": final
+            "score": score,
         })
 
-    results.sort(key=lambda x: x["score"], reverse=True)
-    top_candidates = results[:50]
+    scored_results.sort(key=lambda x: x["score"], reverse=True)
 
-    families = {}
-
-    for r in top_candidates:
+    # Group top candidates into 4-digit families
+    families: dict[str, dict] = {}
+    for r in scored_results[:50]:
         family = r["hs_code"][:4]
-        print(family)
         if family not in families:
             families[family] = {
                 "family_code": family,
                 "family_description": hs_tree[family].description if family in hs_tree else None,
                 "max_score": r["score"],
-                "products": []
+                "products": [],
             }
         node = hs_tree.get(r["hs_code"])
-
-        hierarchy = get_full_chain(node, hs_tree) if node else []
         families[family]["products"].append({
             "hs_code": r["hs_code"],
             "description": r["description"],
             "level": r["level"],
             "score": r["score"],
-            "hierarchy": hierarchy
+            "hierarchy": get_full_chain(node, hs_tree) if node else [],
         })
+        families[family]["max_score"] = max(families[family]["max_score"], r["score"])
 
-        families[family]["max_score"] = max(
-            families[family]["max_score"],
-            r["score"]
-        )
+    top_families = sorted(families.values(), key=lambda x: x["max_score"], reverse=True)[:5]
 
-    sorted_families = sorted(
-        families.values(),
-        key=lambda x: x["max_score"],
-        reverse=True
-    )
-
-    final_families = sorted_families[:5]
-
-    for fam in final_families:
-        fam["children"] = sorted(
-            fam["products"],
-            key=lambda x: x["score"],
-            reverse=True
-        )[:5]
+    for fam in top_families:
+        fam["children"] = sorted(fam["products"], key=lambda x: x["score"], reverse=True)[:5]
 
     return {
-    "query": query,
-    "results": [
-        {
-            "hs_code": fam["family_code"],
-            "description": fam["family_description"],
-            "score": fam["max_score"]
-        }
-        for fam in final_families
-    ]
-}
-
-
-
-def group_by_parent(results, hs_tree):
-    grouped = {}
-
-    for r in results:
-        node = hs_tree[r["hs_code"]]
-        parent_code = node.parent_code or "ROOT"
-        parent_node = hs_tree.get(parent_code)
-
-        if parent_code not in grouped:
-            grouped[parent_code] = {
-                "parent_code": parent_code,
-                "parent_description": parent_node.description if parent_node else None,
-                "products": []
+        "query": query,
+        "results": [
+            {
+                "hs_code": fam["family_code"],
+                "description": fam["family_description"],
+                "score": fam["max_score"],
             }
-
-        grouped[parent_code]["children"].append(r)
-
-    return grouped
-
-def build_full_description(node, hs_tree):
-    chain = get_full_chain(node, hs_tree)
-    return " ".join([c["description"] for c in chain if c["description"]])
-
-def get_full_chain(node, hs_tree):
-    chain = []
-    current = node
-
-    while current:
-        chain.append({
-            "hs_code": current.code,
-            "description": current.description,
-            "level": current.level
-        })
+            for fam in top_families
+        ],
+    }
 
 
-        parent_code = current.parent_code
+# ---------------------------------------------------------------------------
+# 10-digit resolution
+# ---------------------------------------------------------------------------
 
-        if not parent_code:
-            break
-
-        # 🔥 IMPORTANT: use EXACT match (no padding, no slicing)
-        current = hs_tree.get(parent_code)
-
-    return list(reversed(chain))
-
-import json
-from openai import OpenAI
-
-client = OpenAI()
-
-def validate_attributes(attrs: dict, schema: dict) -> dict:
-    validated = {}
-
-    for key, allowed in schema.items():
-        value = attrs.get(key)
-
-        # If schema defines allowed values
-        if isinstance(allowed, list):
-            if value in allowed:
-                validated[key] = value
-            else:
-                validated[key] = "unknown"
-
-        else:
-            # free text / numeric
-            validated[key] = value if value is not None else None
-
-    return validated
-
-def safe_json_parse(text: str) -> dict:
-    try:
-        return json.loads(text)
-    except:
-        # fallback: try to extract JSON manually
-        start = text.find("{")
-        end = text.rfind("}") + 1
-        try:
-            return json.loads(text[start:end])
-        except:
-            return {}
-        
-def ai_extract_attributes(query: str, schema: dict) -> dict:
+def resolve_to_10_digit(query: str, hs_tree: dict[str, HSNode]) -> list[dict] | None:
     """
-    Uses OpenAI to extract structured attributes based on a schema.
-    """
+    Full pipeline: attribute extraction → family search → 10-digit ranking.
 
-    # Convert schema to readable format for the model
-    schema_description = ""
-    for key, val in schema.items():
-        if isinstance(val, list):
-            schema_description += f"{key}: {val}\n"
-        else:
-            schema_description += f"{key}: free value ({val})\n"
-
-    prompt = f"""
-Extract structured attributes from the product description.
-
-STRICT RULES:
-- Return ONLY valid JSON
-- Use ONLY values from the schema where applicable
-- If unknown, use "unknown" or null
-- Do NOT add extra fields
-
-SCHEMA:
-{schema_description}
-
-INPUT:
-"{query}"
-"""
-
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a strict data extraction engine."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0
-        )
-
-        raw_output = response.choices[0].message.content.strip()
-
-        # Parse JSON safely
-        attrs = safe_json_parse(raw_output)
-
-        # Validate against schema
-        attrs = validate_attributes(attrs, schema)
-
-        return attrs
-
-    except Exception as e:
-      
-        return {}
-    
-def resolve_to_10_digit(query: str, hs_tree: dict):
-    """
-    Takes a query and returns the best 10-digit HS code.
+    Returns up to 5 scored 10-digit HS code candidates, or None.
     """
     domain = detect_domain(query)
-    schema = SCHEMAS[domain]
-
+    schema = DOMAIN_SCHEMAS[domain]
     attrs = ai_extract_attributes(query, schema)
 
     results = hybrid_search(query, hs_tree, attrs)
-    # results = hybrid_search1(query, hs_tree)
     if not results or not results.get("results"):
         return None
 
-    top_family = results["results"][0]
-    family_code = top_family["hs_code"]  
-
-    # 🔥 Get all 10-digit children
+    family_code = results["results"][0]["hs_code"]
     candidates = get_10_digit_children(family_code)
-
     if not candidates:
         return None
 
-    # Optional: rank them again using embeddings
-    query = expand_query(query)
-    query_embedding = embed(query)
+    # Re-rank 10-digit children by embedding similarity
+    expanded_query = expand_query(query)
+    query_embedding = embed(expanded_query)
 
-    scored = []
+    scored: list[dict] = []
     for c in candidates:
         code = str(c["hs_code"]).replace(".", "").strip()
 
+        # Find the deepest ancestor node present in the tree
         node = None
-
-        # Try progressively shorter prefixes
         for length in [10, 8, 6, 4, 2]:
-            candidate = code[:length]
-
-            if candidate in hs_tree:
-                node = hs_tree[candidate]
+            candidate_key = code[:length]
+            if candidate_key in hs_tree:
+                node = hs_tree[candidate_key]
                 break
 
         if node:
             chain = get_full_chain(node, hs_tree)
-            hs_desc = " ".join([x["description"] for x in chain if x["description"]])
-            print("Herreeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee")
-            print(chain)
+            hs_desc = " ".join(x["description"] for x in chain if x["description"])
+            full_desc = " → ".join(x["description"] for x in chain if x["description"])
         else:
-            hs_desc = c["description"]
+            hs_desc = c["description"] or ""
+            full_desc = hs_desc
 
-        desc_for_embedding = query + " " + hs_desc
+        desc_for_embedding = expanded_query + " " + hs_desc
         desc_embedding = embed(desc_for_embedding)
         score = cosine_similarity(query_embedding, desc_embedding)
-
-        if node:
-            chain = get_full_chain(node, hs_tree)
-   
-        else:
-            print("NODE NOT FOUND")
-        if node:
-            chain = get_full_chain(node, hs_tree)
-            full_desc = " → ".join([x["description"] for x in chain if x["description"]])
-        else:
-            full_desc = hs_desc
 
         scored.append({
             "hs_code": c["hs_code"],
             "description": full_desc,
-            "score": score
+            "score": score,
         })
 
     scored.sort(key=lambda x: x["score"], reverse=True)
-
-    return scored[:5]  # top 5 best 10-digit matches
+    return scored[:5]

@@ -15,18 +15,12 @@ import HsLookup from "./HsLookup"
 import TariffExposureSnapshot from "./TariffExposureSnapshot";
 import { calculateDuty,   exportTariffPdf,type DutyCalculationResponse } from "@/api/tariffClient";
 import { useState } from "react";
-import { usePaymentStatus } from "@/api/payment";
-import { useEffect } from "react";
-import SearchIcon from "@mui/icons-material/Search";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import NextActionsPanel from "./NextActionsPanel"
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { useNavigate } from "react-router-dom";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 import { explainTariff } from "@/api/client";
 export default function TariffCalculator() {
-  const { paid, loading: paymentLoading } = usePaymentStatus();
   const navigate = useNavigate();
   const [hsCode, setHsCode] = useState("");
   const [origin, setOrigin] = useState("CN");
@@ -894,43 +888,5 @@ transition: "all 0.3s ease",
 
       </Box>
     </Box>
-  );
-}
-  function UpgradeOverlay() {
-const navigate = useNavigate();  
-
-  return (
-    <Paper
-      elevation={0}
-      sx={{
-        p: 3,
-       borderRadius: "16px",
-        border: "1px dashed #cbd5e1",
-        textAlign: "center",
-        maxWidth: 300,
-        bgcolor: "#ffffff",
-      }}
-    >
-      <LockOutlinedIcon
-        sx={{ fontSize: 64, color: "#2563eb", mb: 1 }}
-      />
-
-      <Typography fontWeight={600} mb={0.5}>
-        Detailed Tariff Breakdown
-      </Typography>
-
-      <Typography fontSize={13} color="text.secondary" mb={2}>
-        Unlock Section 301 details and exports with the Perform plan.
-      </Typography>
-
-      <Button
-        variant="contained"
-        fullWidth
-        onClick={() => navigate("/pricing")}
-        sx={{ textTransform: "none", fontWeight: 600 }}
-      >
-        Upgrade Plan
-      </Button>
-    </Paper>
   );
 }

@@ -9,7 +9,7 @@ class HSNode:
 
 from src.api.hs_search.embeddings import embed
 from sqlalchemy import text
-from src.api.db import get_db, engine, SessionLocal
+from src.api.db import engine
 import json
 import numpy as np
 
