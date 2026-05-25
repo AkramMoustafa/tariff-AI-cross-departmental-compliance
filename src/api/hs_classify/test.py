@@ -1,6 +1,6 @@
-from src.api.New1.loader import resolve_to_10_digit
-from src.api.New1.loader import load_hs_tree
-from src.api.New1.loader import improve_description_llm
+from src.api.hs_classify.loader import resolve_to_10_digit
+from src.api.hs_classify.loader import load_hs_tree
+from src.api.hs_classify.loader import improve_description_llm
 
 hs_tree = load_hs_tree()
 

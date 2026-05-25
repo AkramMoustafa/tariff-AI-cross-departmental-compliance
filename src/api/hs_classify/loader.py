@@ -7,7 +7,7 @@ class HSNode:
         self.children = []
 
 
-from src.api.New1.embeddings import embed
+from src.api.hs_classify.embeddings import embed
 from sqlalchemy import text
 from src.api.db import get_db, engine, SessionLocal
 import json

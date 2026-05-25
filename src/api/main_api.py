@@ -34,11 +34,11 @@ import logging
 logger = logging.getLogger(__name__)
 from src.api.country_risk.services import run_news_pipeline
 from src.api.country_risk.routes import router as news_risk_router
-from src.api.New.newRoute import router as hs_router
+from src.api.hs_search.newRoute import router as hs_router
 
-from src.api.New.tariffmodel import init_hs
-from src.api.New1.newRoute import router as hs_router1
-from src.api.New.tariffmodel import init_hs
+from src.api.hs_search.tariffmodel import init_hs
+from src.api.hs_classify.newRoute import router as hs_router1
+from src.api.hs_search.tariffmodel import init_hs
 
 from  src.api.stripe.stripe_route import router as stripe_router
 

@@ -2,7 +2,7 @@ import csv
 import sys
 from sqlalchemy import create_engine, text
 import os
-from src.api.New.loader import load_hs_tree
+from src.api.hs_search.loader import load_hs_tree
 import json
 import re
 from sqlalchemy import text

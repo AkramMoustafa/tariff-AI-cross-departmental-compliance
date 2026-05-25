@@ -1,11 +1,11 @@
 # api/routes/hs.py
 from fastapi import APIRouter, Query
-from src.api.New1.loader import hybrid_search
-import src.api.New1.tariffmodel as tariffmodel
-from src.api.New1.loader import get_10_digit_children
-from src.api.New1.loader import resolve_to_10_digit
-from src.api.New1.loader import load_hs_tree
-from src.api.New1.loader import improve_description_llm
+from src.api.hs_classify.loader import hybrid_search
+import src.api.hs_classify.tariffmodel as tariffmodel
+from src.api.hs_classify.loader import get_10_digit_children
+from src.api.hs_classify.loader import resolve_to_10_digit
+from src.api.hs_classify.loader import load_hs_tree
+from src.api.hs_classify.loader import improve_description_llm
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/hs1", tags=["HS Lookup"])

@@ -1,8 +1,8 @@
 # api/routes/hs.py
 from fastapi import APIRouter, Query,Depends
-from src.api.New.loader import hybrid_search
-import src.api.New.tariffmodel as tariffmodel
-from src.api.New.loader import get_10_digit_children
+from src.api.hs_search.loader import hybrid_search
+import src.api.hs_search.tariffmodel as tariffmodel
+from src.api.hs_search.loader import get_10_digit_children
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 

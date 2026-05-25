@@ -1,5 +1,5 @@
-from src.api.New.loader import resolve_to_10_digit
-import src.api.New.tariffmodel as tariffmodel
+from src.api.hs_search.loader import resolve_to_10_digit
+import src.api.hs_search.tariffmodel as tariffmodel
 
 hs_tree = tariffmodel.HS_TREE
 
